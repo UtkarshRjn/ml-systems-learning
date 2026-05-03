@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>State-Space Models, Explained Simply</title>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2030;
+    --text: #e7ecf3;
+    --muted: #a3b1c6;
+    --accent: #7cc4ff;
+    --accent2: #ffb86b;
+    --good: #6ee7b7;
+    --line: #2a3346;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.65;
+  }
+  .wrap { max-width: 820px; margin: 0 auto; padding: 48px 24px 80px; }
+  h1 { font-size: 2.2rem; margin: 0 0 8px; }
+  h2 { color: var(--accent); margin-top: 2.4em; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+  h3 { color: var(--accent2); margin-top: 1.6em; }
+  .subtitle { color: var(--muted); font-size: 1.05rem; margin-bottom: 32px; }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 18px 22px;
+    margin: 18px 0;
+  }
+  .analogy {
+    border-left: 4px solid var(--accent2);
+    background: #1f2535;
+    padding: 14px 18px;
+    margin: 18px 0;
+    border-radius: 4px;
+  }
+  .analogy::before {
+    content: "Analogy";
+    display: block;
+    font-weight: 700;
+    color: var(--accent2);
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .key {
+    border-left: 4px solid var(--good);
+    background: #1c2a26;
+    padding: 14px 18px;
+    margin: 18px 0;
+    border-radius: 4px;
+  }
+  .key::before {
+    content: "Key idea";
+    display: block;
+    font-weight: 700;
+    color: var(--good);
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  code {
+    background: #0a0f1a;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.92em;
+    color: #ffd29a;
+  }
+  pre {
+    background: #0a0f1a;
+    border: 1px solid var(--line);
+    padding: 14px 16px;
+    border-radius: 8px;
+    overflow-x: auto;
+    color: #d6dceb;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 14px 0;
+  }
+  th, td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; }
+  th { color: var(--accent); font-weight: 600; }
+  .demo {
+    background: #0a0f1a;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 20px;
+    margin: 20px 0;
+  }
+  .demo label { display: block; margin: 10px 0 4px; color: var(--muted); font-size: 0.92rem; }
+  .demo input[type="range"] { width: 100%; }
+  .demo button {
+    background: var(--accent);
+    color: #0a0f1a;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    margin: 4px 6px 4px 0;
+  }
+  .demo button:hover { background: #a8d6ff; }
+  canvas { background: #050810; border-radius: 6px; display: block; margin-top: 12px; max-width: 100%; }
+  .pill {
+    display: inline-block;
+    background: #2a3346;
+    color: var(--muted);
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    margin-right: 4px;
+  }
+  .nav {
+    position: sticky; top: 0;
+    background: rgba(15,20,32,0.92);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line);
+    padding: 10px 24px;
+    font-size: 0.9rem;
+    z-index: 10;
+  }
+  .nav a { color: var(--muted); margin-right: 18px; text-decoration: none; }
+  .nav a:hover { color: var(--accent); }
+  .footnote { color: var(--muted); font-size: 0.9rem; }
+  .quiz {
+    background: #1f2535;
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin: 18px 0;
+  }
+  .quiz .q { font-weight: 600; margin-bottom: 8px; }
+  .quiz button {
+    background: #2a3346; color: var(--text); border: 1px solid var(--line);
+    padding: 6px 12px; border-radius: 6px; margin: 4px 6px 4px 0; cursor: pointer;
+  }
+  .quiz button.right { background: #1c2a26; border-color: var(--good); color: var(--good); }
+  .quiz button.wrong { background: #2a1c1c; border-color: #ff8a8a; color: #ff8a8a; }
+  .reveal { display: none; margin-top: 8px; color: var(--muted); }
+  .reveal.show { display: block; }
+</style>
+</head>
+<body>
+
+<div class="nav">
+  <a href="#intro">Intro</a>
+  <a href="#rnn">RNN refresher</a>
+  <a href="#math">The math</a>
+  <a href="#two-modes">Two modes</a>
+  <a href="#demo">Try it</a>
+  <a href="#vs">vs Transformers</a>
+  <a href="#family">Family tree</a>
+  <a href="#quiz">Quiz</a>
+</div>
+
+<div class="wrap">
+
+<h1>State-Space Models, in Plain English</h1>
+<p class="subtitle">
+  A friendly tutorial for an undergrad who already knows what a neural network and a Transformer are.
+  No control theory background required.
+</p>
+
+<!-- ====================================================== -->
+<h2 id="intro">1. The one-sentence pitch</h2>
+<p>
+  A <b>State-Space Model (SSM)</b> is a neural network that reads a sequence one token at a time
+  and keeps a small "memory" vector — called the <b>state</b> — that summarizes everything it has seen so far.
+</p>
+
+<div class="analogy">
+  Imagine you're watching a movie and taking notes on a sticky note. You can't write down every frame,
+  so each new scene you see, you <i>update</i> your sticky note: keep some old notes, add some new info, throw out the rest.
+  At any moment, the sticky note is your <b>state</b> — a compressed summary of the whole movie so far.
+  When someone asks "what's happening?", you read off your sticky note. That's an SSM.
+</div>
+
+<!-- ====================================================== -->
+<h2 id="rnn">2. Wait, isn't that just an RNN?</h2>
+<p>
+  Yes — basically! An SSM is the great-grandchild of the RNN, with three big upgrades that make it work
+  on modern GPUs and modern-scale data. If you understand RNNs, you understand 80% of SSMs already.
+</p>
+
+<p>Here's an RNN in one line:</p>
+<pre>h_t = tanh( W · h_{t-1} + U · x_t )       # update memory
+y_t = V · h_t                              # produce output</pre>
+
+<p>And here's an SSM in one line:</p>
+<pre>h_t = A · h_{t-1} + B · x_t              # update memory  (notice: NO tanh!)
+y_t = C · h_t                              # produce output</pre>
+
+<div class="key">
+  The big difference: an SSM uses a <b>linear</b> update (no <code>tanh</code>, no <code>sigmoid</code>).
+  That sounds like a downgrade — and it would be, if SSMs stopped there. But linearity is exactly what unlocks
+  the cool tricks below. The non-linearity gets added back <i>between</i> SSM layers, like in a Transformer
+  the non-linearity lives in the MLP between attention layers.
+</div>
+
+<!-- ====================================================== -->
+<h2 id="math">3. The four matrices: A, B, C, D</h2>
+<p>An SSM is defined by 4 matrices. They each have a job:</p>
+
+<table>
+  <tr><th>Matrix</th><th>Job</th><th>Plain English</th></tr>
+  <tr><td><code>A</code></td><td>state → state</td><td>"How does my memory decay / mix when I move forward one step?"</td></tr>
+  <tr><td><code>B</code></td><td>input → state</td><td>"How much of the new token gets written into memory?"</td></tr>
+  <tr><td><code>C</code></td><td>state → output</td><td>"How do I read out an answer from my memory?"</td></tr>
+  <tr><td><code>D</code></td><td>input → output (skip)</td><td>"A direct shortcut from input to output, skipping memory."</td></tr>
+</table>
+
+<p>Putting them together:</p>
+<pre>h_t = A · h_{t-1} + B · x_t
+y_t = C · h_t       + D · x_t</pre>
+
+<div class="analogy">
+  Back to the sticky-note movie analogy:
+  <ul>
+    <li><code>A</code> = how much of your old notes you keep when you re-read them (do they fade? get reorganized?)</li>
+    <li><code>B</code> = how aggressively you write down what's happening in the new scene</li>
+    <li><code>C</code> = how you summarize your sticky note when someone asks "what's going on?"</li>
+    <li><code>D</code> = "actually, just look at the current scene and ignore the notes" (a shortcut)</li>
+  </ul>
+</div>
+
+<!-- ====================================================== -->
+<h2 id="two-modes">4. The magic trick: two modes, same model</h2>
+<p>
+  Here's where SSMs get genuinely cool — and why they beat plain RNNs in practice.
+  The same SSM can be computed in <b>two completely different ways</b>, depending on what you need:
+</p>
+
+<h3>Mode A: Recurrent mode (one step at a time)</h3>
+<pre>h_0 = 0
+for t in 1..N:
+    h_t = A · h_{t-1} + B · x_t
+    y_t = C · h_t</pre>
+<p>
+  This is the RNN-style loop. <b>Cheap at inference time</b>: constant memory per token (you only keep <code>h_t</code>),
+  and you generate token-by-token. Perfect for chatbots, autocomplete, real-time audio.
+</p>
+
+<h3>Mode B: Convolutional mode (whole sequence at once)</h3>
+<p>
+  Because the update is linear, if you unroll the recursion you get:
+</p>
+<pre>y_1 = C·B · x_1
+y_2 = C·A·B · x_1 + C·B · x_2
+y_3 = C·A²·B · x_1 + C·A·B · x_2 + C·B · x_3
+...</pre>
+
+<p>
+  Each output is a weighted sum of past inputs — that's literally a <b>convolution</b> with kernel
+  <code>K = (CB, CAB, CA²B, CA³B, …)</code>.
+</p>
+<p>
+  Convolutions can be computed in parallel for every token at once using FFTs.
+  <b>This is amazing for training</b>: a GPU can crunch the entire sequence in one shot
+  instead of looping like a sad RNN.
+</p>
+
+<div class="key">
+  Train as a convolution (fast on GPUs, parallel). Run as a recurrence (cheap, streaming).
+  Same exact math. This dual nature is the central magic of SSMs — RNNs can't do this because their
+  <code>tanh</code> breaks the linearity.
+</div>
+
+<!-- ====================================================== -->
+<h2 id="demo">5. Try it: a 1-D SSM in your browser</h2>
+<p>
+  Below is a tiny scalar SSM (state is just one number). Move the sliders to change <code>A</code> and <code>B</code>,
+  press a button to feed it an input, and watch how the state evolves.
+</p>
+
+<div class="demo">
+  <label>A (memory decay): <span id="aVal">0.90</span></label>
+  <input id="aSlide" type="range" min="0" max="1" step="0.01" value="0.90" />
+
+  <label>B (input gain): <span id="bVal">1.00</span></label>
+  <input id="bSlide" type="range" min="0" max="2" step="0.05" value="1.00" />
+
+  <div style="margin-top: 14px;">
+    <button onclick="feedImpulse()">Feed an impulse (single spike)</button>
+    <button onclick="feedStep()">Feed a step (sustained 1)</button>
+    <button onclick="feedRandom()">Feed random noise</button>
+    <button onclick="reset()" style="background:#2a3346;color:var(--text);">Reset</button>
+  </div>
+
+  <canvas id="cv" width="760" height="220"></canvas>
+  <p class="footnote">
+    Blue = input <code>x_t</code>. Orange = state <code>h_t</code>. Notice:
+    when <code>A</code> is close to 1, the state holds onto information for a long time (long memory).
+    When <code>A</code> is close to 0, it forgets immediately. <code>B</code> controls how strongly inputs hit the state.
+  </p>
+</div>
+
+<!-- ====================================================== -->
+<h2 id="vs">6. SSM vs Transformer: the trade-off</h2>
+
+<table>
+  <tr><th></th><th>Transformer (attention)</th><th>SSM</th></tr>
+  <tr>
+    <td><b>How it remembers</b></td>
+    <td>Stores every past token; can re-read any of them exactly</td>
+    <td>Compresses everything into a fixed-size state vector</td>
+  </tr>
+  <tr>
+    <td><b>Cost per token (inference)</b></td>
+    <td>Grows with sequence length (O(N))</td>
+    <td>Constant (O(1))</td>
+  </tr>
+  <tr>
+    <td><b>Cost to process whole sequence</b></td>
+    <td>O(N²) — every token attends to every other</td>
+    <td>O(N log N) via FFT, or O(N) recurrent</td>
+  </tr>
+  <tr>
+    <td><b>Best at</b></td>
+    <td>Precise recall, copy/paste, in-context learning</td>
+    <td>Long sequences, streaming, audio/DNA/time-series</td>
+  </tr>
+  <tr>
+    <td><b>Worst at</b></td>
+    <td>Million-token contexts (gets really expensive)</td>
+    <td>"Find the exact phone number from 10k tokens ago"</td>
+  </tr>
+</table>
+
+<div class="analogy">
+  Transformer = a librarian who has every book on the shelf and can pull any page exactly.
+  Slow on millions of books, but perfect recall.
+  <br><br>
+  SSM = a friend who watched the whole movie and remembers the gist. Fast and cheap to ask,
+  but they might mix up which character said what in scene 14.
+</div>
+
+<!-- ====================================================== -->
+<h2 id="family">7. The SSM family tree (papers in your folder)</h2>
+
+<p>SSMs aren't a single model — they're a family that's been evolving fast. Here's the lineage:</p>
+
+<ul>
+  <li><span class="pill">2021</span> <b>S4</b> — first SSM that beat Transformers on long-range benchmarks. Introduced the special <code>A</code> matrix initialization (HiPPO) that lets the model remember thousands of steps back.</li>
+  <li><span class="pill">2022</span> <b>H3 (Hungry Hungry Hippos)</b> — added a gating trick (two SSMs multiplied together) so SSMs could finally do language modeling competitively. <span class="footnote">→ <code>H3_HungryHungryHippos.pdf</code></span></li>
+  <li><span class="pill">2023</span> <b>Monarch Mixer (M2)</b> — replaced the SSM convolution with structured "Monarch" matrices that map perfectly onto GPU matrix-multiply units. Sub-quadratic in <i>both</i> sequence length and model width. <span class="footnote">→ <code>MonarchMixer.pdf</code></span></li>
+  <li><span class="pill">2023</span> <b>FlashFFTConv</b> — the FFT used by SSMs was slow on GPUs; this paper made it 7.9× faster, unlocking million-length sequences. <span class="footnote">→ <code>FlashFFTConv.pdf</code></span></li>
+  <li><span class="pill">2023</span> <b>Mamba</b> — made the <code>A, B, C</code> matrices depend on the input itself (called "selective" SSM). Finally matched Transformer quality on language modeling.</li>
+</ul>
+
+<!-- ====================================================== -->
+<h2 id="quiz">8. Quick check</h2>
+
+<div class="quiz">
+  <div class="q">Q1. Why can SSMs train as a convolution but RNNs can't?</div>
+  <button onclick="answer(this, false)">Because SSMs are bigger</button>
+  <button onclick="answer(this, true)">Because the SSM update is linear (no tanh), so unrolling gives a convolution</button>
+  <button onclick="answer(this, false)">Because RNNs use attention</button>
+</div>
+
+<div class="quiz">
+  <div class="q">Q2. What does the matrix <code>A</code> control?</div>
+  <button onclick="answer(this, false)">How tokens are embedded</button>
+  <button onclick="answer(this, true)">How the memory (state) decays / mixes from one step to the next</button>
+  <button onclick="answer(this, false)">The output vocabulary</button>
+</div>
+
+<div class="quiz">
+  <div class="q">Q3. When would you prefer a Transformer over an SSM?</div>
+  <button onclick="answer(this, false)">When you need to process million-token DNA sequences</button>
+  <button onclick="answer(this, true)">When you need precise recall of specific earlier tokens (e.g., copying a phone number)</button>
+  <button onclick="answer(this, false)">When you want streaming, constant-memory inference</button>
+</div>
+
+<!-- ====================================================== -->
+<h2>9. TL;DR</h2>
+<div class="key">
+  An SSM = an RNN with a linear update. The linearity is the magic: it lets you train the model as a
+  parallel convolution (fast on GPUs) but run it as a streaming recurrence (cheap at inference). The
+  <code>A</code> matrix governs memory; <code>B</code> writes inputs to memory; <code>C</code> reads
+  outputs from memory. Compared to Transformers: SSMs win on long sequences and streaming, lose on
+  precise recall — which is exactly the gap H3, Mamba, and friends in your paper folder are trying to close.
+</div>
+
+<p class="footnote" style="margin-top: 40px;">
+  Tutorial generated for <code>/Users/utkarshranjan/Documents/UCSD/research/dan_fu/</code>.
+  Pairs with the papers downloaded in this folder — H3 and Monarch Mixer are great next reads.
+</p>
+
+</div>
+
+<script>
+  // ---------- interactive 1-D SSM demo ----------
+  const cv = document.getElementById('cv');
+  const ctx = cv.getContext('2d');
+  const aSlide = document.getElementById('aSlide');
+  const bSlide = document.getElementById('bSlide');
+  const aVal = document.getElementById('aVal');
+  const bVal = document.getElementById('bVal');
+
+  const N = 120;
+  let xs = new Array(N).fill(0);
+  let hs = new Array(N).fill(0);
+
+  function recompute() {
+    const A = parseFloat(aSlide.value);
+    const B = parseFloat(bSlide.value);
+    aVal.textContent = A.toFixed(2);
+    bVal.textContent = B.toFixed(2);
+    let h = 0;
+    for (let t = 0; t < N; t++) {
+      h = A * h + B * xs[t];
+      hs[t] = h;
+    }
+    draw();
+  }
+
+  function draw() {
+    const W = cv.width, H = cv.height;
+    ctx.clearRect(0, 0, W, H);
+
+    // axes
+    ctx.strokeStyle = '#2a3346';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(30, H/2); ctx.lineTo(W-10, H/2);
+    ctx.stroke();
+
+    const dx = (W - 40) / N;
+
+    // input (blue) - bars
+    ctx.fillStyle = '#7cc4ff';
+    for (let t = 0; t < N; t++) {
+      const v = xs[t];
+      if (v === 0) continue;
+      const x = 30 + t * dx;
+      const y = H/2 - v * 60;
+      ctx.fillRect(x - 1, Math.min(H/2, y), 2, Math.abs(v * 60));
+    }
+
+    // state (orange) - line
+    ctx.strokeStyle = '#ffb86b';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let t = 0; t < N; t++) {
+      const x = 30 + t * dx;
+      const y = H/2 - hs[t] * 60;
+      if (t === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+
+    // labels
+    ctx.fillStyle = '#a3b1c6';
+    ctx.font = '12px system-ui';
+    ctx.fillText('time →', W - 60, H/2 + 14);
+  }
+
+  function feedImpulse() {
+    xs = new Array(N).fill(0);
+    xs[20] = 1;
+    recompute();
+  }
+  function feedStep() {
+    xs = new Array(N).fill(0);
+    for (let t = 20; t < 70; t++) xs[t] = 1;
+    recompute();
+  }
+  function feedRandom() {
+    xs = new Array(N).fill(0).map(() => (Math.random() - 0.5) * 1.5);
+    recompute();
+  }
+  function reset() {
+    xs = new Array(N).fill(0);
+    recompute();
+  }
+
+  aSlide.addEventListener('input', recompute);
+  bSlide.addEventListener('input', recompute);
+  feedImpulse();
+
+  // ---------- quiz ----------
+  function answer(btn, correct) {
+    const siblings = btn.parentElement.querySelectorAll('button');
+    siblings.forEach(b => b.disabled = true);
+    btn.classList.add(correct ? 'right' : 'wrong');
+    if (!correct) {
+      siblings.forEach(b => {
+        if (b.getAttribute('onclick').includes('true')) b.classList.add('right');
+      });
+    }
+  }
+</script>
+
+</body>
+</html>
