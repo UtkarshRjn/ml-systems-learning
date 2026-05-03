@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>VarLen — Simple Visual Guide</title>
+<style>
+  :root {
+    --bg:#0f1117; --surface:#1a1d27; --border:#2a2d3a;
+    --text:#e2e8f0; --muted:#8892a4;
+    --blue:#60a5fa; --green:#34d399; --orange:#fb923c;
+    --red:#f87171; --yellow:#fbbf24; --purple:#a78bfa;
+    --gray:#374151; --dim:#1e2230;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;font-size:15px;line-height:1.75;padding:0 0 80px}
+
+  /* ── layout ── */
+  .page{max-width:860px;margin:0 auto;padding:48px 32px}
+  .hero{margin-bottom:60px;border-bottom:1px solid var(--border);padding-bottom:32px}
+  .hero h1{font-size:28px;font-weight:800;margin-bottom:8px;line-height:1.25}
+  .hero p{color:var(--muted);font-size:16px;max-width:620px}
+
+  /* ── sections ── */
+  .sec{margin-bottom:72px}
+  .sec-title{display:flex;align-items:center;gap:12px;margin-bottom:6px}
+  .bubble{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;flex-shrink:0}
+  .bubble.blue  {background:var(--blue);  color:#0f1117}
+  .bubble.green {background:var(--green); color:#0f1117}
+  .bubble.orange{background:var(--orange);color:#0f1117}
+  .bubble.purple{background:var(--purple);color:#0f1117}
+  .bubble.red   {background:var(--red);   color:#0f1117}
+  h2{font-size:21px;font-weight:700}
+  .lead{color:#cbd5e1;margin:8px 0 20px;font-size:15px}
+
+  /* ── callouts ── */
+  .box{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px 24px;margin:18px 0}
+  .box.blue  {border-left:4px solid var(--blue)}
+  .box.green {border-left:4px solid var(--green)}
+  .box.orange{border-left:4px solid var(--orange)}
+  .box.red   {border-left:4px solid var(--red)}
+  .box.yellow{border-left:4px solid var(--yellow)}
+  .box h3{font-size:14px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+  .box.blue   h3{color:var(--blue)}
+  .box.green  h3{color:var(--green)}
+  .box.orange h3{color:var(--orange)}
+  .box.red    h3{color:var(--red)}
+  .box.yellow h3{color:var(--yellow)}
+  .box p,.box li{color:#cbd5e1;font-size:14px}
+  .box ul{padding-left:18px;margin-top:6px}
+  .box li{margin-bottom:4px}
+
+  /* ── toy diagrams ── */
+  .diagram{background:var(--dim);border:1px solid var(--border);border-radius:10px;padding:24px;margin:20px 0;overflow-x:auto}
+  .diagram-title{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:18px}
+
+  /* token strips */
+  .strip{display:flex;align-items:center;gap:0;margin:10px 0;flex-wrap:nowrap}
+  .strip-label{font-size:12px;color:var(--muted);width:52px;flex-shrink:0;text-align:right;padding-right:10px}
+  .tok{
+    width:52px;height:40px;border-radius:6px;display:flex;align-items:center;justify-content:center;
+    font-size:11px;font-weight:600;text-align:center;line-height:1.2;margin:0 2px;flex-shrink:0;
+    transition:all .3s ease;
+  }
+  .tok.a0{background:#1e3a5f;color:var(--blue);border:1.5px solid var(--blue)}
+  .tok.a1{background:#14453a;color:var(--green);border:1.5px solid var(--green)}
+  .tok.a2{background:#4a2500;color:var(--orange);border:1.5px solid var(--orange)}
+  .tok.pad{background:var(--gray);color:#546e7a;border:1.5px solid #4b5563;opacity:.5;font-style:italic}
+  .tok.blocked{background:#1a1d27;color:#374151;border:1.5px dashed #374151;opacity:.4}
+
+  /* attention arrow grid */
+  .attn-grid{display:grid;gap:3px;margin:16px auto}
+  .attn-cell{
+    width:42px;height:34px;border-radius:4px;display:flex;align-items:center;justify-content:center;
+    font-size:10px;font-weight:700;transition:all .3s;
+  }
+  .attn-cell.active {background:var(--orange);color:white;opacity:.85}
+  .attn-cell.blocked{background:var(--gray);  color:#546e7a;opacity:.25;font-size:9px}
+  .attn-cell.danger {background:var(--red);   color:white;opacity:.9}
+  .attn-cell.safe   {background:var(--green); color:#0f1117;opacity:.8}
+  .attn-cell.empty  {background:var(--dim);   color:var(--muted);opacity:.5}
+  .attn-cell.header {background:transparent;  color:var(--muted);font-size:10px;font-weight:600}
+
+  .axis-label{font-size:11px;color:var(--muted);text-align:center;margin:4px 0}
+
+  /* side by side */
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:16px 0}
+  .col-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px}
+  .col-card h4{font-size:13px;font-weight:700;margin-bottom:10px}
+  .col-card.bad  h4{color:var(--red)}
+  .col-card.good h4{color:var(--green)}
+
+  /* steps */
+  .steps{margin:16px 0}
+  .step{display:flex;gap:14px;margin-bottom:14px;align-items:flex-start}
+  .sn{min-width:26px;height:26px;background:var(--surface);border:1.5px solid var(--border);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--blue);flex-shrink:0}
+  .step p{margin:3px 0 0;color:#cbd5e1;font-size:14px}
+
+  /* highlight */
+  .hl-blue  {color:var(--blue);  font-weight:700}
+  .hl-green {color:var(--green); font-weight:700}
+  .hl-orange{color:var(--orange);font-weight:700}
+  .hl-red   {color:var(--red);   font-weight:700}
+  .hl-yellow{color:var(--yellow);font-weight:700}
+
+  /* divider */
+  hr{border:none;border-top:1px solid var(--border);margin:48px 0}
+
+  /* summary table */
+  table{width:100%;border-collapse:collapse;font-size:14px;margin-top:10px}
+  th{padding:10px;text-align:left;color:var(--muted);border-bottom:1px solid var(--border)}
+  td{padding:10px;border-bottom:1px solid var(--border);color:#cbd5e1;vertical-align:top}
+
+  /* animation for the "pack" step */
+  @keyframes slideIn {from{opacity:0;transform:translateX(-16px)}to{opacity:1;transform:translateX(0)}}
+  .pack-anim .tok{animation:slideIn .4s ease forwards}
+  .pack-anim .tok:nth-child(2){animation-delay:.05s}
+  .pack-anim .tok:nth-child(3){animation-delay:.10s}
+  .pack-anim .tok:nth-child(4){animation-delay:.15s}
+  .pack-anim .tok:nth-child(5){animation-delay:.20s}
+  .pack-anim .tok:nth-child(6){animation-delay:.25s}
+  .pack-anim .tok:nth-child(7){animation-delay:.30s}
+  .pack-anim .tok:nth-child(8){animation-delay:.35s}
+
+  @media(max-width:620px){
+    .two-col{grid-template-columns:1fr}
+    .tok{width:42px;font-size:10px}
+    .attn-cell{width:34px;height:28px}
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- ─── HERO ─── -->
+<div class="hero">
+  <h1>VarLen vs Padding<br/>— a Toy Example Guide</h1>
+  <p>Everything explained with concrete small examples, no jargon. After this you'll know exactly what "sequence packing" is, how attention works across Q and KV, and why a Python loop isn't enough.</p>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════ -->
+<div class="sec">
+  <div class="sec-title">
+    <div class="bubble blue">1</div>
+    <h2>What are Q, K, V — and what does "attending" mean?</h2>
+  </div>
+  <p class="lead">Before anything else, let's nail down Q, K, V with the simplest possible picture.</p>
+
+  <div class="box blue">
+    <h3>The idea in plain English</h3>
+    <p>Imagine you have a sentence: <strong>"cat sat on mat"</strong> (4 tokens).</p>
+    <p style="margin-top:8px">In self-attention, each token asks: <em>"which other tokens are most relevant to me?"</em></p>
+    <ul>
+      <li><strong class="hl-blue">Q (query)</strong> — the token doing the asking. "I am token X, what should I look at?"</li>
+      <li><strong class="hl-green">K (key)</strong>   — all tokens being looked at. "Here is what I am about."</li>
+      <li><strong class="hl-orange">V (value)</strong> — the actual content to pull from. "If you pick me, here is what you get."</li>
+    </ul>
+    <p style="margin-top:8px">The attention score between Q token i and K token j is: <code>score(i,j) = dot(Q_i, K_j)</code>. High score → token i pays more attention to token j's value.</p>
+  </div>
+
+  <div class="diagram">
+    <div class="diagram-title">Self-attention on "cat sat on mat" — every Q token can attend to every K token</div>
+
+    <!-- header row: KV tokens -->
+    <div style="display:flex;align-items:center;margin-bottom:4px;margin-left:66px;gap:3px">
+      <div class="tok a0" style="font-size:10px">K: cat</div>
+      <div class="tok a0" style="font-size:10px">K: sat</div>
+      <div class="tok a0" style="font-size:10px">K: on</div>
+      <div class="tok a0" style="font-size:10px">K: mat</div>
+    </div>
+    <div class="axis-label" style="margin-left:66px;text-align:left;padding-left:54px">↑ KV tokens (what we attend TO)</div>
+
+    <!-- rows: Q tokens -->
+    <div style="display:flex;align-items:center;gap:0;margin-top:4px">
+      <div style="font-size:11px;color:var(--muted);width:66px;text-align:right;padding-right:8px;line-height:1.3">Q: cat<br/><span style="font-size:9px">(asking)</span></div>
+      <div class="attn-grid" style="grid-template-columns:repeat(4,42px);margin:0">
+        <div class="attn-cell active">0.7</div>
+        <div class="attn-cell active" style="opacity:.5">0.1</div>
+        <div class="attn-cell active" style="opacity:.35">0.05</div>
+        <div class="attn-cell active" style="opacity:.6">0.15</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:0;margin-top:3px">
+      <div style="font-size:11px;color:var(--muted);width:66px;text-align:right;padding-right:8px">Q: sat</div>
+      <div class="attn-grid" style="grid-template-columns:repeat(4,42px);margin:0">
+        <div class="attn-cell active" style="opacity:.6">0.2</div>
+        <div class="attn-cell active">0.6</div>
+        <div class="attn-cell active" style="opacity:.4">0.1</div>
+        <div class="attn-cell active" style="opacity:.4">0.1</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:0;margin-top:3px">
+      <div style="font-size:11px;color:var(--muted);width:66px;text-align:right;padding-right:8px">Q: on</div>
+      <div class="attn-grid" style="grid-template-columns:repeat(4,42px);margin:0">
+        <div class="attn-cell active" style="opacity:.35">0.1</div>
+        <div class="attn-cell active" style="opacity:.6">0.2</div>
+        <div class="attn-cell active">0.5</div>
+        <div class="attn-cell active" style="opacity:.6">0.2</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:0;margin-top:3px">
+      <div style="font-size:11px;color:var(--muted);width:66px;text-align:right;padding-right:8px">Q: mat</div>
+      <div class="attn-grid" style="grid-template-columns:repeat(4,42px);margin:0">
+        <div class="attn-cell active" style="opacity:.6">0.15</div>
+        <div class="attn-cell active" style="opacity:.35">0.05</div>
+        <div class="attn-cell active" style="opacity:.6">0.15</div>
+        <div class="attn-cell active">0.65</div>
+      </div>
+    </div>
+    <div class="axis-label" style="margin-top:6px">← Q tokens (who is asking)</div>
+
+    <p style="font-size:13px;color:var(--muted);margin-top:12px">Each row sums to 1 after softmax. "cat" mostly attends to itself (0.7) but also glances at "mat" (0.15). This is the full 4×4 attention matrix for one sequence.</p>
+  </div>
+
+  <div class="box yellow">
+    <h3>Important: Q and KV can have different lengths!</h3>
+    <p>In <strong>self-attention</strong> (used in video generation): Q, K, V all come from the same sequence. Q length = KV length = sequence length.</p>
+    <p style="margin-top:8px">But in <strong>cross-attention</strong> (e.g. text-to-video): Q comes from the video tokens, K and V come from the text tokens. Q length ≠ KV length.</p>
+    <p style="margin-top:8px">However — the "N_CTX_Q ≠ N_CTX_KV" that the VSA kernel already supports is just this basic asymmetry. That's <em>not</em> what "varlen" means. Keep reading.</p>
+  </div>
+</div>
+
+<hr/>
+
+<!-- ═══════════════════════════════════════════════ -->
+<div class="sec">
+  <div class="sec-title">
+    <div class="bubble orange">2</div>
+    <h2>The Batching Problem — why padding hurts</h2>
+  </div>
+  <p class="lead">Now suppose you want to train on <strong>two sentences at the same time</strong> (a batch of 2). They have different lengths.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Toy batch: Sentence A (3 tokens) + Sentence B (5 tokens)</div>
+
+    <div class="strip">
+      <div class="strip-label">Sent. A</div>
+      <div class="tok a0">cat</div>
+      <div class="tok a0">sat</div>
+      <div class="tok a0">here</div>
+    </div>
+    <div class="strip">
+      <div class="strip-label">Sent. B</div>
+      <div class="tok a1">dogs</div>
+      <div class="tok a1">love</div>
+      <div class="tok a1">to</div>
+      <div class="tok a1">run</div>
+      <div class="tok a1">fast</div>
+    </div>
+  </div>
+
+  <p style="color:#cbd5e1;margin-bottom:16px">GPUs require a rectangular tensor <code>[batch, seq_len, dim]</code>. Since the two sequences have different lengths (3 vs 5), you must make them the same length. The standard solution: <strong>pad the shorter one</strong> with dummy tokens.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">After padding — both sequences stretched to length 5 → tensor shape [2, 5, D]</div>
+
+    <div class="strip">
+      <div class="strip-label">Sent. A</div>
+      <div class="tok a0">cat</div>
+      <div class="tok a0">sat</div>
+      <div class="tok a0">here</div>
+      <div class="tok pad">PAD</div>
+      <div class="tok pad">PAD</div>
+    </div>
+    <p style="font-size:12px;color:var(--red);margin:4px 0 10px 52px">↑ These 2 cells are wasted memory and wasted compute</p>
+
+    <div class="strip">
+      <div class="strip-label">Sent. B</div>
+      <div class="tok a1">dogs</div>
+      <div class="tok a1">love</div>
+      <div class="tok a1">to</div>
+      <div class="tok a1">run</div>
+      <div class="tok a1">fast</div>
+    </div>
+  </div>
+
+  <div class="box red">
+    <h3>Why padding is painful at video scale</h3>
+    <p>In NLP sentences differ by maybe 10–20 tokens — padding waste is small.</p>
+    <p style="margin-top:6px">In video training, a <strong>1024×1024 frame at 30fps</strong> might be 60,000 tokens. A <strong>256×256 frame</strong> might be 4,000 tokens. If they're in the same batch, every 256×256 sample gets padded to 60,000 tokens — <strong>93% of that sample's GPU memory and compute is pure waste.</strong></p>
+  </div>
+
+  <p style="color:#cbd5e1">Now here's what the attention matrix looks like when we naïvely run attention on the padded batch — and why it's also <em>logically wrong</em>:</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Padded attention matrix for Sentence A — what SHOULD happen vs what padding can cause</div>
+
+    <div style="display:flex;gap:32px;flex-wrap:wrap">
+      <!-- What we want -->
+      <div>
+        <p style="font-size:12px;color:var(--green);margin-bottom:8px;font-weight:600">✓ What we want (attend only to real tokens)</p>
+        <div style="display:flex;align-items:center;margin-bottom:3px;margin-left:56px;gap:3px">
+          <div class="attn-cell header" style="width:42px">cat</div>
+          <div class="attn-cell header" style="width:42px">sat</div>
+          <div class="attn-cell header" style="width:42px">here</div>
+          <div class="attn-cell header" style="width:42px;color:#546e7a">PAD</div>
+          <div class="attn-cell header" style="width:42px;color:#546e7a">PAD</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:3px">
+          <div style="font-size:11px;color:var(--muted);width:56px;text-align:right;padding-right:8px">cat</div>
+          <div class="attn-cell safe">✓</div>
+          <div class="attn-cell safe">✓</div>
+          <div class="attn-cell safe">✓</div>
+          <div class="attn-cell blocked">–∞</div>
+          <div class="attn-cell blocked">–∞</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:3px;margin-top:3px">
+          <div style="font-size:11px;color:var(--muted);width:56px;text-align:right;padding-right:8px">sat</div>
+          <div class="attn-cell safe">✓</div>
+          <div class="attn-cell safe">✓</div>
+          <div class="attn-cell safe">✓</div>
+          <div class="attn-cell blocked">–∞</div>
+          <div class="attn-cell blocked">–∞</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:3px;margin-top:3px">
+          <div style="font-size:11px;color:var(--muted);width:56px;text-align:right;padding-right:8px">here</div>
+          <div class="attn-cell safe">✓</div>
+          <div class="attn-cell safe">✓</div>
+          <div class="attn-cell safe">✓</div>
+          <div class="attn-cell blocked">–∞</div>
+          <div class="attn-cell blocked">–∞</div>
+        </div>
+        <p style="font-size:12px;color:var(--green);margin-top:8px">PAD columns masked to −∞ before softmax → zero weight</p>
+      </div>
+
+      <!-- What goes wrong -->
+      <div>
+        <p style="font-size:12px;color:var(--red);margin-bottom:8px;font-weight:600">✗ Without masking (wrong)</p>
+        <div style="display:flex;align-items:center;margin-bottom:3px;margin-left:56px;gap:3px">
+          <div class="attn-cell header" style="width:42px">cat</div>
+          <div class="attn-cell header" style="width:42px">sat</div>
+          <div class="attn-cell header" style="width:42px">here</div>
+          <div class="attn-cell header" style="width:42px;color:#546e7a">PAD</div>
+          <div class="attn-cell header" style="width:42px;color:#546e7a">PAD</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:3px">
+          <div style="font-size:11px;color:var(--muted);width:56px;text-align:right;padding-right:8px">cat</div>
+          <div class="attn-cell active">✓</div>
+          <div class="attn-cell active">✓</div>
+          <div class="attn-cell active">✓</div>
+          <div class="attn-cell danger">leak</div>
+          <div class="attn-cell danger">leak</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:3px;margin-top:3px">
+          <div style="font-size:11px;color:var(--muted);width:56px;text-align:right;padding-right:8px">sat</div>
+          <div class="attn-cell active">✓</div>
+          <div class="attn-cell active">✓</div>
+          <div class="attn-cell active">✓</div>
+          <div class="attn-cell danger">leak</div>
+          <div class="attn-cell danger">leak</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:3px;margin-top:3px">
+          <div style="font-size:11px;color:var(--muted);width:56px;text-align:right;padding-right:8px">here</div>
+          <div class="attn-cell active">✓</div>
+          <div class="attn-cell active">✓</div>
+          <div class="attn-cell active">✓</div>
+          <div class="attn-cell danger">leak</div>
+          <div class="attn-cell danger">leak</div>
+        </div>
+        <p style="font-size:12px;color:var(--red);margin-top:8px">PAD tokens get non-zero weight → garbage in output</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="box blue">
+    <h3>Key takeaway from this section</h3>
+    <p>Padding is necessary for the GPU but it wastes memory. You <em>must</em> mask PAD tokens to −∞ so they don't pollute attention scores. The two operations (padding + masking) together give you correct results — but at the cost of wasted compute.</p>
+  </div>
+</div>
+
+<hr/>
+
+<!-- ═══════════════════════════════════════════════ -->
+<div class="sec">
+  <div class="sec-title">
+    <div class="bubble green">3</div>
+    <h2>Sequence Packing (VarLen) — the zero-waste alternative</h2>
+  </div>
+  <p class="lead">Instead of padding shorter sequences, what if we just <strong>glue them together</strong> into one long flat sequence and remember where each one starts and ends?</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Step 1 — start with the same two sentences (no padding at all)</div>
+    <div class="strip">
+      <div class="strip-label" style="color:var(--blue)">Sent. A<br/><span style="font-size:10px">(len=3)</span></div>
+      <div class="tok a0">cat</div>
+      <div class="tok a0">sat</div>
+      <div class="tok a0">here</div>
+    </div>
+    <div class="strip" style="margin-top:8px">
+      <div class="strip-label" style="color:var(--green)">Sent. B<br/><span style="font-size:10px">(len=5)</span></div>
+      <div class="tok a1">dogs</div>
+      <div class="tok a1">love</div>
+      <div class="tok a1">to</div>
+      <div class="tok a1">run</div>
+      <div class="tok a1">fast</div>
+    </div>
+  </div>
+
+  <div class="diagram">
+    <div class="diagram-title">Step 2 — concatenate into ONE flat tensor of 8 tokens (total = 3+5)</div>
+    <div class="strip pack-anim" style="margin-top:4px">
+      <div class="strip-label">flat</div>
+      <div class="tok a0">cat</div>
+      <div class="tok a0">sat</div>
+      <div class="tok a0">here</div>
+      <div class="tok a1">dogs</div>
+      <div class="tok a1">love</div>
+      <div class="tok a1">to</div>
+      <div class="tok a1">run</div>
+      <div class="tok a1">fast</div>
+    </div>
+    <div style="display:flex;margin-left:56px;margin-top:6px;gap:0">
+      <div style="width:164px;border-top:2px solid var(--blue);padding-top:4px;font-size:11px;color:var(--blue);text-align:center">Sent. A · tokens 0–2</div>
+      <div style="width:10px"></div>
+      <div style="width:270px;border-top:2px solid var(--green);padding-top:4px;font-size:11px;color:var(--green);text-align:center">Sent. B · tokens 3–7</div>
+    </div>
+    <div style="margin-left:56px;margin-top:14px;font-size:13px;color:var(--yellow);font-weight:600">
+      cu_seqlens = [0, 3, 8]
+    </div>
+    <div style="margin-left:56px;margin-top:4px;font-size:12px;color:var(--muted)">
+      This tiny array is all the bookkeeping needed: sequence 0 = tokens [0, 3), sequence 1 = tokens [3, 8)
+    </div>
+  </div>
+
+  <div class="box green">
+    <h3>What cu_seqlens is</h3>
+    <p><code>cu_seqlens</code> stands for "cumulative sequence lengths". It's just a small integer array where:</p>
+    <ul style="margin-top:8px">
+      <li><code>cu_seqlens[0]</code> = 0 (always starts at 0)</li>
+      <li><code>cu_seqlens[1]</code> = 3 (Sentence A ends at position 3)</li>
+      <li><code>cu_seqlens[2]</code> = 8 (Sentence B ends at position 8 = total tokens)</li>
+    </ul>
+    <p style="margin-top:8px">To get sequence i: slice <code>flat_tensor[ cu_seqlens[i] : cu_seqlens[i+1] ]</code></p>
+    <p style="margin-top:8px">For a batch of 10 sequences, <code>cu_seqlens</code> has just 11 numbers. That's the entire overhead.</p>
+  </div>
+
+  <p style="color:#cbd5e1;margin-bottom:16px">Now the critical question: <strong>when we run attention on this flat tensor, how do we prevent "cat" from attending to "dogs"?</strong> They're in the same flat tensor now — the kernel must be told where the boundaries are.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Attention matrix on the packed flat tensor [8 tokens] — sequence isolation is CRITICAL</div>
+
+    <!-- Column headers -->
+    <div style="display:flex;align-items:center;margin-bottom:3px;margin-left:62px;gap:2px">
+      <div class="attn-cell header" style="width:38px;color:var(--blue)">cat</div>
+      <div class="attn-cell header" style="width:38px;color:var(--blue)">sat</div>
+      <div class="attn-cell header" style="width:38px;color:var(--blue)">here</div>
+      <div class="attn-cell header" style="width:38px;color:var(--green)">dogs</div>
+      <div class="attn-cell header" style="width:38px;color:var(--green)">love</div>
+      <div class="attn-cell header" style="width:38px;color:var(--green)">to</div>
+      <div class="attn-cell header" style="width:38px;color:var(--green)">run</div>
+      <div class="attn-cell header" style="width:38px;color:var(--green)">fast</div>
+    </div>
+    <div style="display:flex;align-items:center;margin-bottom:2px;margin-left:62px;gap:2px">
+      <div style="width:38px;text-align:center;font-size:9px;color:var(--blue)">KV0</div>
+      <div style="width:38px;text-align:center;font-size:9px;color:var(--blue)">KV1</div>
+      <div style="width:38px;text-align:center;font-size:9px;color:var(--blue)">KV2</div>
+      <div style="width:38px;text-align:center;font-size:9px;color:var(--green)">KV3</div>
+      <div style="width:38px;text-align:center;font-size:9px;color:var(--green)">KV4</div>
+      <div style="width:38px;text-align:center;font-size:9px;color:var(--green)">KV5</div>
+      <div style="width:38px;text-align:center;font-size:9px;color:var(--green)">KV6</div>
+      <div style="width:38px;text-align:center;font-size:9px;color:var(--green)">KV7</div>
+    </div>
+
+    <!-- Row: cat (Q0, seq A) -->
+    <div style="display:flex;align-items:center;gap:2px;margin-bottom:2px">
+      <div style="font-size:10px;color:var(--blue);width:62px;text-align:right;padding-right:6px">Q0 cat<br/><span style="color:var(--muted);font-size:9px">seq A</span></div>
+      <div class="attn-cell safe"   style="width:38px">✓</div>
+      <div class="attn-cell safe"   style="width:38px">✓</div>
+      <div class="attn-cell safe"   style="width:38px">✓</div>
+      <div class="attn-cell danger" style="width:38px">✗</div>
+      <div class="attn-cell danger" style="width:38px">✗</div>
+      <div class="attn-cell danger" style="width:38px">✗</div>
+      <div class="attn-cell danger" style="width:38px">✗</div>
+      <div class="attn-cell danger" style="width:38px">✗</div>
+    </div>
+    <!-- Row: sat -->
+    <div style="display:flex;align-items:center;gap:2px;margin-bottom:2px">
+      <div style="font-size:10px;color:var(--blue);width:62px;text-align:right;padding-right:6px">Q1 sat<br/><span style="color:var(--muted);font-size:9px">seq A</span></div>
+      <div class="attn-cell safe"   style="width:38px">✓</div>
+      <div class="attn-cell safe"   style="width:38px">✓</div>
+      <div class="attn-cell safe"   style="width:38px">✓</div>
+      <div class="attn-cell danger" style="width:38px">✗</div>
+      <div class="attn-cell danger" style="width:38px">✗</div>
+      <div class="attn-cell danger" style="width:38px">✗</div>
+      <div class="attn-cell danger" style="width:38px">✗</div>
+      <div class="attn-cell danger" style="width:38px">✗</div>
+    </div>
+    <!-- Row: here -->
+    <div style="display:flex;align-items:center;gap:2px;margin-bottom:2px">
+      <div style="font-size:10px;color:var(--blue);width:62px;text-align:right;padding-right:6px">Q2 here<br/><span style="color:var(--muted);font-size:9px">seq A</span></div>
+      <div class="attn-cell safe"   style="width:38px">✓</div>
+      <div class="attn-cell safe"   style="width:38px">✓</div>
+      <div class="attn-cell safe"   style="width:38px">✓</div>
+      <div class="attn-cell danger" style="width:38px">✗</div>
+      <div class="attn-cell danger" style="width:38px">✗</div>
+      <div class="attn-cell danger" style="width:38px">✗</div>
+      <div class="attn-cell danger" style="width:38px">✗</div>
+      <div class="attn-cell danger" style="width:38px">✗</div>
+    </div>
+    <!-- spacer -->
+    <div style="height:6px"></div>
+    <!-- Row: dogs -->
+    <div style="display:flex;align-items:center;gap:2px;margin-bottom:2px">
+      <div style="font-size:10px;color:var(--green);width:62px;text-align:right;padding-right:6px">Q3 dogs<br/><span style="color:var(--muted);font-size:9px">seq B</span></div>
+      <div class="attn-cell danger" style="width:38px">✗</div>
+      <div class="attn-cell danger" style="width:38px">✗</div>
+      <div class="attn-cell danger" style="width:38px">✗</div>
+      <div class="attn-cell safe"   style="width:38px">✓</div>
+      <div class="attn-cell safe"   style="width:38px">✓</div>
+      <div class="attn-cell safe"   style="width:38px">✓</div>
+      <div class="attn-cell safe"   style="width:38px">✓</div>
+      <div class="attn-cell safe"   style="width:38px">✓</div>
+    </div>
+    <!-- Row: love -->
+    <div style="display:flex;align-items:center;gap:2px;margin-bottom:2px">
+      <div style="font-size:10px;color:var(--green);width:62px;text-align:right;padding-right:6px">Q4 love<br/><span style="color:var(--muted);font-size:9px">seq B</span></div>
+      <div class="attn-cell danger" style="width:38px">✗</div>
+      <div class="attn-cell danger" style="width:38px">✗</div>
+      <div class="attn-cell danger" style="width:38px">✗</div>
+      <div class="attn-cell safe"   style="width:38px">✓</div>
+      <div class="attn-cell safe"   style="width:38px">✓</div>
+      <div class="attn-cell safe"   style="width:38px">✓</div>
+      <div class="attn-cell safe"   style="width:38px">✓</div>
+      <div class="attn-cell safe"   style="width:38px">✓</div>
+    </div>
+    <!-- Row: to -->
+    <div style="display:flex;align-items:center;gap:2px;margin-bottom:2px">
+      <div style="font-size:10px;color:var(--green);width:62px;text-align:right;padding-right:6px">Q5 to<br/><span style="color:var(--muted);font-size:9px">seq B</span></div>
+      <div class="attn-cell danger" style="width:38px">✗</div>
+      <div class="attn-cell danger" style="width:38px">✗</div>
+      <div class="attn-cell danger" style="width:38px">✗</div>
+      <div class="attn-cell safe"   style="width:38px">✓</div>
+      <div class="attn-cell safe"   style="width:38px">✓</div>
+      <div class="attn-cell safe"   style="width:38px">✓</div>
+      <div class="attn-cell safe"   style="width:38px">✓</div>
+      <div class="attn-cell safe"   style="width:38px">✓</div>
+    </div>
+    <!-- Row: run -->
+    <div style="display:flex;align-items:center;gap:2px;margin-bottom:2px">
+      <div style="font-size:10px;color:var(--green);width:62px;text-align:right;padding-right:6px">Q6 run<br/><span style="color:var(--muted);font-size:9px">seq B</span></div>
+      <div class="attn-cell danger" style="width:38px">✗</div>
+      <div class="attn-cell danger" style="width:38px">✗</div>
+      <div class="attn-cell danger" style="width:38px">✗</div>
+      <div class="attn-cell safe"   style="width:38px">✓</div>
+      <div class="attn-cell safe"   style="width:38px">✓</div>
+      <div class="attn-cell safe"   style="width:38px">✓</div>
+      <div class="attn-cell safe"   style="width:38px">✓</div>
+      <div class="attn-cell safe"   style="width:38px">✓</div>
+    </div>
+    <!-- Row: fast -->
+    <div style="display:flex;align-items:center;gap:2px">
+      <div style="font-size:10px;color:var(--green);width:62px;text-align:right;padding-right:6px">Q7 fast<br/><span style="color:var(--muted);font-size:9px">seq B</span></div>
+      <div class="attn-cell danger" style="width:38px">✗</div>
+      <div class="attn-cell danger" style="width:38px">✗</div>
+      <div class="attn-cell danger" style="width:38px">✗</div>
+      <div class="attn-cell safe"   style="width:38px">✓</div>
+      <div class="attn-cell safe"   style="width:38px">✓</div>
+      <div class="attn-cell safe"   style="width:38px">✓</div>
+      <div class="attn-cell safe"   style="width:38px">✓</div>
+      <div class="attn-cell safe"   style="width:38px">✓</div>
+    </div>
+
+    <div style="margin-top:14px;display:flex;gap:16px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)">
+        <div style="width:14px;height:14px;border-radius:3px;background:var(--green);opacity:.8"></div> Allowed (same sequence)
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)">
+        <div style="width:14px;height:14px;border-radius:3px;background:var(--red);opacity:.8"></div> Blocked (cross-sequence — must be −∞)
+      </div>
+    </div>
+    <p style="font-size:13px;color:var(--muted);margin-top:10px">The red cells must be masked to −∞ — otherwise "cat" would attend to "dogs" even though they're from different training examples. The kernel knows to block these using <code>cu_seqlens</code>.</p>
+  </div>
+
+  <div class="box green">
+    <h3>What varlen gives you</h3>
+    <ul>
+      <li><strong>Zero padding:</strong> 8 real tokens, 0 wasted slots (vs 10 slots with padding, 20% waste)</li>
+      <li><strong>Correct attention:</strong> Each sequence only attends to itself — enforced via <code>cu_seqlens</code></li>
+      <li><strong>One kernel launch:</strong> All 8 tokens processed simultaneously in a single GPU call</li>
+    </ul>
+  </div>
+</div>
+
+<hr/>
+
+<!-- ═══════════════════════════════════════════════ -->
+<div class="sec">
+  <div class="sec-title">
+    <div class="bubble red">4</div>
+    <h2>Why the Python Loop Fails — toy example</h2>
+  </div>
+  <p class="lead">The current code in <code>ops.py</code> does handle the flat tensor — but by slicing it back into separate sequences and calling the kernel on each one. Here's why that defeats the purpose.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">What the Python loop does (current code, ops.py:97–125)</div>
+    <div class="steps">
+      <div class="step">
+        <div class="sn">1</div>
+        <p>Reads <code>cu_seqlens[0]=0, cu_seqlens[1]=3</code> → slices out <span class="hl-blue">tokens 0–2</span> (Sentence A)</p>
+      </div>
+      <div class="step">
+        <div class="sn">2</div>
+        <p>Reshapes to <code>[1, H, 3, D]</code> and calls <code>video_sparse_attn()</code> → <strong>GPU kernel launch #1</strong></p>
+      </div>
+      <div class="step">
+        <div class="sn">3</div>
+        <p>Reads <code>cu_seqlens[1]=3, cu_seqlens[2]=8</code> → slices out <span class="hl-green">tokens 3–7</span> (Sentence B)</p>
+      </div>
+      <div class="step">
+        <div class="sn">4</div>
+        <p>Reshapes to <code>[1, H, 5, D]</code> and calls <code>video_sparse_attn()</code> → <strong>GPU kernel launch #2</strong></p>
+      </div>
+      <div class="step">
+        <div class="sn">5</div>
+        <p>Concatenates outputs back together → returns <code>[8, H, D]</code></p>
+      </div>
+    </div>
+    <p style="font-size:13px;color:var(--muted);margin-top:8px">The result is <em>correct</em> — but this is essentially the same as just running two separate attention calls. You haven't gained anything from packing.</p>
+  </div>
+
+  <div class="two-col">
+    <div class="col-card bad">
+      <h4>✗ Python loop — what the GPU sees</h4>
+      <div style="background:#0f1117;border-radius:6px;padding:12px;margin-top:4px">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+          <div style="width:90px;height:28px;background:var(--blue);opacity:.7;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:11px;color:white">Kernel 1</div>
+          <div style="width:24px;height:28px;background:#0f1117;border:1px dashed var(--red);border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--red)">gap</div>
+          <div style="width:90px;height:28px;background:var(--green);opacity:.7;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:11px;color:#0f1117">Kernel 2</div>
+        </div>
+        <p style="font-size:12px;color:var(--muted)">Sequential. While Kernel 1 runs, Seq B sits idle. Then a scheduling gap. Then Kernel 2 runs alone.</p>
+        <p style="font-size:12px;color:var(--red);margin-top:6px">Total time = T₁ + gap + T₂</p>
+      </div>
+    </div>
+    <div class="col-card good">
+      <h4>✓ True varlen kernel — what the GPU sees</h4>
+      <div style="background:#0f1117;border-radius:6px;padding:12px;margin-top:4px">
+        <div style="display:flex;align-items:center;gap:0;margin-bottom:8px">
+          <div style="width:90px;height:28px;background:var(--blue);opacity:.7;border-radius:4px 0 0 4px;display:flex;align-items:center;justify-content:center;font-size:11px;color:white">Seq A blocks</div>
+          <div style="width:90px;height:28px;background:var(--green);opacity:.7;border-radius:0 4px 4px 0;display:flex;align-items:center;justify-content:center;font-size:11px;color:#0f1117">Seq B blocks</div>
+        </div>
+        <p style="font-size:12px;color:var(--muted)">One launch. Both sequences' thread blocks are in the same grid — the GPU schedules them all simultaneously.</p>
+        <p style="font-size:12px;color:var(--green);margin-top:6px">Total time ≈ max(T₁, T₂)</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="box red">
+    <h3>The three problems with the Python loop</h3>
+    <ul>
+      <li><strong>N kernel launches instead of 1.</strong> Each launch has CPU scheduling overhead (~10–100µs). With 64 sequences per batch, that's 64× the overhead. At training scale this dominates.</li>
+      <li><strong>No inter-sequence parallelism.</strong> While Sequence A's kernel runs, Sequence B's data is just waiting in CPU code. The GPU can't work on both at the same time.</li>
+      <li><strong><code>.item()</code> stalls.</strong> Reading <code>cu_seqlens[i].item()</code> forces CPU↔GPU synchronization on every loop iteration — draining any remaining GPU pipeline.</li>
+    </ul>
+  </div>
+</div>
+
+<hr/>
+
+<!-- ═══════════════════════════════════════════════ -->
+<div class="sec">
+  <div class="sec-title">
+    <div class="bubble purple">5</div>
+    <h2>What the Kernel Must Do — toy walkthrough</h2>
+  </div>
+  <p class="lead">For true kernel-level varlen, the Triton kernel itself needs to understand the packed format. Here's exactly how, using our 8-token example.</p>
+
+  <div class="box blue">
+    <h3>Setup for our toy example</h3>
+    <p>Flat tensor: <code>[cat, sat, here, dogs, love, to, run, fast]</code> — 8 tokens total</p>
+    <p style="margin-top:6px">Using block size = 4 (in reality it's 64, but 4 makes it easy to visualize):</p>
+    <ul>
+      <li>Sentence A (tokens 0–2) → 1 Q-block: <span class="hl-blue">Q-block 0</span> (tokens 0,1,2 + 1 pad → but with varlen, no actual padding)</li>
+      <li>Sentence B (tokens 3–7) → 2 Q-blocks: <span class="hl-green">Q-block 1</span> (tokens 3,4,5,6), <span class="hl-green">Q-block 2</span> (token 7)</li>
+    </ul>
+    <p style="margin-top:6px"><code>cu_seqlens_q_blocks = [0, 1, 3]</code> — Sentence A has 1 block, Sentence B has 2 blocks, total 3 blocks</p>
+  </div>
+
+  <div class="diagram">
+    <div class="diagram-title">How each thread block finds its sequence — binary search on cu_seqlens_q_blocks</div>
+
+    <!-- The 3 blocks -->
+    <div style="display:flex;gap:4px;margin-bottom:16px">
+      <div style="text-align:center">
+        <div style="background:#1e3a5f;border:2px solid var(--blue);border-radius:6px;padding:10px 16px;font-size:12px;color:var(--blue);font-weight:700">
+          Q-block 0<br/><span style="font-size:10px;color:var(--muted)">pid(0) = 0</span>
+        </div>
+        <div style="font-size:11px;color:var(--blue);margin-top:6px">cat, sat, here</div>
+      </div>
+      <div style="text-align:center">
+        <div style="background:#14453a;border:2px solid var(--green);border-radius:6px;padding:10px 16px;font-size:12px;color:var(--green);font-weight:700">
+          Q-block 1<br/><span style="font-size:10px;color:var(--muted)">pid(0) = 1</span>
+        </div>
+        <div style="font-size:11px;color:var(--green);margin-top:6px">dogs, love, to, run</div>
+      </div>
+      <div style="text-align:center">
+        <div style="background:#14453a;border:2px solid var(--green);border-radius:6px;padding:10px 16px;font-size:12px;color:var(--green);font-weight:700">
+          Q-block 2<br/><span style="font-size:10px;color:var(--muted)">pid(0) = 2</span>
+        </div>
+        <div style="font-size:11px;color:var(--green);margin-top:6px">fast</div>
+      </div>
+    </div>
+
+    <!-- Walkthrough for one block -->
+    <div style="background:#0f1117;border-radius:8px;padding:16px">
+      <p style="font-size:13px;color:var(--yellow);font-weight:600;margin-bottom:10px">Walkthrough: What does Q-block 1 (pid=1) do?</p>
+      <div class="steps">
+        <div class="step">
+          <div class="sn">1</div>
+          <p>I am thread block with <code>pid(0) = 1</code>. I need to know: which sequence do I belong to?</p>
+        </div>
+        <div class="step">
+          <div class="sn">2</div>
+          <p>I do a binary search on <code>cu_seqlens_q_blocks = [0, 1, 3]</code>: where does <code>1</code> fit? → Between index 0 and 1 → <span class="hl-green">I belong to Sequence 1 (Sentence B)</span></p>
+        </div>
+        <div class="step">
+          <div class="sn">3</div>
+          <p>My local block index within Sequence B: <code>1 − cu_seqlens_q_blocks[1] = 1 − 1 = 0</code> → I am the first block of Sentence B</p>
+        </div>
+        <div class="step">
+          <div class="sn">4</div>
+          <p>My token offset in the flat tensor: <code>cu_seqlens_q[1] = 3</code> → my tokens start at flat index 3 (<em>dogs</em>)</p>
+        </div>
+        <div class="step">
+          <div class="sn">5</div>
+          <p>When I loop through my sparse KV-block list, I check: does the KV block's token range fall inside <code>[cu_seqlens_kv[1], cu_seqlens_kv[2]) = [3, 8)</code>? If any KV block points to tokens 0–2 (Sentence A), I mask it to <span class="hl-red">−∞</span> — blocking cross-sequence attention.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="box yellow">
+    <h3>The exact difference from the Python loop</h3>
+    <p>The Python loop does this reasoning in Python, one sequence at a time, before the GPU runs. The kernel does this reasoning <strong>inside the GPU</strong>, in parallel, for all thread blocks simultaneously. Same math, fundamentally different performance.</p>
+  </div>
+</div>
+
+<hr/>
+
+<!-- ═══════════════════════════════════════════════ -->
+<div class="sec">
+  <div class="sec-title">
+    <div class="bubble blue">6</div>
+    <h2>The Full Picture — quick summary table</h2>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Question</th>
+        <th>Answer</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>What is a Q token vs KV token?</strong></td>
+        <td>In self-attention they're the same sequence. Q asks "what should I look at?", K answers "here's what I am", V provides the actual content. Q-length = KV-length for self-attention.</td>
+      </tr>
+      <tr>
+        <td><strong>What does "varlen" actually mean?</strong></td>
+        <td>Pack multiple sequences of <em>different lengths</em> into one flat tensor. Use <code>cu_seqlens</code> to track where each sequence starts/ends. Zero padding, one tensor, one kernel launch.</td>
+      </tr>
+      <tr>
+        <td><strong>How does the kernel prevent cross-sequence attention?</strong></td>
+        <td>Each thread block does a binary search on <code>cu_seqlens</code> to find its sequence. It then checks every KV block it tries to attend to — if the KV block is outside its own sequence's range, it masks the score to −∞.</td>
+      </tr>
+      <tr>
+        <td><strong>Why is the Python loop wrong?</strong></td>
+        <td>It triggers N separate GPU kernel launches (one per sequence) instead of 1. Each launch has CPU scheduling overhead. Sequences can't run in parallel. It destroys the entire GPU efficiency benefit of packing.</td>
+      </tr>
+      <tr>
+        <td><strong>What must change in the kernel?</strong></td>
+        <td>Accept <code>cu_seqlens</code> as input. Rewrite the pid→(batch, Q-block) mapping using binary search. Add boundary check in the KV loop. Change grid from <code>(Tq//64, B×H)</code> to <code>(total_Q_blocks, H)</code>. Update backward pass too.</td>
+      </tr>
+      <tr>
+        <td><strong>Why does this matter for video training?</strong></td>
+        <td>Video sequences vary wildly in length (256×256 vs 1024×1024). Padding wastes up to 90%+ of GPU memory/compute. Sequence packing eliminates this waste entirely, directly improving training speed (MFU).</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+</div><!-- /page -->
+</body>
+</html>

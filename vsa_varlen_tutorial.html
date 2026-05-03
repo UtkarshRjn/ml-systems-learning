@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>VSA VarLen — Visual Tutorial</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --border: #2a2d3a;
+    --text: #e2e8f0;
+    --muted: #8892a4;
+    --blue: #60a5fa;
+    --green: #34d399;
+    --orange: #fb923c;
+    --red: #f87171;
+    --purple: #a78bfa;
+    --yellow: #fbbf24;
+    --gray: #374151;
+    --code-bg: #161922;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.7;
+    display: flex;
+  }
+
+  /* ── Sidebar ── */
+  nav {
+    width: 240px;
+    min-height: 100vh;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 24px 16px;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    flex-shrink: 0;
+  }
+  nav h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin-bottom: 12px; }
+  nav a {
+    display: block;
+    padding: 7px 10px;
+    border-radius: 6px;
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 13px;
+    margin-bottom: 2px;
+    transition: all .15s;
+  }
+  nav a:hover, nav a.active { background: rgba(96,165,250,.12); color: var(--blue); }
+  nav .num { display: inline-block; width: 18px; font-size: 11px; opacity: .5; }
+
+  /* ── Main content ── */
+  main { flex: 1; padding: 48px 56px; max-width: 920px; }
+  .hero { margin-bottom: 48px; }
+  .hero h1 { font-size: 32px; font-weight: 700; line-height: 1.2; margin-bottom: 12px; }
+  .hero p { color: var(--muted); font-size: 16px; max-width: 620px; }
+  .badge { display: inline-block; background: rgba(96,165,250,.15); color: var(--blue); border: 1px solid rgba(96,165,250,.3); border-radius: 4px; font-size: 11px; padding: 2px 8px; margin-right: 6px; margin-bottom: 10px; }
+
+  section { margin-bottom: 72px; scroll-margin-top: 32px; }
+  section h2 { font-size: 22px; font-weight: 700; margin-bottom: 6px; display: flex; align-items: center; gap: 10px; }
+  .sec-num { background: var(--blue); color: #0f1117; border-radius: 50%; width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; flex-shrink: 0; }
+  section > p { color: #cbd5e1; margin-top: 10px; margin-bottom: 16px; }
+
+  .callout { background: var(--surface); border-left: 3px solid var(--orange); border-radius: 0 8px 8px 0; padding: 14px 18px; margin: 16px 0; font-size: 14px; color: #e2e8f0; }
+  .callout.info  { border-color: var(--blue); }
+  .callout.warn  { border-color: var(--red); }
+  .callout.good  { border-color: var(--green); }
+  .callout strong { display: block; margin-bottom: 4px; }
+
+  /* ── Code blocks ── */
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 0 8px 8px 8px;
+    padding: 18px 20px;
+    overflow-x: auto;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 13px;
+    line-height: 1.65;
+    margin: 0 0 16px;
+  }
+  .kw  { color: #c792ea; }
+  .fn  { color: #82aaff; }
+  .str { color: #c3e88d; }
+  .cm  { color: #546e7a; font-style: italic; }
+  .nl  { color: #f78c6c; }
+  .op  { color: #89ddff; }
+  .file-tag {
+    font-size: 11px; color: var(--muted);
+    background: var(--surface); border: 1px solid var(--border);
+    border-bottom: none; border-radius: 6px 6px 0 0;
+    padding: 4px 12px; display: inline-block;
+    margin-bottom: 0; position: relative; z-index: 1;
+  }
+
+  /* ── Diagrams ── */
+  .diagram-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin: 20px 0;
+  }
+  .diagram-wrap h3 {
+    font-size: 12px; text-transform: uppercase;
+    letter-spacing: .08em; color: var(--muted); margin-bottom: 20px;
+  }
+
+  /* ── Legend ── */
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 14px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+  .legend-dot { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+
+  /* ── Steps ── */
+  .steps { counter-reset: step; margin: 16px 0; }
+  .step { display: flex; gap: 14px; margin-bottom: 16px; align-items: flex-start; }
+  .step-n { background: var(--surface); border: 1px solid var(--border); border-radius: 50%; min-width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: var(--blue); flex-shrink: 0; }
+  .step p { margin: 4px 0 0; }
+
+  /* ── Side by side ── */
+  .side-by-side { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+  .sbs-card { background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+  .sbs-card h4 { font-size: 12px; text-transform: uppercase; letter-spacing: .07em; margin-bottom: 10px; }
+  .sbs-card.bad  h4 { color: var(--red); }
+  .sbs-card.good h4 { color: var(--green); }
+  .sbs-card pre  { border: none; background: transparent; margin: 0; padding: 0; }
+
+  /* ── Changes list ── */
+  .changes { list-style: none; margin: 16px 0; }
+  .changes li {
+    padding: 10px 14px; border-radius: 6px; margin-bottom: 8px;
+    background: var(--code-bg); border: 1px solid var(--border);
+    display: flex; align-items: flex-start; gap: 10px; font-size: 14px;
+  }
+  .changes li::before { content: '→'; color: var(--orange); font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+
+  /* ── Table ── */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+  th { text-align: left; padding: 8px 10px; color: var(--muted); border-bottom: 1px solid var(--border); }
+  td { padding: 9px 10px; border-bottom: 1px solid var(--border); color: #cbd5e1; vertical-align: top; }
+  td code { font-family: monospace; color: var(--orange); font-size: 12px; }
+
+  @media (max-width: 780px) {
+    body { flex-direction: column; }
+    nav { width: 100%; height: auto; position: static; }
+    main { padding: 24px 18px; }
+    .side-by-side { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══ SIDEBAR ═══ -->
+<nav>
+  <h2>VSA VarLen Guide</h2>
+  <a href="#s1"><span class="num">1</span> Attention recap</a>
+  <a href="#s2"><span class="num">2</span> Padded batching</a>
+  <a href="#s3"><span class="num">3</span> Block-Sparse VSA</a>
+  <a href="#s4"><span class="num">4</span> Triton kernel internals</a>
+  <a href="#s5"><span class="num">5</span> What VarLen really means</a>
+  <a href="#s6"><span class="num">6</span> Python loop anti-pattern</a>
+  <a href="#s7"><span class="num">7</span> Kernel-level VarLen</a>
+  <a href="#s8"><span class="num">8</span> What must change</a>
+  <a href="#s9"><span class="num">9</span> Full pipeline</a>
+</nav>
+
+<!-- ═══ MAIN ═══ -->
+<main>
+
+<div class="hero">
+  <div>
+    <span class="badge">Issue #917 / #1040</span>
+    <span class="badge">FastVideo · VSA</span>
+  </div>
+  <h1>VSA VarLen Support<br/>A Visual Deep-Dive</h1>
+  <p>Why Yunsheng Ni's critique is right, what "varlen" really means, and exactly what needs to change inside the Triton kernel.</p>
+</div>
+
+<!-- ──────────────────────────────────────────── -->
+<section id="s1">
+  <h2><span class="sec-num">1</span> Attention Basics — 60-second recap</h2>
+  <p>Transformer attention computes, for every query token, a weighted sum over all key/value tokens. The weight for pair (i, j) is <code>softmax(q_i · k_j / √d)</code>. Cost = O(N²) in sequence length.</p>
+
+  <div class="diagram-wrap">
+    <h3>Dense attention matrix — every Q token attends to every KV token</h3>
+    <svg width="100%" viewBox="0 0 430 210" style="max-width:430px">
+      <defs>
+        <linearGradient id="hg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%"   stop-color="#60a5fa" stop-opacity=".9"/>
+          <stop offset="100%" stop-color="#a78bfa" stop-opacity=".55"/>
+        </linearGradient>
+      </defs>
+      <text x="18" y="105" fill="#8892a4" font-size="11" transform="rotate(-90,18,105)">Q tokens →</text>
+      <text x="215" y="200" fill="#8892a4" font-size="11" text-anchor="middle">KV tokens →</text>
+      <g transform="translate(32,8)">
+        <!-- 6 rows × 8 cols -->
+        <rect x="0"   y="0"   width="44" height="28" rx="2" fill="url(#hg)" opacity=".95"/>
+        <rect x="48"  y="0"   width="44" height="28" rx="2" fill="url(#hg)" opacity=".7"/>
+        <rect x="96"  y="0"   width="44" height="28" rx="2" fill="url(#hg)" opacity=".5"/>
+        <rect x="144" y="0"   width="44" height="28" rx="2" fill="url(#hg)" opacity=".8"/>
+        <rect x="192" y="0"   width="44" height="28" rx="2" fill="url(#hg)" opacity=".4"/>
+        <rect x="240" y="0"   width="44" height="28" rx="2" fill="url(#hg)" opacity=".65"/>
+        <rect x="288" y="0"   width="44" height="28" rx="2" fill="url(#hg)" opacity=".3"/>
+        <rect x="336" y="0"   width="44" height="28" rx="2" fill="url(#hg)" opacity=".85"/>
+
+        <rect x="0"   y="32"  width="44" height="28" rx="2" fill="url(#hg)" opacity=".6"/>
+        <rect x="48"  y="32"  width="44" height="28" rx="2" fill="url(#hg)" opacity=".9"/>
+        <rect x="96"  y="32"  width="44" height="28" rx="2" fill="url(#hg)" opacity=".7"/>
+        <rect x="144" y="32"  width="44" height="28" rx="2" fill="url(#hg)" opacity=".35"/>
+        <rect x="192" y="32"  width="44" height="28" rx="2" fill="url(#hg)" opacity=".85"/>
+        <rect x="240" y="32"  width="44" height="28" rx="2" fill="url(#hg)" opacity=".5"/>
+        <rect x="288" y="32"  width="44" height="28" rx="2" fill="url(#hg)" opacity=".4"/>
+        <rect x="336" y="32"  width="44" height="28" rx="2" fill="url(#hg)" opacity=".7"/>
+
+        <rect x="0"   y="64"  width="44" height="28" rx="2" fill="url(#hg)" opacity=".4"/>
+        <rect x="48"  y="64"  width="44" height="28" rx="2" fill="url(#hg)" opacity=".7"/>
+        <rect x="96"  y="64"  width="44" height="28" rx="2" fill="url(#hg)" opacity=".95"/>
+        <rect x="144" y="64"  width="44" height="28" rx="2" fill="url(#hg)" opacity=".6"/>
+        <rect x="192" y="64"  width="44" height="28" rx="2" fill="url(#hg)" opacity=".5"/>
+        <rect x="240" y="64"  width="44" height="28" rx="2" fill="url(#hg)" opacity=".8"/>
+        <rect x="288" y="64"  width="44" height="28" rx="2" fill="url(#hg)" opacity=".35"/>
+        <rect x="336" y="64"  width="44" height="28" rx="2" fill="url(#hg)" opacity=".6"/>
+
+        <rect x="0"   y="96"  width="44" height="28" rx="2" fill="url(#hg)" opacity=".8"/>
+        <rect x="48"  y="96"  width="44" height="28" rx="2" fill="url(#hg)" opacity=".4"/>
+        <rect x="96"  y="96"  width="44" height="28" rx="2" fill="url(#hg)" opacity=".6"/>
+        <rect x="144" y="96"  width="44" height="28" rx="2" fill="url(#hg)" opacity=".9"/>
+        <rect x="192" y="96"  width="44" height="28" rx="2" fill="url(#hg)" opacity=".3"/>
+        <rect x="240" y="96"  width="44" height="28" rx="2" fill="url(#hg)" opacity=".7"/>
+        <rect x="288" y="96"  width="44" height="28" rx="2" fill="url(#hg)" opacity=".95"/>
+        <rect x="336" y="96"  width="44" height="28" rx="2" fill="url(#hg)" opacity=".5"/>
+
+        <rect x="0"   y="128" width="44" height="28" rx="2" fill="url(#hg)" opacity=".5"/>
+        <rect x="48"  y="128" width="44" height="28" rx="2" fill="url(#hg)" opacity=".8"/>
+        <rect x="96"  y="128" width="44" height="28" rx="2" fill="url(#hg)" opacity=".4"/>
+        <rect x="144" y="128" width="44" height="28" rx="2" fill="url(#hg)" opacity=".65"/>
+        <rect x="192" y="128" width="44" height="28" rx="2" fill="url(#hg)" opacity=".9"/>
+        <rect x="240" y="128" width="44" height="28" rx="2" fill="url(#hg)" opacity=".3"/>
+        <rect x="288" y="128" width="44" height="28" rx="2" fill="url(#hg)" opacity=".7"/>
+        <rect x="336" y="128" width="44" height="28" rx="2" fill="url(#hg)" opacity=".8"/>
+
+        <rect x="0"   y="160" width="44" height="28" rx="2" fill="url(#hg)" opacity=".35"/>
+        <rect x="48"  y="160" width="44" height="28" rx="2" fill="url(#hg)" opacity=".6"/>
+        <rect x="96"  y="160" width="44" height="28" rx="2" fill="url(#hg)" opacity=".8"/>
+        <rect x="144" y="160" width="44" height="28" rx="2" fill="url(#hg)" opacity=".5"/>
+        <rect x="192" y="160" width="44" height="28" rx="2" fill="url(#hg)" opacity=".7"/>
+        <rect x="240" y="160" width="44" height="28" rx="2" fill="url(#hg)" opacity=".9"/>
+        <rect x="288" y="160" width="44" height="28" rx="2" fill="url(#hg)" opacity=".4"/>
+        <rect x="336" y="160" width="44" height="28" rx="2" fill="url(#hg)" opacity=".65"/>
+
+        <text x="188" y="206" fill="#f87171" font-size="12" text-anchor="middle">Cost = O(N²) — infeasible for 50k+ token video sequences</text>
+      </g>
+    </svg>
+  </div>
+</section>
+
+<!-- ──────────────────────────────────────────── -->
+<section id="s2">
+  <h2><span class="sec-num">2</span> Standard Padded Batching</h2>
+  <p>GPUs need rectangular tensors. When 3 sequences have lengths 5, 8, and 3 tokens, you pad shorter ones to max_len=8, producing a <code>[B=3, S_max=8, D]</code> tensor. The gray cells are real memory allocations that compute nothing useful.</p>
+
+  <div class="diagram-wrap">
+    <h3>Padded batch — [3 sequences × 8 tokens] — gray = wasted padding</h3>
+    <svg width="100%" viewBox="0 0 530 135" style="max-width:530px">
+      <g transform="translate(44,8)">
+        <!-- Row labels -->
+        <text x="-6" y="24"  fill="#60a5fa" font-size="12" text-anchor="end">Seq 0</text>
+        <text x="-6" y="64"  fill="#34d399" font-size="12" text-anchor="end">Seq 1</text>
+        <text x="-6" y="104" fill="#fb923c" font-size="12" text-anchor="end">Seq 2</text>
+
+        <!-- Seq 0: 5 real + 3 pad -->
+        <rect x="0"   y="8"  width="58" height="28" rx="3" fill="#60a5fa" opacity=".85"/>
+        <rect x="62"  y="8"  width="58" height="28" rx="3" fill="#60a5fa" opacity=".85"/>
+        <rect x="124" y="8"  width="58" height="28" rx="3" fill="#60a5fa" opacity=".85"/>
+        <rect x="186" y="8"  width="58" height="28" rx="3" fill="#60a5fa" opacity=".85"/>
+        <rect x="248" y="8"  width="58" height="28" rx="3" fill="#60a5fa" opacity=".85"/>
+        <rect x="310" y="8"  width="58" height="28" rx="3" fill="#374151" opacity=".45"/>
+        <rect x="372" y="8"  width="58" height="28" rx="3" fill="#374151" opacity=".45"/>
+        <rect x="434" y="8"  width="58" height="28" rx="3" fill="#374151" opacity=".45"/>
+        <text x="339" y="27" fill="#546e7a" font-size="10" text-anchor="middle">PAD</text>
+        <text x="401" y="27" fill="#546e7a" font-size="10" text-anchor="middle">PAD</text>
+        <text x="463" y="27" fill="#546e7a" font-size="10" text-anchor="middle">PAD</text>
+
+        <!-- Seq 1: 8 real -->
+        <rect x="0"   y="48" width="58" height="28" rx="3" fill="#34d399" opacity=".85"/>
+        <rect x="62"  y="48" width="58" height="28" rx="3" fill="#34d399" opacity=".85"/>
+        <rect x="124" y="48" width="58" height="28" rx="3" fill="#34d399" opacity=".85"/>
+        <rect x="186" y="48" width="58" height="28" rx="3" fill="#34d399" opacity=".85"/>
+        <rect x="248" y="48" width="58" height="28" rx="3" fill="#34d399" opacity=".85"/>
+        <rect x="310" y="48" width="58" height="28" rx="3" fill="#34d399" opacity=".85"/>
+        <rect x="372" y="48" width="58" height="28" rx="3" fill="#34d399" opacity=".85"/>
+        <rect x="434" y="48" width="58" height="28" rx="3" fill="#34d399" opacity=".85"/>
+
+        <!-- Seq 2: 3 real + 5 pad -->
+        <rect x="0"   y="88" width="58" height="28" rx="3" fill="#fb923c" opacity=".85"/>
+        <rect x="62"  y="88" width="58" height="28" rx="3" fill="#fb923c" opacity=".85"/>
+        <rect x="124" y="88" width="58" height="28" rx="3" fill="#fb923c" opacity=".85"/>
+        <rect x="186" y="88" width="58" height="28" rx="3" fill="#374151" opacity=".45"/>
+        <rect x="248" y="88" width="58" height="28" rx="3" fill="#374151" opacity=".45"/>
+        <rect x="310" y="88" width="58" height="28" rx="3" fill="#374151" opacity=".45"/>
+        <rect x="372" y="88" width="58" height="28" rx="3" fill="#374151" opacity=".45"/>
+        <rect x="434" y="88" width="58" height="28" rx="3" fill="#374151" opacity=".45"/>
+        <text x="215" y="107" fill="#546e7a" font-size="10" text-anchor="middle">PAD</text>
+        <text x="277" y="107" fill="#546e7a" font-size="10" text-anchor="middle">PAD</text>
+        <text x="339" y="107" fill="#546e7a" font-size="10" text-anchor="middle">PAD</text>
+        <text x="401" y="107" fill="#546e7a" font-size="10" text-anchor="middle">PAD</text>
+        <text x="463" y="107" fill="#546e7a" font-size="10" text-anchor="middle">PAD</text>
+
+        <text x="245" y="128" fill="#f87171" font-size="11" text-anchor="middle">8 of 24 cells are pure waste — 33% overhead</text>
+      </g>
+    </svg>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#60a5fa"></div> Seq 0 (len=5)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#34d399"></div> Seq 1 (len=8)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#fb923c"></div> Seq 2 (len=3)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#374151"></div> Padding (wasted)</div>
+    </div>
+  </div>
+
+  <div class="callout warn">
+    <strong>Why this is severe for video training</strong>
+    A mixed-resolution batch might pair a 1024×1024 video (huge token count) with a 256×256 clip. Every other sample gets padded to the largest sequence — wasting massive GPU memory and FLOPS.
+  </div>
+</section>
+
+<!-- ──────────────────────────────────────────── -->
+<section id="s3">
+  <h2><span class="sec-num">3</span> Block-Sparse Attention (VSA)</h2>
+  <p>VSA groups tokens into <strong>64-token blocks</strong> and uses a learned top-k pattern to decide which Q-blocks should attend to which KV-blocks. A Q-block only touches its k selected KV-blocks — all others are skipped entirely.</p>
+
+  <div class="diagram-wrap">
+    <h3>Block-sparse attention map — rows = Q-blocks, cols = KV-blocks — animated highlight shows the active thread block</h3>
+    <svg width="100%" viewBox="0 0 450 310" style="max-width:450px">
+      <g transform="translate(48,18)">
+        <!-- Axis labels -->
+        <text x="-34" y="140" fill="#8892a4" font-size="11" transform="rotate(-90,-34,140)">Q-blocks →</text>
+        <text x="192" y="295" fill="#8892a4" font-size="11" text-anchor="middle">KV-blocks →</text>
+
+        <!-- Column labels -->
+        <text x="32"  y="12" fill="#8892a4" font-size="10" text-anchor="middle">KV0</text>
+        <text x="96"  y="12" fill="#8892a4" font-size="10" text-anchor="middle">KV1</text>
+        <text x="160" y="12" fill="#8892a4" font-size="10" text-anchor="middle">KV2</text>
+        <text x="224" y="12" fill="#8892a4" font-size="10" text-anchor="middle">KV3</text>
+        <text x="288" y="12" fill="#8892a4" font-size="10" text-anchor="middle">KV4</text>
+        <text x="352" y="12" fill="#8892a4" font-size="10" text-anchor="middle">KV5</text>
+
+        <!-- Row labels -->
+        <text x="-6" y="50"  fill="#8892a4" font-size="10" text-anchor="end">Q0</text>
+        <text x="-6" y="114" fill="#8892a4" font-size="10" text-anchor="end">Q1</text>
+        <text x="-6" y="178" fill="#8892a4" font-size="10" text-anchor="end">Q2</text>
+        <text x="-6" y="242" fill="#8892a4" font-size="10" text-anchor="end">Q3</text>
+
+        <!-- Empty (skipped) cells background -->
+        <rect x="0"   y="20" width="384" height="240" rx="4" fill="#161922" opacity=".5"/>
+
+        <!-- Q0 attends KV0, KV2, KV4 -->
+        <rect x="0"   y="20" width="60" height="60" rx="4" fill="#fb923c" opacity=".8"/>
+        <rect x="64"  y="20" width="60" height="60" rx="4" fill="#1a1d27" opacity=".6"/>
+        <rect x="128" y="20" width="60" height="60" rx="4" fill="#fb923c" opacity=".8"/>
+        <rect x="192" y="20" width="60" height="60" rx="4" fill="#1a1d27" opacity=".6"/>
+        <rect x="256" y="20" width="60" height="60" rx="4" fill="#fb923c" opacity=".8"/>
+        <rect x="320" y="20" width="60" height="60" rx="4" fill="#1a1d27" opacity=".6"/>
+
+        <!-- Q1 attends KV1, KV3, KV5 -->
+        <rect x="0"   y="84" width="60" height="60" rx="4" fill="#1a1d27" opacity=".6"/>
+        <rect x="64"  y="84" width="60" height="60" rx="4" fill="#fb923c" opacity=".8"/>
+        <rect x="128" y="84" width="60" height="60" rx="4" fill="#1a1d27" opacity=".6"/>
+        <rect x="192" y="84" width="60" height="60" rx="4" fill="#fb923c" opacity=".8"/>
+        <rect x="256" y="84" width="60" height="60" rx="4" fill="#1a1d27" opacity=".6"/>
+        <rect x="320" y="84" width="60" height="60" rx="4" fill="#fb923c" opacity=".8"/>
+
+        <!-- Q2 attends KV0, KV1, KV4 -->
+        <rect x="0"   y="148" width="60" height="60" rx="4" fill="#fb923c" opacity=".8"/>
+        <rect x="64"  y="148" width="60" height="60" rx="4" fill="#fb923c" opacity=".8"/>
+        <rect x="128" y="148" width="60" height="60" rx="4" fill="#1a1d27" opacity=".6"/>
+        <rect x="192" y="148" width="60" height="60" rx="4" fill="#1a1d27" opacity=".6"/>
+        <rect x="256" y="148" width="60" height="60" rx="4" fill="#fb923c" opacity=".8"/>
+        <rect x="320" y="148" width="60" height="60" rx="4" fill="#1a1d27" opacity=".6"/>
+
+        <!-- Q3 attends KV2, KV3, KV5 -->
+        <rect x="0"   y="212" width="60" height="60" rx="4" fill="#1a1d27" opacity=".6"/>
+        <rect x="64"  y="212" width="60" height="60" rx="4" fill="#1a1d27" opacity=".6"/>
+        <rect x="128" y="212" width="60" height="60" rx="4" fill="#fb923c" opacity=".8"/>
+        <rect x="192" y="212" width="60" height="60" rx="4" fill="#fb923c" opacity=".8"/>
+        <rect x="256" y="212" width="60" height="60" rx="4" fill="#1a1d27" opacity=".6"/>
+        <rect x="320" y="212" width="60" height="60" rx="4" fill="#fb923c" opacity=".8"/>
+
+        <!-- check marks -->
+        <text x="30"  y="55"  fill="white" font-size="16" text-anchor="middle">✓</text>
+        <text x="158" y="55"  fill="white" font-size="16" text-anchor="middle">✓</text>
+        <text x="286" y="55"  fill="white" font-size="16" text-anchor="middle">✓</text>
+        <text x="94"  y="119" fill="white" font-size="16" text-anchor="middle">✓</text>
+        <text x="222" y="119" fill="white" font-size="16" text-anchor="middle">✓</text>
+        <text x="350" y="119" fill="white" font-size="16" text-anchor="middle">✓</text>
+        <text x="30"  y="183" fill="white" font-size="16" text-anchor="middle">✓</text>
+        <text x="94"  y="183" fill="white" font-size="16" text-anchor="middle">✓</text>
+        <text x="286" y="183" fill="white" font-size="16" text-anchor="middle">✓</text>
+        <text x="158" y="247" fill="white" font-size="16" text-anchor="middle">✓</text>
+        <text x="222" y="247" fill="white" font-size="16" text-anchor="middle">✓</text>
+        <text x="350" y="247" fill="white" font-size="16" text-anchor="middle">✓</text>
+
+        <!-- Animated highlight — cycles through active blocks -->
+        <rect x="0" y="20" width="60" height="60" rx="4" fill="none" stroke="#fbbf24" stroke-width="3">
+          <animate attributeName="x" values="0;128;256; 64;192;320; 0;64;256; 128;192;320; 0" dur="9s" repeatCount="indefinite"/>
+          <animate attributeName="y" values="20;20;20; 84;84;84; 148;148;148; 212;212;212; 20" dur="9s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values="0;1;1;0" dur="2.25s" repeatCount="indefinite"/>
+        </rect>
+
+        <text x="192" y="284" fill="#34d399" font-size="11" text-anchor="middle">50% sparsity — only orange tiles compute QK; gray tiles skipped</text>
+      </g>
+    </svg>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#fb923c"></div> Attended block (computed)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#1a1d27; border:1px solid #374151"></div> Skipped block (never touched)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:none; border:2px solid #fbbf24; border-radius:3px; width:12px; height:12px;"></div> Active thread block (animated)</div>
+    </div>
+  </div>
+
+  <div class="callout info">
+    <strong>variable_block_sizes — the last block is often partial</strong>
+    The last KV-block in a sequence may contain fewer than 64 real tokens. The tensor <code>variable_block_sizes[kv_block_idx]</code> records how many real tokens each block has. Inside the kernel, columns beyond that count are masked to −∞ before softmax.
+  </div>
+</section>
+
+<!-- ──────────────────────────────────────────── -->
+<section id="s4">
+  <h2><span class="sec-num">4</span> Inside the Triton Kernel — how pid maps to work</h2>
+  <p>The Triton kernel runs thousands of <strong>thread blocks</strong> in parallel, each identified by a program ID (<code>pid</code>). The current kernel uses a 2D launch grid where the two axes encode which Q-block and which (batch, head) pair each thread block handles.</p>
+
+  <div class="diagram-wrap">
+    <h3>Current grid layout — grid = (Tq÷64, B×H, 1)</h3>
+    <svg width="100%" viewBox="0 0 510 190" style="max-width:510px">
+      <g transform="translate(70,18)">
+        <!-- Axis labels -->
+        <text x="215" y="12" fill="#8892a4" font-size="11" text-anchor="middle">pid(0) = Q-block index</text>
+        <text x="-48" y="100" fill="#8892a4" font-size="11" transform="rotate(-90,-48,100)">pid(1) = batch×head</text>
+
+        <!-- Q-block column headers -->
+        <text x="50"  y="28" fill="#8892a4" font-size="10" text-anchor="middle">Q-blk 0</text>
+        <text x="155" y="28" fill="#8892a4" font-size="10" text-anchor="middle">Q-blk 1</text>
+        <text x="260" y="28" fill="#8892a4" font-size="10" text-anchor="middle">Q-blk 2</text>
+        <text x="365" y="28" fill="#8892a4" font-size="10" text-anchor="middle">Q-blk 3</text>
+
+        <!-- Row: b=0,h=0 -->
+        <rect x="0"   y="32" width="98" height="28" rx="3" fill="#60a5fa" opacity=".65"/>
+        <rect x="105" y="32" width="98" height="28" rx="3" fill="#60a5fa" opacity=".5"/>
+        <rect x="210" y="32" width="98" height="28" rx="3" fill="#60a5fa" opacity=".7"/>
+        <rect x="315" y="32" width="98" height="28" rx="3" fill="#60a5fa" opacity=".45"/>
+        <text x="-8" y="50" fill="#8892a4" font-size="10" text-anchor="end">b=0,h=0</text>
+
+        <!-- Row: b=0,h=1 -->
+        <rect x="0"   y="64" width="98" height="28" rx="3" fill="#60a5fa" opacity=".5"/>
+        <rect x="105" y="64" width="98" height="28" rx="3" fill="#60a5fa" opacity=".7"/>
+        <rect x="210" y="64" width="98" height="28" rx="3" fill="#60a5fa" opacity=".4"/>
+        <rect x="315" y="64" width="98" height="28" rx="3" fill="#60a5fa" opacity=".65"/>
+        <text x="-8" y="82" fill="#8892a4" font-size="10" text-anchor="end">b=0,h=1</text>
+
+        <!-- Row: b=1,h=0 -->
+        <rect x="0"   y="96"  width="98" height="28" rx="3" fill="#34d399" opacity=".65"/>
+        <rect x="105" y="96"  width="98" height="28" rx="3" fill="#34d399" opacity=".45"/>
+        <rect x="210" y="96"  width="98" height="28" rx="3" fill="#34d399" opacity=".7"/>
+        <rect x="315" y="96"  width="98" height="28" rx="3" fill="#34d399" opacity=".5"/>
+        <text x="-8" y="114" fill="#8892a4" font-size="10" text-anchor="end">b=1,h=0</text>
+
+        <!-- Row: b=1,h=1 -->
+        <rect x="0"   y="128" width="98" height="28" rx="3" fill="#34d399" opacity=".5"/>
+        <rect x="105" y="128" width="98" height="28" rx="3" fill="#34d399" opacity=".7"/>
+        <rect x="210" y="128" width="98" height="28" rx="3" fill="#34d399" opacity=".4"/>
+        <rect x="315" y="128" width="98" height="28" rx="3" fill="#34d399" opacity=".65"/>
+        <text x="-8" y="146" fill="#8892a4" font-size="10" text-anchor="end">b=1,h=1</text>
+
+        <!-- Animated highlight on one cell -->
+        <rect x="105" y="96" width="98" height="28" rx="3" fill="none" stroke="#fbbf24" stroke-width="2.5">
+          <animate attributeName="opacity" values="0;1;1;0" dur="2s" repeatCount="indefinite"/>
+        </rect>
+
+        <text x="215" y="174" fill="#8892a4" font-size="11" text-anchor="middle">Every cell = one thread block running simultaneously on the GPU</text>
+      </g>
+    </svg>
+  </div>
+
+  <p>The actual code from the Triton kernel that performs this mapping:</p>
+
+  <div class="file-tag">fastvideo-kernel/python/fastvideo_kernel/triton_kernels/block_sparse_attn_triton.py : 74–83</div>
+  <pre><span class="cm"># ----- program-id mapping -----</span>
+<span class="cm">q_blk</span>   <span class="op">=</span> tl.<span class="fn">program_id</span>(<span class="nl">0</span>)   <span class="cm"># Q-tile index (0 … Tq//64 - 1)</span>
+<span class="cm">off_hz</span>  <span class="op">=</span> tl.<span class="fn">program_id</span>(<span class="nl">1</span>)   <span class="cm"># fused (batch, head) index</span>
+b       <span class="op">=</span> off_hz <span class="op">//</span> H          <span class="cm"># recover batch index</span>
+h       <span class="op">=</span> off_hz <span class="op">%</span>  H          <span class="cm"># recover head index</span>
+q_tiles <span class="op">=</span> N_CTX_Q <span class="op">//</span> BLOCK_M   <span class="cm"># Q-blocks per sequence — SAME for every batch item!</span>
+
+<span class="cm"># Flat index into sparse connectivity tensor [B, H, q_tiles, max_kv_blks]</span>
+meta_base <span class="op">=</span> ((b <span class="op">*</span> H <span class="op">+</span> h) <span class="op">*</span> q_tiles <span class="op">+</span> q_blk)
+
+kv_blocks <span class="op">=</span> tl.<span class="fn">load</span>(q2k_num <span class="op">+</span> meta_base)       <span class="cm"># how many KV blocks to attend to</span>
+kv_ptr    <span class="op">=</span> q2k_index <span class="op">+</span> meta_base <span class="op">*</span> max_kv_blks  <span class="cm"># pointer to KV block index list</span></pre>
+
+  <div class="callout info">
+    <strong>The hidden assumption</strong>
+    <code>q_tiles = N_CTX_Q // BLOCK_M</code> is computed once and assumed equal for every batch item. This only holds when all sequences in the batch share the same length — i.e., padded batching. It completely breaks for variable-length packing.
+  </div>
+</section>
+
+<!-- ──────────────────────────────────────────── -->
+<section id="s5">
+  <h2><span class="sec-num">5</span> What "VarLen" Actually Means</h2>
+  <p>"Variable-length" does <strong>not</strong> mean Q and KV have different lengths within one sequence. It means: <em>concatenate multiple sequences of different lengths into a single flat tensor and process them all in one kernel launch</em>, using cumulative length arrays (<code>cu_seqlens</code>) as bookmarks. This is exactly the contract that <code>flash_attn_varlen_func</code> implements.</p>
+
+  <div class="diagram-wrap">
+    <h3>Sequence packing — 3 sequences become one flat tensor, zero padding</h3>
+    <svg width="100%" viewBox="0 0 530 245" style="max-width:530px">
+      <g transform="translate(8,8)">
+        <!-- BEFORE label -->
+        <text x="10" y="16" fill="#8892a4" font-size="11" font-weight="600">BEFORE — 3 separate padded tensors</text>
+
+        <!-- Seq 0: 5 real + 3 pad -->
+        <text x="4" y="46" fill="#60a5fa" font-size="11">S0</text>
+        <rect x="18"  y="28" width="42" height="22" rx="3" fill="#60a5fa" opacity=".85"/>
+        <rect x="64"  y="28" width="42" height="22" rx="3" fill="#60a5fa" opacity=".85"/>
+        <rect x="110" y="28" width="42" height="22" rx="3" fill="#60a5fa" opacity=".85"/>
+        <rect x="156" y="28" width="42" height="22" rx="3" fill="#60a5fa" opacity=".85"/>
+        <rect x="202" y="28" width="42" height="22" rx="3" fill="#60a5fa" opacity=".85"/>
+        <rect x="248" y="28" width="42" height="22" rx="3" fill="#374151" opacity=".4"/>
+        <rect x="294" y="28" width="42" height="22" rx="3" fill="#374151" opacity=".4"/>
+        <rect x="340" y="28" width="42" height="22" rx="3" fill="#374151" opacity=".4"/>
+
+        <!-- Seq 1: 8 real -->
+        <text x="4" y="86" fill="#34d399" font-size="11">S1</text>
+        <rect x="18"  y="68" width="42" height="22" rx="3" fill="#34d399" opacity=".85"/>
+        <rect x="64"  y="68" width="42" height="22" rx="3" fill="#34d399" opacity=".85"/>
+        <rect x="110" y="68" width="42" height="22" rx="3" fill="#34d399" opacity=".85"/>
+        <rect x="156" y="68" width="42" height="22" rx="3" fill="#34d399" opacity=".85"/>
+        <rect x="202" y="68" width="42" height="22" rx="3" fill="#34d399" opacity=".85"/>
+        <rect x="248" y="68" width="42" height="22" rx="3" fill="#34d399" opacity=".85"/>
+        <rect x="294" y="68" width="42" height="22" rx="3" fill="#34d399" opacity=".85"/>
+        <rect x="340" y="68" width="42" height="22" rx="3" fill="#34d399" opacity=".85"/>
+
+        <!-- Seq 2: 3 real + 5 pad -->
+        <text x="4" y="126" fill="#fb923c" font-size="11">S2</text>
+        <rect x="18"  y="108" width="42" height="22" rx="3" fill="#fb923c" opacity=".85"/>
+        <rect x="64"  y="108" width="42" height="22" rx="3" fill="#fb923c" opacity=".85"/>
+        <rect x="110" y="108" width="42" height="22" rx="3" fill="#fb923c" opacity=".85"/>
+        <rect x="156" y="108" width="42" height="22" rx="3" fill="#374151" opacity=".4"/>
+        <rect x="202" y="108" width="42" height="22" rx="3" fill="#374151" opacity=".4"/>
+        <rect x="248" y="108" width="42" height="22" rx="3" fill="#374151" opacity=".4"/>
+        <rect x="294" y="108" width="42" height="22" rx="3" fill="#374151" opacity=".4"/>
+        <rect x="340" y="108" width="42" height="22" rx="3" fill="#374151" opacity=".4"/>
+
+        <!-- Arrow -->
+        <text x="265" y="148" fill="#fbbf24" font-size="22" text-anchor="middle">↓  pack  (drop all padding)</text>
+
+        <!-- AFTER label -->
+        <text x="10" y="168" fill="#8892a4" font-size="11" font-weight="600">AFTER — single flat tensor [total_tokens=16, H, D]</text>
+
+        <!-- 5 blue + 8 green + 3 orange = 16 tokens -->
+        <rect x="18"  y="174" width="26" height="22" rx="2" fill="#60a5fa" opacity=".9"/>
+        <rect x="48"  y="174" width="26" height="22" rx="2" fill="#60a5fa" opacity=".9"/>
+        <rect x="78"  y="174" width="26" height="22" rx="2" fill="#60a5fa" opacity=".9"/>
+        <rect x="108" y="174" width="26" height="22" rx="2" fill="#60a5fa" opacity=".9"/>
+        <rect x="138" y="174" width="26" height="22" rx="2" fill="#60a5fa" opacity=".9"/>
+
+        <!-- divider after seq 0 -->
+        <line x1="167" y1="171" x2="167" y2="199" stroke="#fbbf24" stroke-width="2"/>
+
+        <rect x="170" y="174" width="26" height="22" rx="2" fill="#34d399" opacity=".9"/>
+        <rect x="200" y="174" width="26" height="22" rx="2" fill="#34d399" opacity=".9"/>
+        <rect x="230" y="174" width="26" height="22" rx="2" fill="#34d399" opacity=".9"/>
+        <rect x="260" y="174" width="26" height="22" rx="2" fill="#34d399" opacity=".9"/>
+        <rect x="290" y="174" width="26" height="22" rx="2" fill="#34d399" opacity=".9"/>
+        <rect x="320" y="174" width="26" height="22" rx="2" fill="#34d399" opacity=".9"/>
+        <rect x="350" y="174" width="26" height="22" rx="2" fill="#34d399" opacity=".9"/>
+        <rect x="380" y="174" width="26" height="22" rx="2" fill="#34d399" opacity=".9"/>
+
+        <!-- divider after seq 1 -->
+        <line x1="409" y1="171" x2="409" y2="199" stroke="#fbbf24" stroke-width="2"/>
+
+        <rect x="412" y="174" width="26" height="22" rx="2" fill="#fb923c" opacity=".9"/>
+        <rect x="442" y="174" width="26" height="22" rx="2" fill="#fb923c" opacity=".9"/>
+        <rect x="472" y="174" width="26" height="22" rx="2" fill="#fb923c" opacity=".9"/>
+
+        <!-- cu_seqlens annotation -->
+        <text x="18"  y="212" fill="#fbbf24" font-size="11">cu_seqlens_q = [</text>
+        <text x="126" y="212" fill="#60a5fa" font-size="11">0,</text>
+        <text x="167" y="220" fill="#fbbf24" font-size="10" text-anchor="middle">│</text>
+        <text x="192" y="212" fill="#34d399" font-size="11">5,</text>
+        <text x="409" y="220" fill="#fbbf24" font-size="10" text-anchor="middle">│</text>
+        <text x="420" y="212" fill="#fb923c" font-size="11">13,</text>
+        <text x="462" y="212" fill="#fbbf24" font-size="11">16 ]</text>
+
+        <text x="265" y="237" fill="#34d399" font-size="11" text-anchor="middle">✓ 16 real tokens, zero padding — 100% compute efficiency</text>
+      </g>
+    </svg>
+  </div>
+
+  <p><code>cu_seqlens[i]</code> to <code>cu_seqlens[i+1]</code> is sequence i's slice in the flat tensor. This replaces padding entirely.</p>
+</section>
+
+<!-- ──────────────────────────────────────────── -->
+<section id="s6">
+  <h2><span class="sec-num">6</span> Why the Python Loop is Wrong</h2>
+  <p>The current <code>video_sparse_attn_varlen</code> in <code>ops.py</code> handles the flat tensor by simply slicing it per-sequence in a Python for-loop and calling <code>video_sparse_attn</code> on each slice:</p>
+
+  <div class="file-tag">fastvideo-kernel/python/fastvideo_kernel/ops.py : 97–125</div>
+  <pre><span class="kw">for</span> i <span class="kw">in</span> <span class="fn">range</span>(batch):
+    q_s <span class="op">=</span> cu_seqlens_q[i].<span class="fn">item</span>()      <span class="cm"># ← CPU/GPU sync on every iteration</span>
+    q_e <span class="op">=</span> cu_seqlens_q[i<span class="op">+</span><span class="nl">1</span>].<span class="fn">item</span>()
+
+    q_i <span class="op">=</span> q[q_s:q_e].<span class="fn">unsqueeze</span>(<span class="nl">0</span>).<span class="fn">transpose</span>(<span class="nl">1</span>,<span class="nl">2</span>).<span class="fn">contiguous</span>()
+    k_i <span class="op">=</span> k[kv_s:kv_e].<span class="fn">unsqueeze</span>(<span class="nl">0</span>).<span class="fn">transpose</span>(<span class="nl">1</span>,<span class="nl">2</span>).<span class="fn">contiguous</span>()
+    v_i <span class="op">=</span> v[kv_s:kv_e].<span class="fn">unsqueeze</span>(<span class="nl">0</span>).<span class="fn">transpose</span>(<span class="nl">1</span>,<span class="nl">2</span>).<span class="fn">contiguous</span>()
+
+    out_i <span class="op">=</span> <span class="fn">video_sparse_attn</span>(q_i, k_i, v_i, ...)  <span class="cm"># ← 1 kernel launch per sequence</span>
+    outputs.<span class="fn">append</span>(out_i.<span class="fn">squeeze</span>(<span class="nl">0</span>).<span class="fn">transpose</span>(<span class="nl">0</span>,<span class="nl">1</span>))
+
+<span class="kw">return</span> torch.<span class="fn">cat</span>(outputs, dim<span class="op">=</span><span class="nl">0</span>)</pre>
+
+  <div class="diagram-wrap">
+    <h3>GPU timeline — Python loop (N=3 sequences → 3 separate kernel launches)</h3>
+    <svg width="100%" viewBox="0 0 530 175" style="max-width:530px">
+      <g transform="translate(10,10)">
+        <line x1="30" y1="148" x2="510" y2="148" stroke="#374151" stroke-width="1.5"/>
+        <text x="270" y="166" fill="#8892a4" font-size="11" text-anchor="middle">Wall-clock time →</text>
+        <text x="12" y="90" fill="#8892a4" font-size="11" transform="rotate(-90,12,90)">GPU SMs</text>
+
+        <!-- Kernel 0 -->
+        <rect x="30"  y="38" width="108" height="102" rx="5" fill="#60a5fa" opacity=".7">
+          <animate attributeName="opacity" values=".7;.95;.7" dur="3s" repeatCount="indefinite" begin="0s"/>
+        </rect>
+        <text x="84"  y="88"  fill="white" font-size="12" text-anchor="middle" font-weight="bold">Kernel 0</text>
+        <text x="84"  y="104" fill="white" font-size="10" text-anchor="middle">Seq 0 only</text>
+
+        <!-- Gap 1 -->
+        <rect x="140" y="38" width="38" height="102" rx="3" fill="#0f1117" stroke="#f87171" stroke-dasharray="4,3" stroke-width="1.5"/>
+        <text x="159" y="90"  fill="#f87171" font-size="9" text-anchor="middle">CPU</text>
+        <text x="159" y="102" fill="#f87171" font-size="9" text-anchor="middle">idle</text>
+
+        <!-- Kernel 1 -->
+        <rect x="180" y="38" width="108" height="102" rx="5" fill="#34d399" opacity=".7">
+          <animate attributeName="opacity" values=".7;.95;.7" dur="3s" repeatCount="indefinite" begin="1s"/>
+        </rect>
+        <text x="234" y="88"  fill="white" font-size="12" text-anchor="middle" font-weight="bold">Kernel 1</text>
+        <text x="234" y="104" fill="white" font-size="10" text-anchor="middle">Seq 1 only</text>
+
+        <!-- Gap 2 -->
+        <rect x="290" y="38" width="38" height="102" rx="3" fill="#0f1117" stroke="#f87171" stroke-dasharray="4,3" stroke-width="1.5"/>
+        <text x="309" y="90"  fill="#f87171" font-size="9" text-anchor="middle">CPU</text>
+        <text x="309" y="102" fill="#f87171" font-size="9" text-anchor="middle">idle</text>
+
+        <!-- Kernel 2 -->
+        <rect x="330" y="38" width="108" height="102" rx="5" fill="#fb923c" opacity=".7">
+          <animate attributeName="opacity" values=".7;.95;.7" dur="3s" repeatCount="indefinite" begin="2s"/>
+        </rect>
+        <text x="384" y="88"  fill="white" font-size="12" text-anchor="middle" font-weight="bold">Kernel 2</text>
+        <text x="384" y="104" fill="white" font-size="10" text-anchor="middle">Seq 2 only</text>
+
+        <!-- Total time bracket -->
+        <line x1="30"  y1="28" x2="30"  y2="22" stroke="#8892a4" stroke-width="1"/>
+        <line x1="440" y1="28" x2="440" y2="22" stroke="#8892a4" stroke-width="1"/>
+        <line x1="30"  y1="25" x2="440" y2="25" stroke="#8892a4" stroke-width="1"/>
+        <text x="235" y="20" fill="#f87171" font-size="10" text-anchor="middle">Total = K0 + gap + K1 + gap + K2</text>
+      </g>
+    </svg>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#60a5fa"></div> Kernel 0 (Seq 0)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#34d399"></div> Kernel 1 (Seq 1)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#fb923c"></div> Kernel 2 (Seq 2)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#0f1117; border:1px dashed #f87171"></div> CPU scheduling gap (SMs idle)</div>
+    </div>
+  </div>
+
+  <p>Two fundamental problems Yunsheng identified:</p>
+  <div class="steps">
+    <div class="step">
+      <div class="step-n">1</div>
+      <p><strong>Launch overhead.</strong> Every iteration triggers a separate GPU kernel launch. The CPU must schedule each one independently. With 64 sequences per batch, that's 64 kernel launches — and each gap is dead time where the GPU is sitting idle waiting for the CPU scheduler.</p>
+    </div>
+    <div class="step">
+      <div class="step-n">2</div>
+      <p><strong>SM underutilization.</strong> While Kernel 0 runs, the GPU's SMs can only work on Seq 0's thread blocks. Seq 1 and Seq 2 haven't been launched yet, so their work can never overlap. Parallelism across sequences is completely lost.</p>
+    </div>
+    <div class="step">
+      <div class="step-n">3</div>
+      <p><strong><code>.item()</code> sync stalls.</strong> Each <code>cu_seqlens[i].item()</code> call copies a GPU tensor value to CPU, which forces a CPU/GPU synchronization barrier — draining any remaining pipeline parallelism.</p>
+    </div>
+  </div>
+
+  <div class="callout warn">
+    <strong>Yunsheng Ni's exact words (issue #917)</strong>
+    "A Python for loop is an anti-pattern for this and introduces severe performance regressions. It triggers N separate kernel launches instead of 1, causing CPU scheduling overhead to dominate. It prevents the GPU from scheduling blocks across different sequences in parallel, destroying hardware occupancy. The fix must be implemented at the kernel level."
+  </div>
+</section>
+
+<!-- ──────────────────────────────────────────── -->
+<section id="s7">
+  <h2><span class="sec-num">7</span> True Kernel-Level VarLen — One Launch</h2>
+  <p>The correct solution makes the Triton kernel itself understand the packed format. All sequences' thread blocks are in the same grid and the GPU SM dispatcher can schedule them all simultaneously.</p>
+
+  <div class="diagram-wrap">
+    <h3>Correct approach — single kernel, all sequences in parallel</h3>
+    <svg width="100%" viewBox="0 0 530 175" style="max-width:530px">
+      <g transform="translate(10,10)">
+        <line x1="30" y1="148" x2="510" y2="148" stroke="#374151" stroke-width="1.5"/>
+        <text x="270" y="166" fill="#8892a4" font-size="11" text-anchor="middle">Wall-clock time →</text>
+        <text x="12" y="90" fill="#8892a4" font-size="11" transform="rotate(-90,12,90)">GPU SMs</text>
+
+        <!-- Single fused kernel bar -->
+        <rect x="30" y="38" width="400" height="102" rx="5" fill="none" stroke="#fbbf24" stroke-width="2.5"/>
+
+        <rect x="32" y="40" width="128" height="98" rx="4" fill="#60a5fa" opacity=".7">
+          <animate attributeName="opacity" values=".65;.85;.65" dur="2s" repeatCount="indefinite" begin="0s"/>
+        </rect>
+        <text x="96" y="87"  fill="white" font-size="11" text-anchor="middle" font-weight="bold">Seq 0 blocks</text>
+        <text x="96" y="101" fill="white" font-size="10" text-anchor="middle">pid 0 … Nq₀−1</text>
+
+        <rect x="164" y="40" width="128" height="98" rx="4" fill="#34d399" opacity=".7">
+          <animate attributeName="opacity" values=".65;.85;.65" dur="2s" repeatCount="indefinite" begin=".35s"/>
+        </rect>
+        <text x="228" y="87"  fill="white" font-size="11" text-anchor="middle" font-weight="bold">Seq 1 blocks</text>
+        <text x="228" y="101" fill="white" font-size="10" text-anchor="middle">pid Nq₀ … Nq₀₊₁−1</text>
+
+        <rect x="296" y="40" width="132" height="98" rx="4" fill="#fb923c" opacity=".7">
+          <animate attributeName="opacity" values=".65;.85;.65" dur="2s" repeatCount="indefinite" begin=".7s"/>
+        </rect>
+        <text x="362" y="87"  fill="white" font-size="11" text-anchor="middle" font-weight="bold">Seq 2 blocks</text>
+        <text x="362" y="101" fill="white" font-size="10" text-anchor="middle">pid … total−1</text>
+
+        <!-- Total time bracket -->
+        <line x1="30"  y1="28" x2="30"  y2="22" stroke="#34d399" stroke-width="1"/>
+        <line x1="430" y1="28" x2="430" y2="22" stroke="#34d399" stroke-width="1"/>
+        <line x1="30"  y1="25" x2="430" y2="25" stroke="#34d399" stroke-width="1"/>
+        <text x="230" y="20" fill="#34d399" font-size="10" text-anchor="middle">Total ≈ max(K0, K1, K2) — all sequences run in parallel</text>
+
+        <text x="230" y="155" fill="#fbbf24" font-size="11" text-anchor="middle">← Single kernel launch — grid = (total_q_blocks, H, 1) →</text>
+      </g>
+    </svg>
+  </div>
+
+  <p>The key challenge: given a global <code>pid(0)</code>, the kernel must figure out which sequence it belongs to and what its local Q-block index is within that sequence. This is done with a <strong>binary search on the cumulative block count array</strong>.</p>
+
+  <div class="diagram-wrap">
+    <h3>Binary search: global pid → (sequence id, local block index)</h3>
+    <svg width="100%" viewBox="0 0 520 215" style="max-width:520px">
+      <g transform="translate(10,12)">
+        <!-- cu_seqlens_q_blocks array -->
+        <text x="255" y="14" fill="#8892a4" font-size="11" text-anchor="middle">cu_seqlens_q_blocks = [ 0,  3,  8,  10 ]  (cumulative block counts per sequence)</text>
+
+        <!-- Array cells -->
+        <rect x="70"  y="22" width="60" height="30" rx="3" fill="#1a1d27" stroke="#60a5fa" stroke-width="1.5"/>
+        <rect x="134" y="22" width="60" height="30" rx="3" fill="#1a1d27" stroke="#34d399" stroke-width="1.5"/>
+        <rect x="198" y="22" width="60" height="30" rx="3" fill="#1a1d27" stroke="#fb923c" stroke-width="1.5"/>
+        <rect x="262" y="22" width="60" height="30" rx="3" fill="#1a1d27" stroke="#8892a4" stroke-width="1.5"/>
+        <text x="100" y="42" fill="#60a5fa" font-size="14" text-anchor="middle" font-weight="bold">0</text>
+        <text x="164" y="42" fill="#34d399" font-size="14" text-anchor="middle" font-weight="bold">3</text>
+        <text x="228" y="42" fill="#fb923c" font-size="14" text-anchor="middle" font-weight="bold">8</text>
+        <text x="292" y="42" fill="#8892a4" font-size="14" text-anchor="middle" font-weight="bold">10</text>
+
+        <!-- Seq ownership labels -->
+        <text x="100" y="65" fill="#8892a4" font-size="10" text-anchor="middle">seq start</text>
+        <text x="164" y="65" fill="#34d399" font-size="10" text-anchor="middle">seq 1 start</text>
+        <text x="228" y="65" fill="#fb923c" font-size="10" text-anchor="middle">seq 2 start</text>
+        <text x="292" y="65" fill="#8892a4" font-size="10" text-anchor="middle">total</text>
+
+        <!-- Flat global pid axis -->
+        <text x="255" y="90" fill="#8892a4" font-size="11" text-anchor="middle">global Q-block pids (0 … 9):</text>
+
+        <!-- 10 pid boxes colored by sequence -->
+        <rect x="30"  y="97" width="38" height="22" rx="2" fill="#60a5fa" opacity=".8"/>
+        <rect x="72"  y="97" width="38" height="22" rx="2" fill="#60a5fa" opacity=".8"/>
+        <rect x="114" y="97" width="38" height="22" rx="2" fill="#60a5fa" opacity=".8"/>
+        <rect x="156" y="97" width="38" height="22" rx="2" fill="#34d399" opacity=".8"/>
+        <rect x="198" y="97" width="38" height="22" rx="2" fill="#34d399" opacity=".8"/>
+        <rect x="240" y="97" width="38" height="22" rx="2" fill="#34d399" opacity=".8"/>
+        <rect x="282" y="97" width="38" height="22" rx="2" fill="#34d399" opacity=".8"/>
+        <rect x="324" y="97" width="38" height="22" rx="2" fill="#34d399" opacity=".8"/>
+        <rect x="366" y="97" width="38" height="22" rx="2" fill="#fb923c" opacity=".8"/>
+        <rect x="408" y="97" width="38" height="22" rx="2" fill="#fb923c" opacity=".8"/>
+
+        <!-- pid number labels -->
+        <text x="49"  y="112" fill="white" font-size="10" text-anchor="middle">0</text>
+        <text x="91"  y="112" fill="white" font-size="10" text-anchor="middle">1</text>
+        <text x="133" y="112" fill="white" font-size="10" text-anchor="middle">2</text>
+        <text x="175" y="112" fill="white" font-size="10" text-anchor="middle">3</text>
+        <text x="217" y="112" fill="white" font-size="10" text-anchor="middle">4</text>
+        <text x="259" y="112" fill="white" font-size="10" text-anchor="middle">5</text>
+        <text x="301" y="112" fill="white" font-size="10" text-anchor="middle">6</text>
+        <text x="343" y="112" fill="white" font-size="10" text-anchor="middle">7</text>
+        <text x="385" y="112" fill="white" font-size="10" text-anchor="middle">8</text>
+        <text x="427" y="112" fill="white" font-size="10" text-anchor="middle">9</text>
+
+        <!-- Animated pointer -->
+        <line x1="259" y1="121" x2="259" y2="142" stroke="#fbbf24" stroke-width="2.5">
+          <animate attributeName="x1" values="49;91;133;175;217;259;301;343;385;427;49" dur="5s" repeatCount="indefinite"/>
+          <animate attributeName="x2" values="49;91;133;175;217;259;301;343;385;427;49" dur="5s" repeatCount="indefinite"/>
+        </line>
+
+        <!-- Example walkthrough -->
+        <text x="255" y="158" fill="#fbbf24" font-size="11" text-anchor="middle">↑ each thread block uses binary search on [0, 3, 8, 10] to find its sequence</text>
+
+        <rect x="60" y="166" width="390" height="38" rx="6" fill="#1a1d27" stroke="#34d399" stroke-width="1"/>
+        <text x="255" y="182" fill="#34d399" font-size="12" text-anchor="middle">Example: global_pid = 5</text>
+        <text x="255" y="197" fill="#34d399" font-size="11" text-anchor="middle">searchsorted([0,3,8,10], 5) → seq_id = 1   │   local_blk = 5 − 3 = 2</text>
+      </g>
+    </svg>
+  </div>
+
+  <p>Once the kernel knows <code>(seq_id, local_blk)</code>, it can also enforce <strong>sequence isolation</strong>: any KV-block index in the sparse list that falls outside this sequence's KV range gets its attention score masked to −∞, preventing cross-sequence leakage.</p>
+</section>
+
+<!-- ──────────────────────────────────────────── -->
+<section id="s8">
+  <h2><span class="sec-num">8</span> What Must Change — Concretely</h2>
+  <p>Side-by-side of current kernel logic vs. what varlen requires:</p>
+
+  <div class="side-by-side">
+    <div class="sbs-card bad">
+      <h4>Current — Batched (breaks for varlen)</h4>
+      <pre><span class="cm"># Grid: (Tq//64, B*H, 1)</span>
+q_blk  <span class="op">=</span> tl.<span class="fn">program_id</span>(<span class="nl">0</span>)
+off_hz <span class="op">=</span> tl.<span class="fn">program_id</span>(<span class="nl">1</span>)
+b      <span class="op">=</span> off_hz <span class="op">//</span> H
+h      <span class="op">=</span> off_hz <span class="op">%</span>  H
+
+<span class="cm"># Same q_tiles for all — wrong!</span>
+q_tiles <span class="op">=</span> N_CTX_Q <span class="op">//</span> BLOCK_M
+meta_base <span class="op">=</span> (b<span class="op">*</span>H <span class="op">+</span> h) <span class="op">*</span> q_tiles <span class="op">+</span> q_blk
+
+<span class="cm"># Per-batch stride</span>
+q_off <span class="op">=</span> b <span class="op">*</span> stride_qz <span class="op">+</span> h <span class="op">*</span> stride_qh</pre>
+    </div>
+    <div class="sbs-card good">
+      <h4>Required — VarLen (flat packed)</h4>
+      <pre><span class="cm"># Grid: (total_q_blocks, H, 1)</span>
+global_q_blk <span class="op">=</span> tl.<span class="fn">program_id</span>(<span class="nl">0</span>)
+h            <span class="op">=</span> tl.<span class="fn">program_id</span>(<span class="nl">1</span>)
+
+<span class="cm"># Binary search to recover seq id</span>
+b <span class="op">=</span> <span class="fn">searchsorted</span>(cu_seqlens_q_blks,
+                  global_q_blk)
+local_q_blk <span class="op">=</span> global_q_blk <span class="op">-</span>
+    tl.<span class="fn">load</span>(cu_seqlens_q_blks <span class="op">+</span> b)
+
+<span class="cm"># Flat token offset</span>
+q_off <span class="op">=</span> tl.<span class="fn">load</span>(cu_seqlens_q<span class="op">+</span>b)<span class="op">*</span>stride_qt
+        <span class="op">+</span> h <span class="op">*</span> stride_qh</pre>
+    </div>
+  </div>
+
+  <p>The full list of changes:</p>
+  <ul class="changes">
+    <li><strong>Kernel signature — <code>block_sparse_attn_triton.py</code>:</strong> Add <code>cu_seqlens_q</code>, <code>cu_seqlens_kv</code>, and <code>cu_seqlens_q_blocks</code> pointer parameters to <code>_attn_fwd_sparse</code></li>
+    <li><strong>pid mapping:</strong> Replace the <code>q_blk / off_hz / b / h</code> decomposition with global-pid binary search on cumulative block counts to recover <code>(seq_id, local_q_blk, h)</code></li>
+    <li><strong>Base pointer arithmetic:</strong> Switch from per-batch stride (<code>b * stride_qz</code>) to flat token offset (<code>cu_seqlens_q[b] * stride_q_token</code>)</li>
+    <li><strong>Sequence boundary enforcement:</strong> Inside the sparse KV-block loop, mask any block whose global index falls outside <code>[cu_seqlens_kv_blocks[b], cu_seqlens_kv_blocks[b+1])</code> to −∞</li>
+    <li><strong>Metadata flattening — <code>block_sparse_attn.py</code>:</strong> <code>q2k_idx</code> and <code>q2k_num</code> must go from <code>[B, H, q_tiles, max_kv_blks]</code> to flat <code>[total_q_blocks, max_kv_blks]</code></li>
+    <li><strong>Grid update:</strong> Launch grid changes from <code>(Tq//64, B*H, 1)</code> to <code>(total_q_blocks, H, 1)</code></li>
+    <li><strong>Backward kernels:</strong> <code>_attn_bwd_dkdv_kernel</code> and <code>_attn_bwd_dq_kernel</code> need identical changes — wrong backward = wrong training gradients</li>
+    <li><strong>Python wrapper — <code>ops.py</code>:</strong> Replace the entire Python for-loop with a single call to the new kernel passing flat tensors and <code>cu_seqlens</code> arrays directly</li>
+  </ul>
+</section>
+
+<!-- ──────────────────────────────────────────── -->
+<section id="s9">
+  <h2><span class="sec-num">9</span> Full Pipeline — End to End</h2>
+  <p>How all the pieces connect from raw training data to kernel output:</p>
+
+  <div class="diagram-wrap">
+    <h3>VarLen training pipeline</h3>
+    <svg width="100%" viewBox="0 0 570 295" style="max-width:570px">
+      <defs>
+        <marker id="arr2" markerWidth="7" markerHeight="6" refX="7" refY="3" orient="auto">
+          <polygon points="0 0, 7 3, 0 6" fill="#8892a4"/>
+        </marker>
+        <marker id="arr3" markerWidth="7" markerHeight="6" refX="7" refY="3" orient="auto">
+          <polygon points="0 0, 7 3, 0 6" fill="#a78bfa"/>
+        </marker>
+      </defs>
+      <g transform="translate(10,10)">
+
+        <!-- Box 1: Video Batch -->
+        <rect x="0" y="0" width="130" height="52" rx="6" fill="#1a1d27" stroke="#60a5fa" stroke-width="1.5"/>
+        <text x="65" y="20" fill="#60a5fa" font-size="11" text-anchor="middle" font-weight="bold">Mixed-resolution</text>
+        <text x="65" y="35" fill="#60a5fa" font-size="11" text-anchor="middle" font-weight="bold">Video Batch</text>
+        <text x="65" y="48" fill="#8892a4" font-size="9"  text-anchor="middle">S ∈ {2048, 8192, 512, …}</text>
+
+        <!-- Arrow → -->
+        <line x1="132" y1="26" x2="162" y2="26" stroke="#8892a4" stroke-width="1.5" marker-end="url(#arr2)"/>
+
+        <!-- Box 2: build_varlen -->
+        <rect x="164" y="0" width="140" height="52" rx="6" fill="#1a1d27" stroke="#34d399" stroke-width="1.5"/>
+        <text x="234" y="20" fill="#34d399" font-size="11" text-anchor="middle" font-weight="bold">build_varlen()</text>
+        <text x="234" y="35" fill="#8892a4" font-size="9" text-anchor="middle">video_sparse_attn.py</text>
+        <text x="234" y="48" fill="#8892a4" font-size="9" text-anchor="middle">cu_seqlens + block_sizes per seq</text>
+
+        <!-- Arrow → -->
+        <line x1="306" y1="26" x2="336" y2="26" stroke="#8892a4" stroke-width="1.5" marker-end="url(#arr2)"/>
+
+        <!-- Box 3: Pack tensors -->
+        <rect x="338" y="0" width="140" height="52" rx="6" fill="#1a1d27" stroke="#fb923c" stroke-width="1.5"/>
+        <text x="408" y="20" fill="#fb923c" font-size="11" text-anchor="middle" font-weight="bold">Pack Q, K, V</text>
+        <text x="408" y="35" fill="#8892a4" font-size="9" text-anchor="middle">[total_tokens, H, D]</text>
+        <text x="408" y="48" fill="#8892a4" font-size="9" text-anchor="middle">zero padding, all seqs concatenated</text>
+
+        <!-- Arrow ↓ from Pack -->
+        <line x1="408" y1="54" x2="408" y2="90" stroke="#8892a4" stroke-width="1.5" marker-end="url(#arr2)"/>
+
+        <!-- VideoSparseAttentionMetadata box (left side, middle) -->
+        <rect x="0" y="90" width="175" height="80" rx="6" fill="#1a1d27" stroke="#a78bfa" stroke-width="1.5"/>
+        <text x="88" y="110" fill="#a78bfa" font-size="11" text-anchor="middle" font-weight="bold">VideoSparseAttention</text>
+        <text x="88" y="124" fill="#a78bfa" font-size="11" text-anchor="middle" font-weight="bold">Metadata</text>
+        <text x="88" y="140" fill="#8892a4" font-size="9"  text-anchor="middle">cu_seqlens_q / cu_seqlens_kv</text>
+        <text x="88" y="153" fill="#8892a4" font-size="9"  text-anchor="middle">variable_block_sizes_list</text>
+        <text x="88" y="164" fill="#546e7a" font-size="8"  text-anchor="middle">video_sparse_attn.py : 133–149</text>
+
+        <!-- Arrow from Metadata → Kernel -->
+        <line x1="177" y1="130" x2="230" y2="130" stroke="#a78bfa" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arr3)"/>
+
+        <!-- Kernel box (center) -->
+        <rect x="232" y="92" width="310" height="76" rx="6" fill="#1a1d27" stroke="#fbbf24" stroke-width="2"/>
+        <text x="387" y="114" fill="#fbbf24" font-size="12" text-anchor="middle" font-weight="bold">_attn_fwd_sparse_varlen  (Triton)</text>
+        <text x="387" y="130" fill="#8892a4" font-size="10" text-anchor="middle">grid = (total_q_blocks, H, 1)</text>
+        <text x="387" y="144" fill="#8892a4" font-size="10" text-anchor="middle">binary-search pid → (seq_id, local_blk)</text>
+        <text x="387" y="158" fill="#546e7a" font-size="8"  text-anchor="middle">block_sparse_attn_triton.py</text>
+
+        <!-- Arrow ↓ from kernel -->
+        <line x1="387" y1="170" x2="387" y2="205" stroke="#8892a4" stroke-width="1.5" marker-end="url(#arr2)"/>
+
+        <!-- Output box -->
+        <rect x="232" y="207" width="310" height="52" rx="6" fill="#1a1d27" stroke="#34d399" stroke-width="1.5"/>
+        <text x="387" y="226" fill="#34d399" font-size="11" text-anchor="middle" font-weight="bold">Output  [total_tokens, H, D]</text>
+        <text x="387" y="241" fill="#8892a4" font-size="9"  text-anchor="middle">unpack per-sequence → reshape → loss → backward</text>
+        <text x="387" y="253" fill="#546e7a" font-size="8"  text-anchor="middle">ops.py</text>
+
+      </g>
+    </svg>
+  </div>
+
+  <div class="callout good">
+    <strong>The payoff once this is done</strong>
+    Mixed-resolution training batches — where each video has a different token count — can be packed together with zero padding, and all sequences are processed in a single fused kernel. This directly improves Model FLOP Utilization (MFU) and training throughput.
+  </div>
+
+  <h3 style="margin-top:28px; font-size:16px; margin-bottom:10px;">Key files to modify</h3>
+  <table>
+    <thead>
+      <tr><th>File</th><th>Change</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>fastvideo-kernel/python/fastvideo_kernel/<br>triton_kernels/block_sparse_attn_triton.py</code></td>
+        <td>Add cu_seqlens params; rewrite pid mapping; add boundary check; update grid; mirror in bwd kernels</td>
+      </tr>
+      <tr>
+        <td><code>fastvideo-kernel/python/fastvideo_kernel/block_sparse_attn.py</code></td>
+        <td>Flatten q2k_idx / q2k_num metadata from [B,H,q_tiles,max_kv] → [total_q_blocks, max_kv]</td>
+      </tr>
+      <tr>
+        <td><code>fastvideo-kernel/python/fastvideo_kernel/ops.py</code></td>
+        <td>Replace Python for-loop in <code>video_sparse_attn_varlen</code> with single fused kernel call</td>
+      </tr>
+      <tr>
+        <td><code>fastvideo/attention/backends/video_sparse_attn.py</code></td>
+        <td><code>VideoSparseAttentionMetadata</code> already has cu_seqlens fields — wire them through to new kernel</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+</main>
+
+<script>
+  // Highlight active nav link as user scrolls
+  const sections = document.querySelectorAll('section[id]');
+  const navLinks  = document.querySelectorAll('nav a');
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        navLinks.forEach(a => a.classList.remove('active'));
+        const link = document.querySelector(`nav a[href="#${e.target.id}"]`);
+        if (link) link.classList.add('active');
+      }
+    });
+  }, { threshold: 0.25 });
+  sections.forEach(s => io.observe(s));
+</script>
+</body>
+</html>
