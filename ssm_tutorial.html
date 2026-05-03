@@ -147,6 +147,42 @@
   .quiz button.wrong { background: #2a1c1c; border-color: #ff8a8a; color: #ff8a8a; }
   .reveal { display: none; margin-top: 8px; color: var(--muted); }
   .reveal.show { display: block; }
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin: 0 0 28px;
+    border-bottom: 1px solid var(--line);
+    flex-wrap: wrap;
+  }
+  .tab-btn {
+    background: transparent;
+    color: var(--muted);
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 12px 18px;
+    font-size: 0.98rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+    margin-bottom: -1px;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+  pre.diagram {
+    line-height: 1.25;
+    font-size: 0.85rem;
+  }
+  .twocol {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  @media (max-width: 720px) { .twocol { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
@@ -169,6 +205,13 @@
   A friendly tutorial for an undergrad who already knows what a neural network and a Transformer are.
   No control theory background required.
 </p>
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab('tab1', this)">Tutorial</button>
+  <button class="tab-btn" onclick="switchTab('tab2', this)">Deep Dive: Where's the Non-linearity?</button>
+</div>
+
+<div id="tab1" class="tab-content active">
 
 <!-- ====================================================== -->
 <h2 id="intro">1. The one-sentence pitch</h2>
@@ -395,9 +438,259 @@ y_3 = C·A²·B · x_1 + C·A·B · x_2 + C·B · x_3
   Pairs with the papers downloaded in this folder — H3 and Monarch Mixer are great next reads.
 </p>
 
+</div> <!-- /tab1 -->
+
+<div id="tab2" class="tab-content">
+
+<h2 id="nonlinearity">1. Where does non-linearity come in?</h2>
+
+<p>The SSM recurrence
+<code>h_t = A·h_{t-1} + B·x_t</code>,
+<code>y_t = C·h_t + D·x_t</code>
+is <b>purely linear</b>. Stack ten of them with nothing else and they collapse into a single linear map. So where does the non-linearity actually come from?</p>
+
+<div class="key">
+Non-linearity is added <i>around</i> the SSM block, never <i>inside</i> the recurrence. The time loop stays linear on purpose — that's what unlocks the FFT/parallel-scan training trick.
 </div>
 
+<h3>The four sources</h3>
+<table>
+  <tr><th>Source</th><th>Where it lives</th><th>Notes</th></tr>
+  <tr><td>Activation between layers</td><td><code>SSM → SiLU / GELU / GLU → SSM</code></td><td>The dominant one</td></tr>
+  <tr><td>Gating</td><td><code>SSM(x) ⊙ σ(Wx)</code></td><td>Multiplicative interaction (H3, Mamba)</td></tr>
+  <tr><td>MLP / FFN between blocks</td><td><code>Linear → GELU → Linear</code></td><td>Same as Transformer FFN</td></tr>
+  <tr><td>Input-dependent params (Mamba)</td><td><code>A_t, B_t, C_t = f(x_t)</code></td><td>Recurrence still linear given params, but <code>x → params</code> is non-linear. Breaks conv view; parallel scan still works.</td></tr>
+</table>
+
+<h3>The block, sketched</h3>
+<pre class="diagram">
+  x ──▶ LayerNorm ──▶ ┌──────────┐ ──▶ σ / GLU / SiLU ──▶ MLP ──▶ + ──▶ next layer
+                      │   SSM    │                                ▲
+                      │ (linear) │                                │
+                      └──────────┘ ─────── residual ──────────────┘
+                            ▲
+                            │
+                  THIS is fully linear
+</pre>
+
+<!-- ====================================================== -->
+<h2 id="rnn-equiv">2. RNN ≈ "Linear SSM"</h2>
+
+<p>Structurally identical, except for one σ:</p>
+
+<table>
+  <tr><th></th><th>Update rule</th></tr>
+  <tr><td><b>RNN</b></td><td><code>h_t = σ(A·h_{t-1} + B·x_t)</code>, <code>y_t = C·h_t</code></td></tr>
+  <tr><td><b>SSM</b></td><td><code>h_t = A·h_{t-1} + B·x_t</code>, <code>y_t = C·h_t + D·x_t</code></td></tr>
+</table>
+
+<p>So one SSM pass is the <b>linear recurrence part</b> of an RNN — same first-order Markovian state update, same <code>h_{t-1} → h_t</code> flow. The missing σ is the entire reason SSMs can train in parallel like Transformers while running in O(N) like RNNs.</p>
+
+<table>
+  <tr><th></th><th>RNN (with σ)</th><th>SSM (linear)</th></tr>
+  <tr><td>Recurrent inference</td><td>✅ O(N)</td><td>✅ O(N)</td></tr>
+  <tr><td>Parallel training</td><td>❌ — must unroll step-by-step</td><td>✅ via convolution / parallel scan</td></tr>
+  <tr><td>Equivalent to a convolution?</td><td>❌</td><td>✅ <code>K_t = C·Aᵗ·B</code></td></tr>
+  <tr><td>Long-range memory</td><td>poor (vanishing/exploding gradients)</td><td>good (HiPPO init keeps <code>Aᵗ</code> stable)</td></tr>
+</table>
+
+<!-- ====================================================== -->
+<h2 id="diagrams">3. RNN pass vs SSM pass — side by side</h2>
+
+<p>For input <code>x = (x_1, x_2, x_3, x_4)</code>, hidden state <code>h_0 = 0</code>:</p>
+
+<h3>🔵 RNN pass (non-linear recurrence)</h3>
+<pre class="diagram">
+       x_1                x_2                x_3                x_4
+        │                  │                  │                  │
+        ▼                  ▼                  ▼                  ▼
+  ┌──────────┐       ┌──────────┐       ┌──────────┐       ┌──────────┐
+  │ A·h_0    │       │ A·h_1    │       │ A·h_2    │       │ A·h_3    │
+  │ + B·x_1  │       │ + B·x_2  │       │ + B·x_3  │       │ + B·x_4  │
+  │   σ(·)   │──h_1─▶│   σ(·)   │──h_2─▶│   σ(·)   │──h_3─▶│   σ(·)   │──h_4
+  └────┬─────┘       └────┬─────┘       └────┬─────┘       └────┬─────┘
+       │                  │                  │                  │
+       ▼                  ▼                  ▼                  ▼
+   y_1=C·h_1         y_2=C·h_2          y_3=C·h_3          y_4=C·h_4
+</pre>
+<p class="footnote">⛔ Cannot parallelize: <code>h_2</code> needs the result of <code>σ(...)</code> from step 1 before it can compute. One token at a time.</p>
+
+<h3>🟢 SSM pass — Mode 1: as a recurrence</h3>
+<pre class="diagram">
+       x_1                x_2                x_3                x_4
+        │                  │                  │                  │
+        ▼                  ▼                  ▼                  ▼
+  ┌──────────┐       ┌──────────┐       ┌──────────┐       ┌──────────┐
+  │ A·h_0    │       │ A·h_1    │       │ A·h_2    │       │ A·h_3    │
+  │ + B·x_1  │──h_1─▶│ + B·x_2  │──h_2─▶│ + B·x_3  │──h_3─▶│ + B·x_4  │──h_4
+  │ (no σ!)  │       │ (no σ!)  │       │ (no σ!)  │       │ (no σ!)  │
+  └────┬─────┘       └────┬─────┘       └────┬─────┘       └────┬─────┘
+       ▼                  ▼                  ▼                  ▼
+   y_1=C·h_1+D·x_1   y_2=C·h_2+D·x_2   y_3=C·h_3+D·x_3   y_4=C·h_4+D·x_4
+</pre>
+<p class="footnote">Same O(N) shape as RNN. Used at <b>inference time</b> — autoregressive decoding, constant memory.</p>
+
+<h3>🟢 SSM pass — Mode 2: as a convolution (the magic)</h3>
+<p>Because there's no σ, the recurrence unrolls symbolically:</p>
+<pre class="diagram">
+h_1 = B·x_1
+h_2 = A·B·x_1 + B·x_2
+h_3 = A²·B·x_1 + A·B·x_2 + B·x_3
+h_4 = A³·B·x_1 + A²·B·x_2 + A·B·x_3 + B·x_4
+</pre>
+<p>Then <code>y_t = C·h_t + D·x_t</code> becomes one big convolution:</p>
+<pre class="diagram">
+y_t = (K * x)_t + D·x_t,   where  K = (C·B,  C·A·B,  C·A²·B,  C·A³·B,  …)
+</pre>
+<pre class="diagram">
+        x_1   x_2   x_3   x_4
+         │     │     │     │
+         └─────┴──┬──┴─────┘
+                  ▼
+           Conv with K
+        (FFT in O(N log N))
+                  │
+        ┌─────┬───┴─┬─────┐
+        ▼     ▼     ▼     ▼
+       y_1   y_2   y_3   y_4   ← all computed in parallel
+</pre>
+
+<div class="key">
+Mode 2 has <b>zero non-linearity</b>. <code>K * x</code> is linear, <code>D·x</code> is linear — the entire SSM block as a function of <code>x</code> is linear. That's exactly why it can be written as one fixed convolution kernel and FFT'd in parallel.
+</div>
+
+<!-- ====================================================== -->
+<h2 id="stacking">4. Stacking layers — where the σ goes</h2>
+
+<p>RNNs and SSMs both stack into multiple layers, but they place their non-linearities completely differently.</p>
+
+<div class="twocol">
+  <div class="panel">
+    <h3 style="margin-top:0;">🔵 RNN: σ at every (layer, timestep) cell</h3>
+    <pre class="diagram">
+   layer ℓ (one layer, four timesteps)
+
+      x_1           x_2           x_3           x_4
+       │             │             │             │
+       ▼             ▼             ▼             ▼
+    σ(...) ──h_1──▶ σ(...) ──h_2──▶ σ(...) ──h_3──▶ σ(...)
+       ▲             ▲             ▲             ▲
+       │             │             │             │
+   non-linear    non-linear    non-linear    non-linear
+    </pre>
+    <p>Across <b>L layers × N timesteps</b>: <code>L × N</code> sequential non-linearities.</p>
+  </div>
+
+  <div class="panel">
+    <h3 style="margin-top:0;">🟢 SSM: σ only between layers</h3>
+    <pre class="diagram">
+   x_1   x_2   x_3   x_4
+    │     │     │     │
+    ▼     ▼     ▼     ▼
+  ┌──────────────────────┐
+  │   SSM (linear)       │  ← y = K * x + D·x
+  │   shared A,B,C,D     │    no σ at any timestep
+  └──────────────────────┘
+    │     │     │     │
+    ▼     ▼     ▼     ▼
+  ╔══════════════════════╗
+  ║   σ / GLU / MLP      ║  ← ONE non-linearity, pointwise across t
+  ╚══════════════════════╝
+    │     │     │     │
+    ▼     ▼     ▼     ▼
+   z_1   z_2   z_3   z_4   ──▶ next layer
+    </pre>
+    <p>Across <b>L layers</b>: just <code>L</code> non-linearities (depth only).</p>
+  </div>
+</div>
+
+<table>
+  <tr><th></th><th>Non-linearities along time</th><th>Non-linearities along depth</th><th>Total per pass</th></tr>
+  <tr><td><b>RNN</b></td><td>✅ one σ per timestep → <b>N per layer</b></td><td>implicit (each cell already non-linear)</td><td><b>L × N</b></td></tr>
+  <tr><td><b>SSM</b></td><td>❌ <b>zero</b> — recurrence is purely linear</td><td>✅ activation/MLP between layers</td><td><b>L</b></td></tr>
+</table>
+
+<div class="key">
+The σ in the SSM block <i>is</i> still applied at every timestep — but it's the <b>same</b> σ, with no cross-time dependency, so all N applications run in parallel. In an RNN the σ at time <i>t</i> waits for the σ at time <i>t-1</i>. In an SSM the σ sits <i>after</i> the recurrence, not <i>inside</i> it.
+</div>
+
+<!-- ====================================================== -->
+<h2 id="sharing">5. Why shared A, B, C across time matters</h2>
+
+<p>"Recurrent" means weight-sharing along <b>time</b>, not depth:</p>
+
+<pre class="diagram">
+                         depth (layers)
+                              ▼
+                     ┌────────────────────┐
+                     │ Layer 1: A¹,B¹,C¹  │  ← own params
+   time   ────▶      │ Layer 2: A²,B²,C²  │  ← different params
+   (recurrent here)  │ Layer 3: A³,B³,C³  │  ← different params
+                     └────────────────────┘
+</pre>
+
+<p>Within one SSM layer, <code>(A, B, C, D)</code> are reused at every timestep. That time-invariance is what makes the unrolled recurrence's coefficients depend only on the <b>lag</b>, not on absolute time:</p>
+
+<pre class="diagram">
+y_t = Σ_k (C · Aᵏ · B) · x_{t-k}   +   D · x_t
+                  ↑
+         depends only on k → that's a convolution
+</pre>
+
+<p>If <code>(A, B, C)</code> varied per timestep, you'd get a different kernel at every position — no longer a convolution, no FFT trick.</p>
+
+<table>
+  <tr><th>Axis</th><th>S4 / vanilla SSM</th><th>Mamba / S6</th></tr>
+  <tr><td>Across time (within one layer)</td><td>✅ shared</td><td>❌ varies: <code>A_t, B_t, C_t = f(x_t)</code></td></tr>
+  <tr><td>Across layers</td><td>❌ each layer has own params</td><td>❌ each layer has own params</td></tr>
+  <tr><td>Conv view works?</td><td>✅ fixed kernel → FFT</td><td>❌ kernel changes per <i>t</i></td></tr>
+  <tr><td>Fast training via</td><td>FFT (O(N log N))</td><td>parallel scan (O(N))</td></tr>
+</table>
+
+<p>Mamba breaks the time-invariance on purpose — letting the model "decide" how to update state per token recovers some of the expressiveness of an RNN's σ — and pays for it by switching from FFT to a parallel scan.</p>
+
+<!-- ====================================================== -->
+<h2 id="punchline">6. The punchline</h2>
+<div class="key">
+The single design choice — <b>keep the recurrence linear, push all non-linearity to the layer boundary</b> — is what gives SSMs their dual nature:
+<ul>
+  <li>Train in parallel like Transformers (FFT or parallel scan along time)</li>
+  <li>Run in O(N) like RNNs (the linear recurrence still holds at inference)</li>
+</ul>
+</div>
+
+<p style="margin-top:24px;">
+Mental model:
+</p>
+<pre class="diagram">
+RNN:   non-linearity scattered through the (time × depth) grid
+SSM:   non-linearity only on the depth axis;
+       time axis is pure linear algebra
+</pre>
+
+</div> <!-- /tab2 -->
+
+</div> <!-- /wrap -->
+
 <script>
+  // ---------- tab switching ----------
+  function switchTab(tabId, btn) {
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(tabId).classList.add('active');
+    btn.classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  // top-nav anchors live in tab1 — clicking any of them should activate tab1
+  document.querySelectorAll('.nav a').forEach(a => {
+    a.addEventListener('click', () => {
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('tab1').classList.add('active');
+      document.querySelector('.tab-btn').classList.add('active');
+    });
+  });
+
   // ---------- interactive 1-D SSM demo ----------
   const cv = document.getElementById('cv');
   const ctx = cv.getContext('2d');
