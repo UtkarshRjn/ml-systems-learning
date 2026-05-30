@@ -1,0 +1,1279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>dKV-Cache: Interactive Learning Guide</title>
+<script>
+window.MathJax = {
+  tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
+  svg: { fontCache: 'global' }
+};
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<style>
+  :root {
+    --bg: #0a1118;
+    --panel: #15202b;
+    --panel-light: #1f2d3d;
+    --accent: #5eead4;
+    --accent-2: #a78bfa;
+    --warn: #fbbf24;
+    --danger: #f87171;
+    --text: #e2e8f0;
+    --text-dim: #94a3b8;
+    --border: #334155;
+    --mask: #64748b;
+    --decoded: #fbbf24;
+    --cached: #5eead4;
+    --window: #a78bfa;
+    --prompt: #94a3b8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+  }
+  .hero {
+    background: linear-gradient(135deg, #0a1929 0%, #15202b 50%, #1a103d 100%);
+    padding: 60px 40px;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -50%; left: -10%;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(94,234,212,0.18) 0%, transparent 60%);
+  }
+  .hero::after {
+    content: '';
+    position: absolute;
+    bottom: -30%; right: -10%;
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(167,139,250,0.18) 0%, transparent 60%);
+  }
+  .hero-content { max-width: 1100px; margin: 0 auto; position: relative; z-index: 1; }
+  .hero h1 {
+    font-size: 2.6em;
+    margin: 0 0 12px 0;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 700;
+  }
+  .hero .subtitle { font-size: 1.2em; color: var(--text-dim); margin: 0 0 24px 0; }
+  .hero .authors { color: var(--text-dim); font-size: 0.95em; }
+  .badge {
+    display: inline-block;
+    padding: 4px 12px;
+    background: rgba(94,234,212,0.12);
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 20px;
+    font-size: 0.85em;
+    margin-right: 8px;
+    margin-bottom: 8px;
+  }
+  .container { max-width: 1100px; margin: 0 auto; padding: 30px 40px; }
+  .section {
+    background: var(--panel);
+    border-radius: 12px;
+    padding: 32px;
+    margin: 24px 0;
+    border: 1px solid var(--border);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  }
+  .section h2 {
+    color: var(--accent);
+    font-size: 1.7em;
+    margin-top: 0;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .section h2 .num {
+    background: var(--accent);
+    color: var(--bg);
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85em;
+    font-weight: 700;
+  }
+  .section h3 { color: var(--accent-2); margin-top: 28px; }
+  .section h4 { color: var(--text); margin-top: 20px; font-size: 1.1em; }
+  .toc {
+    background: var(--panel-light);
+    border-radius: 12px;
+    padding: 24px;
+    margin: 24px 0;
+  }
+  .toc h3 { margin-top: 0; color: var(--accent-2); }
+  .toc ol { margin: 0; padding-left: 20px; }
+  .toc li { padding: 6px 0; }
+  .toc a { color: var(--text); text-decoration: none; transition: color 0.2s; }
+  .toc a:hover { color: var(--accent); }
+
+  .insight {
+    background: linear-gradient(90deg, rgba(94,234,212,0.1), rgba(167,139,250,0.05));
+    border-left: 4px solid var(--accent);
+    padding: 16px 20px;
+    margin: 20px 0;
+    border-radius: 0 8px 8px 0;
+  }
+  .insight strong { color: var(--accent); }
+  .warning {
+    background: rgba(251,191,36,0.1);
+    border-left: 4px solid var(--warn);
+    padding: 16px 20px;
+    margin: 20px 0;
+    border-radius: 0 8px 8px 0;
+  }
+  .warning strong { color: var(--warn); }
+  .definition {
+    background: rgba(167,139,250,0.08);
+    border-left: 4px solid var(--accent-2);
+    padding: 16px 20px;
+    margin: 20px 0;
+    border-radius: 0 8px 8px 0;
+  }
+  .definition strong { color: var(--accent-2); }
+
+  .token-row { display: flex; gap: 4px; flex-wrap: wrap; margin: 10px 0; align-items: center; }
+  .token-label { color: var(--text-dim); width: 90px; font-size: 0.85em; }
+  .token {
+    min-width: 44px;
+    height: 44px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 0.85em;
+    transition: all 0.4s ease;
+    padding: 0 8px;
+    position: relative;
+  }
+  .token.prompt { background: var(--prompt); color: var(--bg); }
+  .token.mask {
+    background: var(--mask); color: white;
+    background-image: linear-gradient(45deg, var(--mask) 25%, #475569 25%, #475569 50%, var(--mask) 50%, var(--mask) 75%, #475569 75%);
+    background-size: 8px 8px;
+  }
+  .token.decoded { background: var(--decoded); color: var(--bg); }
+  .token.cached { background: var(--cached); color: var(--bg); }
+  .token.window { background: var(--window); color: var(--bg); }
+  .token.computing {
+    background: var(--decoded);
+    color: var(--bg);
+    box-shadow: 0 0 0 3px rgba(251,191,36,0.4);
+    animation: pulse 1s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 3px rgba(251,191,36,0.4); }
+    50% { box-shadow: 0 0 0 6px rgba(251,191,36,0.2); }
+  }
+
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; margin: 12px 0; font-size: 0.9em; }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-box {
+    width: 18px; height: 18px; border-radius: 4px;
+  }
+
+  .controls {
+    background: var(--panel-light);
+    padding: 18px;
+    border-radius: 8px;
+    margin: 16px 0;
+  }
+  .controls label { display: block; margin: 10px 0 4px; font-weight: 500; }
+  .controls input[type=range] { width: 100%; }
+  .controls button {
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+    padding: 8px 18px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    margin-right: 8px;
+    margin-top: 8px;
+    transition: opacity 0.2s;
+  }
+  .controls button:hover { opacity: 0.85; }
+  .controls button.secondary {
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .control-value {
+    color: var(--accent);
+    font-weight: 600;
+    font-family: 'SF Mono', Monaco, monospace;
+  }
+
+  pre {
+    background: #050a10;
+    padding: 16px;
+    border-radius: 8px;
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    font-size: 0.9em;
+  }
+  code {
+    font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+    color: #c5e1a5;
+  }
+  pre code { color: #e2e8f0; }
+  .kw { color: var(--accent-2); }
+  .fn { color: #82aaff; }
+  .str { color: #c3e88d; }
+  .num { color: var(--decoded); }
+  .cm { color: #64748b; font-style: italic; }
+
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.95em; }
+  th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+  th { background: var(--panel-light); color: var(--accent); font-weight: 600; }
+  td.speedup { color: var(--accent); font-weight: 600; }
+  td.highlight { background: rgba(94,234,212,0.1); }
+  .speedup { color: var(--accent); font-weight: 600; }
+
+  .diagram {
+    background: var(--panel-light);
+    padding: 20px;
+    border-radius: 8px;
+    margin: 16px 0;
+    text-align: center;
+  }
+  .diagram-caption { color: var(--text-dim); font-size: 0.9em; margin-top: 10px; font-style: italic; }
+
+  .compare-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 16px 0;
+  }
+  .compare-card {
+    background: var(--panel-light);
+    border-radius: 8px;
+    padding: 20px;
+    border: 1px solid var(--border);
+  }
+  .compare-card h4 { margin-top: 0; }
+  .compare-card.bad { border-left: 4px solid var(--danger); }
+  .compare-card.good { border-left: 4px solid var(--accent); }
+  .compare-card.warn { border-left: 4px solid var(--warn); }
+
+  .quiz {
+    background: var(--panel-light);
+    border-radius: 8px;
+    padding: 20px;
+    margin: 20px 0;
+    border-left: 4px solid var(--warn);
+  }
+  .quiz-question { font-weight: 600; margin-bottom: 12px; }
+  .quiz-option {
+    display: block;
+    padding: 10px 14px;
+    margin: 6px 0;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .quiz-option:hover { border-color: var(--accent-2); }
+  .quiz-option.correct { background: rgba(94,234,212,0.2); border-color: var(--accent); }
+  .quiz-option.wrong { background: rgba(248,113,113,0.2); border-color: var(--danger); }
+  .quiz-feedback { margin-top: 12px; padding: 10px; border-radius: 6px; display: none; }
+  .quiz-feedback.show { display: block; }
+
+  .progress-bar {
+    background: var(--panel);
+    height: 8px;
+    border-radius: 4px;
+    overflow: hidden;
+    margin: 8px 0;
+  }
+  .progress-fill {
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    height: 100%;
+    transition: width 0.5s ease;
+  }
+
+  .tooltip {
+    border-bottom: 1px dotted var(--accent-2);
+    cursor: help;
+    position: relative;
+  }
+
+  .step-list { counter-reset: step; padding-left: 0; list-style: none; }
+  .step-list li {
+    counter-increment: step;
+    padding: 12px 12px 12px 50px;
+    margin: 10px 0;
+    background: var(--panel-light);
+    border-radius: 8px;
+    position: relative;
+  }
+  .step-list li::before {
+    content: counter(step);
+    position: absolute;
+    left: 12px; top: 12px;
+    background: var(--accent);
+    color: var(--bg);
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+  }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  @media (max-width: 768px) {
+    .grid-2, .grid-3, .compare-grid { grid-template-columns: 1fr; }
+    .hero h1 { font-size: 1.8em; }
+    .container { padding: 20px; }
+  }
+
+  .speedup-display {
+    font-size: 3em;
+    font-weight: 700;
+    color: var(--accent);
+    text-align: center;
+    margin: 20px 0;
+  }
+  .speedup-display .x { color: var(--text-dim); font-size: 0.6em; }
+
+  details {
+    background: var(--panel-light);
+    padding: 14px 18px;
+    border-radius: 8px;
+    margin: 10px 0;
+    cursor: pointer;
+  }
+  details summary { color: var(--accent-2); font-weight: 600; }
+  details[open] summary { margin-bottom: 12px; }
+
+  .nav-buttons {
+    display: flex;
+    gap: 12px;
+    margin: 24px 0;
+    flex-wrap: wrap;
+  }
+  .nav-button {
+    flex: 1;
+    min-width: 200px;
+    padding: 14px;
+    background: var(--panel-light);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    text-decoration: none;
+    text-align: center;
+    transition: all 0.2s;
+  }
+  .nav-button:hover {
+    background: var(--panel);
+    border-color: var(--accent);
+    transform: translateY(-2px);
+  }
+
+  /* Specific to this tutorial */
+  .arrow-anim {
+    font-size: 1.5em;
+    color: var(--accent);
+    animation: slide-right 1.5s ease-in-out infinite;
+  }
+  @keyframes slide-right {
+    0%, 100% { transform: translateX(0); }
+    50% { transform: translateX(8px); }
+  }
+
+  /* Two-panel layout for AR vs DLM */
+  .panel-compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 20px 0;
+  }
+  .panel {
+    background: var(--panel-light);
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .panel h4 { margin-top: 0; color: var(--accent-2); text-align: center; }
+
+  .timeline {
+    position: relative;
+    padding-left: 40px;
+    margin: 20px 0;
+  }
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 15px; top: 0; bottom: 0;
+    width: 2px;
+    background: var(--border);
+  }
+  .timeline-item {
+    position: relative;
+    margin: 16px 0;
+    padding: 12px 16px;
+    background: var(--panel-light);
+    border-radius: 8px;
+  }
+  .timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -32px; top: 16px;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 3px var(--bg);
+  }
+
+  .chart-bar { display: flex; align-items: center; gap: 12px; margin: 8px 0; }
+  .chart-label { width: 180px; font-size: 0.9em; color: var(--text-dim); }
+  .chart-track {
+    flex: 1; height: 24px;
+    background: var(--panel);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+  }
+  .chart-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    display: flex;
+    align-items: center;
+    padding-left: 8px;
+    color: var(--bg);
+    font-weight: 600;
+    font-size: 0.85em;
+  }
+
+  .formula-box {
+    background: #050a10;
+    padding: 16px 20px;
+    border-radius: 8px;
+    margin: 16px 0;
+    border-left: 3px solid var(--accent-2);
+    overflow-x: auto;
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-content">
+    <div>
+      <span class="badge">arXiv:2505.15781</span>
+      <span class="badge">NUS</span>
+      <span class="badge">May 2025</span>
+    </div>
+    <h1>dKV-Cache</h1>
+    <p class="subtitle">The Cache for Diffusion Language Models</p>
+    <p class="authors">Xinyin Ma, Runpeng Yu, Gongfan Fang, Xinchao Wang — National University of Singapore</p>
+    <div class="speedup-display">2–10<span class="x">×</span> speedup</div>
+    <p style="text-align:center; color: var(--text-dim);">A training-free KV cache for diffusion language models · with a <em>delayed</em> twist</p>
+  </div>
+</div>
+
+<div class="container">
+
+<div class="toc">
+  <h3>📚 Learning Path</h3>
+  <ol>
+    <li><a href="#bigpic">The Big Picture — A cache, but delayed</a></li>
+    <li><a href="#kvcache">Background — How KV-Cache Works in GPT-style Models</a></li>
+    <li><a href="#why-broken">Why Standard KV-Cache Breaks in Diffusion LLMs</a></li>
+    <li><a href="#observation">The Key Empirical Observation</a></li>
+    <li><a href="#delayed">Delayed KV-Cache — The Core Idea</a></li>
+    <li><a href="#one-step">One-Step Delayed Caching</a></li>
+    <li><a href="#decode">Variant 1: dKV-Cache-Decode (lossless)</a></li>
+    <li><a href="#greedy">Variant 2: dKV-Cache-Greedy (faster, O(L²))</a></li>
+    <li><a href="#prefill">Variant 3: dKV-Cache-Prefill &amp; PD</a></li>
+    <li><a href="#results">Results &amp; Benchmarks</a></li>
+    <li><a href="#summary">Summary &amp; Comparison with Fast-dLLM</a></li>
+  </ol>
+</div>
+
+<!-- ============== SECTION 1 ============== -->
+<div class="section" id="bigpic">
+  <h2><span class="num">1</span> The Big Picture</h2>
+
+  <p>Imagine you're playing a game of Wheel of Fortune. The phrase has 20 blanks. Every "round" of the game, you guess <em>several letters at a time</em>, fill them in, and the remaining blanks stay. This is roughly how a <strong>Diffusion Language Model (DLM)</strong> works: it iteratively unmasks tokens until the sentence is complete.</p>
+
+  <p>The problem? Each round, the model has to re-process the <em>entire sequence</em> from scratch. For a sentence of length $L = 1024$, you need $L$ such rounds, each with full bidirectional attention — yielding a cubic $\mathcal{O}(L^3)$ cost. Painful.</p>
+
+  <div class="insight">
+    <strong>The pitch of dKV-Cache:</strong> Even though diffusion LLMs use bidirectional attention (which seems to forbid caching), the K and V states of <em>decoded tokens</em> become stable after the step where they were decoded. So you <em>can</em> cache them — you just have to <strong>delay</strong> the caching by one step, and only cache <em>decoded</em> tokens (not still-masked ones).
+  </div>
+
+  <p>Two complementary recipes come out of this insight:</p>
+
+  <div class="grid-2">
+    <div class="compare-card good">
+      <h4>🎯 dKV-Cache-Decode</h4>
+      <p>Near-lossless. Periodically refreshes the cache. Sometimes even <em>improves</em> quality on long sequences (suggesting baseline DLMs under-use context).</p>
+    </div>
+    <div class="compare-card">
+      <h4>⚡ dKV-Cache-Greedy</h4>
+      <p>Aggressive. Drops complexity from $\mathcal{O}(L^3)$ to $\mathcal{O}(L^2)$ — matching autoregressive models. Trades a small accuracy hit for big speedups.</p>
+    </div>
+  </div>
+
+  <div class="speedup-display" style="font-size: 2em;">⏱️ 2× → 10× faster · training-free</div>
+</div>
+
+<!-- ============== SECTION 2 ============== -->
+<div class="section" id="kvcache">
+  <h2><span class="num">2</span> KV-Cache 101 — How It Works in GPT-Style Models</h2>
+
+  <p>Before we talk about diffusion, let's nail down what KV-Cache <em>is</em>. If you already know, skim this; if not, this section is essential.</p>
+
+  <h3>Transformer attention in 30 seconds</h3>
+
+  <p>Inside every transformer layer, each token computes three projections:</p>
+
+  <div class="formula-box">
+    $$\mathbf{Q} = \mathbf{H} \mathbf{W}_Q, \quad \mathbf{K} = \mathbf{H} \mathbf{W}_K, \quad \mathbf{V} = \mathbf{H} \mathbf{W}_V$$
+  </div>
+
+  <p>where $\mathbf{H}$ is the hidden state. Attention is computed as:</p>
+
+  <div class="formula-box">
+    $$\text{Attention}(\mathbf{Q}, \mathbf{K}, \mathbf{V}) = \text{softmax}\!\left(\frac{\mathbf{Q}\mathbf{K}^\top}{\sqrt{d_k}}\right)\mathbf{V}$$
+  </div>
+
+  <h3>The autoregressive shortcut</h3>
+
+  <p>In a GPT-style model, you generate one token at a time. The trick: <strong>each new token only attends to previous tokens</strong> (causal mask). So once you've computed $\mathbf{K}$ and $\mathbf{V}$ for tokens $1, 2, \ldots, t-1$, those values never change as you generate token $t, t+1, \ldots$ — you can <em>save them in a cache</em> and skip recomputation.</p>
+
+  <div class="formula-box">
+    $$\mathbf{z}_t = \text{softmax}\!\left( \frac{\mathbf{Q}_t^{[t]} (\mathbf{K}_t^{[1:t]})^\top}{\sqrt{d_k}} \right) \mathbf{V}^{[1:t]} \quad \text{with} \quad \begin{cases}\mathbf{K}_t^{[1:t]} = \text{concat}(\mathbf{K}_{t-1}^{[1:t-1]},\, \mathbf{K}_t^{[t]}) \\ \mathbf{V}_t^{[1:t]} = \text{concat}(\mathbf{V}_{t-1}^{[1:t-1]},\, \mathbf{V}_t^{[t]})\end{cases}$$
+  </div>
+
+  <p>That's <strong>Equation 1</strong> in the paper. Two takeaways:</p>
+
+  <ol class="step-list">
+    <li>You only compute K, V for the <em>current</em> token (the $[t]$ index).</li>
+    <li>You reuse all previous K, V from the cache. Per-step cost: $\mathcal{O}(L)$. Total: $\mathcal{O}(L^2)$.</li>
+  </ol>
+
+  <h3>Interactive: AR cache at work</h3>
+
+  <div class="controls">
+    <button onclick="stepAR()">▶ Next step</button>
+    <button class="secondary" onclick="resetAR()">Reset</button>
+    <span style="margin-left: 16px; color: var(--text-dim);">Step <span class="control-value" id="arStep">0</span> / 6</span>
+  </div>
+  <div id="arDemo"></div>
+
+  <div class="legend" style="margin-top: 8px;">
+    <div class="legend-item"><div class="legend-box" style="background: var(--cached)"></div>K, V cached (reused)</div>
+    <div class="legend-item"><div class="legend-box" style="background: var(--decoded)"></div>K, V being computed now</div>
+    <div class="legend-item"><div class="legend-box" style="background: var(--mask)"></div>Not yet generated</div>
+  </div>
+
+  <div class="insight">
+    <strong>Why this works:</strong> The <em>causal attention mask</em> guarantees that the K, V for token 3 only depend on tokens 1, 2, 3 — not on tokens 4, 5, 6. So once computed, they're frozen forever.
+  </div>
+</div>
+
+<!-- ============== SECTION 3 ============== -->
+<div class="section" id="why-broken">
+  <h2><span class="num">3</span> Why Standard KV-Cache Breaks in Diffusion LLMs</h2>
+
+  <p>Diffusion LLMs are wonderful but they break the two foundational assumptions of standard KV-Cache:</p>
+
+  <h3>Problem 1: Timestep-variant K, V states</h3>
+
+  <p>In a DLM, attention is <strong>bidirectional</strong> — every token can attend to every other token. So when token 5 changes from <code>[MASK]</code> to "house" at step $m$, that change propagates: it shifts what the K, V <em>of token 3</em> would compute. Formally:</p>
+
+  <div class="formula-box">
+    $$\mathbf{K}_m^{[1:t-1]} \neq \mathbf{K}_n^{[1:t-1]} \quad \text{if } n \neq m$$
+  </div>
+
+  <p>In English: the K of a token <em>changes</em> across diffusion steps. The "freeze and reuse forever" assumption is gone.</p>
+
+  <h3>Problem 2: Non-sequential decoding order</h3>
+
+  <p>AR models generate left-to-right. You know in advance that step $t$ produces token $t$. So you know exactly which position needs new Q, K, V.</p>
+
+  <p>DLMs generate in <em>any</em> order — picking whichever masked position has the highest confidence, or doing random remasking. So you don't know <em>which</em> token will be decoded next, which makes the targeted "compute only $\mathbf{Q}^{[t]}, \mathbf{K}^{[t]}, \mathbf{V}^{[t]}$" trick impossible.</p>
+
+  <div class="panel-compare">
+    <div class="panel">
+      <h4>🟢 AR Model</h4>
+      <ul>
+        <li>Causal attention → K, V stay fixed</li>
+        <li>Left-to-right → next position known</li>
+        <li>Cost per step: $\mathcal{O}(L)$</li>
+        <li>Total cost: $\mathcal{O}(L^2)$</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h4>🔴 Diffusion LM</h4>
+      <ul>
+        <li>Bidirectional → K, V drift each step</li>
+        <li>Arbitrary order → unknown next position</li>
+        <li>Cost per step: $\mathcal{O}(L^2)$</li>
+        <li>Total cost: $\mathcal{O}(L^3)$ 😬</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="warning">
+    <strong>The math:</strong> For $L = 1024$, $L^3$ is ~30,000× more operations than $L^2$. That's why DLMs, despite being conceptually similar in model size, are dramatically slower in practice.
+  </div>
+</div>
+
+<!-- ============== SECTION 4 ============== -->
+<div class="section" id="observation">
+  <h2><span class="num">4</span> The Key Empirical Observation</h2>
+
+  <p>This is the paper's pivot point. The authors run a careful empirical study of how K, V vectors <em>evolve</em> through the denoising process. They look at:</p>
+
+  <ol>
+    <li>Pairwise similarity of K, V states across timesteps (cosine similarity heatmap).</li>
+    <li>Euclidean distance of K, V before vs. after a token is decoded.</li>
+    <li>For each token, at which steps do K, V change the most?</li>
+  </ol>
+
+  <h3>What they found (three observations)</h3>
+
+  <div class="timeline">
+    <div class="timeline-item">
+      <strong>Observation 1.</strong> Despite step-to-step differences, K and V exhibit <em>consistently high similarity</em> across timesteps. Most steps barely change them.
+    </div>
+    <div class="timeline-item">
+      <strong>Observation 2.</strong> Once a token is decoded, its K and V representation becomes <em>relatively stable</em> in later steps. <em>Still-masked</em> tokens, in contrast, keep fluctuating.
+    </div>
+    <div class="timeline-item">
+      <strong>Observation 3.</strong> The biggest change in K, V for any given token happens <em>at the step it is decoded</em>. After that step, things settle down.
+    </div>
+  </div>
+
+  <h3>Simulated visualization (matching Figure 2 in the paper)</h3>
+
+  <div class="diagram">
+    <p style="margin: 0 0 10px 0; color: var(--text-dim); font-size: 0.9em;">Per-token K change magnitude over diffusion steps (lower = more stable)</p>
+    <div id="dynChart" style="background: var(--bg); padding: 16px; border-radius: 8px;"></div>
+    <div class="diagram-caption">
+      For each token, the change is large at the moment it's decoded (diagonal line), then small thereafter. Once decoded, K, V are reusable — that's what dKV-Cache exploits.
+    </div>
+  </div>
+
+  <div class="insight">
+    <strong>The takeaway:</strong> Don't try to cache <em>all</em> tokens — that's hopeless. Cache only the <strong>decoded</strong> tokens, and cache them <strong>after</strong> they've been decoded (when they're stable).
+  </div>
+</div>
+
+<!-- ============== SECTION 5 ============== -->
+<div class="section" id="delayed">
+  <h2><span class="num">5</span> Delayed KV-Cache — The Core Idea</h2>
+
+  <p>Here's the recipe in two sentences:</p>
+
+  <div class="insight">
+    <strong>(1) Only cache decoded tokens.</strong> Masked tokens keep changing — recompute their K, V each step.
+    <br>
+    <strong>(2) Delay caching by one step.</strong> When a token <em>just</em> got decoded at step $t$, its K, V are still settling. Wait until step $t+1$ to cache its <em>stable</em> values.
+  </div>
+
+  <h3>Generalized KV-Cache formulation</h3>
+
+  <p>The standard AR formula in Eq. 1 used a contiguous slice $[1\!:\!t]$. dKV-Cache replaces that with an <strong>arbitrary index set</strong> $\mathcal{S}_t \subseteq \mathcal{I} = \{1, \ldots, L\}$ — the set of positions whose K, V we have cached from previous steps:</p>
+
+  <div class="formula-box">
+    $$\mathbf{z}_t = \text{softmax}\!\left( \frac{\mathbf{Q}_t^{D_t}\,(\mathbf{K}_t^{\mathcal{S}_t \cup \{D_t\}})^\top}{\sqrt{d_k}} \right) \mathbf{V}_t^{\mathcal{S}_t \cup \{D_t\}}$$
+    <p style="text-align:center; color:var(--text-dim); margin-top:8px;">with $\mathbf{K}_t^{\mathcal{S}_t \cup \{t\}} = \text{concat\_reorder}\!\left(\mathbf{K}_{t-1}^{\mathcal{S}_t}, \mathbf{K}_t^{D_t}\right)$ (and similarly for $\mathbf{V}$)</p>
+  </div>
+
+  <p>where $D_t$ is the position being decoded at step $t$. <strong>Equation 2.</strong></p>
+
+  <div class="definition">
+    <strong>Key notation:</strong>
+    <ul>
+      <li>$\mathcal{I}$ = all positions in the answer, $\{1, 2, \ldots, L\}$.</li>
+      <li>$\mathcal{M}_t$ = the still-masked set at step $t$ (not yet finalized).</li>
+      <li>$D_t$ = the token being decoded at step $t$.</li>
+      <li>$\mathcal{S}_t = \mathcal{I} \setminus \mathcal{M}_t$ = positions already decoded (so cacheable).</li>
+      <li>$\text{concat\_reorder}$ = an operator that interleaves the cached K, V with the new ones in correct positional order.</li>
+    </ul>
+  </div>
+
+  <h3>Visualizing what gets cached vs. recomputed</h3>
+
+  <div class="controls">
+    <button onclick="stepDLM()">▶ Next denoising step</button>
+    <button class="secondary" onclick="resetDLM()">Reset</button>
+    <span style="margin-left: 16px; color: var(--text-dim);">Step <span class="control-value" id="dlmStep">0</span> / 6</span>
+  </div>
+  <div id="dlmDemo"></div>
+
+  <div class="legend" style="margin-top: 8px;">
+    <div class="legend-item"><div class="legend-box" style="background: var(--cached)"></div>Cached (decoded, stable)</div>
+    <div class="legend-item"><div class="legend-box" style="background: var(--decoded)"></div>Just decoded (recompute)</div>
+    <div class="legend-item"><div class="legend-box" style="background: var(--mask)"></div>Still masked (recompute)</div>
+  </div>
+</div>
+
+<!-- ============== SECTION 6 ============== -->
+<div class="section" id="one-step">
+  <h2><span class="num">6</span> One-Step Delayed Caching — Why It Matters</h2>
+
+  <p>The crucial subtlety. When a token is decoded at step $t$, its K and V have just undergone the <em>biggest</em> change of their lives (Observation 3). They're not stable yet. If we cache $\mathbf{K}_t^{D_t}$ at step $t$ and reuse it at step $t+1$, we get errors.</p>
+
+  <p>So we delay: at step $t$, we use the masking state from step $t-1$ to decide what's cacheable. This is <strong>Equation 4</strong> in the paper, the definition of <em>dKV-Cache-Decode</em>:</p>
+
+  <div class="formula-box">
+    $$\mathbf{z}_t = \text{softmax}\!\left( \frac{\mathbf{Q}_t^{\mathcal{M}_{t-1}}\,(\mathbf{K}_t^{\mathcal{I}})^\top}{\sqrt{d_k}} \right) \mathbf{V}_t^{\mathcal{I}}$$
+    <p style="text-align:center; color:var(--text-dim); margin-top:8px;">
+    with $\mathbf{K}_t^{\mathcal{I}} = \text{concat\_reorder}\!\left(\mathbf{K}_{t-1}^{\mathcal{I} \setminus \mathcal{M}_{t-1}},\, \mathbf{K}_t^{\mathcal{M}_{t-1}}\right)$ (and similarly $\mathbf{V}$)
+    </p>
+  </div>
+
+  <p>In plain English: at step $t$, we <em>recompute</em> K, V for all tokens that were masked at step $t-1$ (including the one we just decoded), and we <em>cache</em> K, V from step $t-1$ for everything else.</p>
+
+  <h3>Why this looks weird but is right</h3>
+
+  <ul>
+    <li>Token $D_{t-1}$ was decoded at step $t-1$. Its K, V at that moment were unstable.</li>
+    <li>At step $t$, we recompute its K, V — now it sees the full updated context, so it's stable.</li>
+    <li>From step $t+1$ onward, $D_{t-1}$ is in $\mathcal{S}_t$ and gets cached.</li>
+  </ul>
+
+  <div class="warning">
+    <strong>What happens without the delay?</strong> The paper shows in Figure 3: without one-step delay, accuracy collapses to near-zero as the cache ratio increases. <em>With</em> the delay, accuracy stays nearly lossless even at very high cache reuse.
+  </div>
+
+  <h3>Cache refreshing</h3>
+
+  <p>To handle minor representational drift over long sequences, dKV-Cache occasionally <strong>refreshes</strong> the cache — discarding it and recomputing K, V from scratch. The paper uses refresh intervals of 4 or 8 steps for Dream, 8 for LLaDA. The cost is small but helps maintain consistency.</p>
+
+  <pre><code><span class="cm"># Pseudocode: dKV-Cache-Decode core loop</span>
+<span class="kw">for</span> t <span class="kw">in</span> range(1, T+1):
+    <span class="kw">if</span> t % refresh_interval == 0:
+        cache = {}                       <span class="cm"># refresh: empty the cache</span>
+        forward_pass(full_sequence)
+    <span class="kw">else</span>:
+        M_prev = masked_set_at(t-1)
+        <span class="cm"># Recompute K, V for positions in M_prev</span>
+        K_new, V_new = compute_KV(positions=M_prev)
+        <span class="cm"># Reuse cached K, V for the rest</span>
+        K_full = concat_reorder(cache.K, K_new)
+        V_full = concat_reorder(cache.V, V_new)
+        <span class="cm"># Run attention</span>
+        out = attention(Q[M_prev], K_full, V_full)
+        <span class="cm"># Update cache for tokens that are no longer masked</span>
+        cache.update(positions=M_prev - M_curr)
+</code></pre>
+</div>
+
+<!-- ============== SECTION 7 ============== -->
+<div class="section" id="decode">
+  <h2><span class="num">7</span> Variant 1: dKV-Cache-Decode (Lossless)</h2>
+
+  <p>This is the version we've been discussing. Properties:</p>
+
+  <div class="grid-3">
+    <div class="compare-card good">
+      <h4>✓ Near-lossless</h4>
+      <p>Often indistinguishable from baseline, sometimes <em>better</em> on long sequences.</p>
+    </div>
+    <div class="compare-card good">
+      <h4>✓ Long-context boost</h4>
+      <p>+2 to +7 accuracy points on tasks with long outputs (suggests baselines under-use context).</p>
+    </div>
+    <div class="compare-card warn">
+      <h4>⚠ Still $\mathcal{O}(L^3)$</h4>
+      <p>Complexity unchanged asymptotically. But constant is much smaller (~2–3× practical speedup).</p>
+    </div>
+  </div>
+
+  <h3>Why is it still $\mathcal{O}(L^3)$?</h3>
+
+  <p>At each step we recompute K, V for the set $\mathcal{M}_{t-1}$ — the still-masked tokens. At the start of denoising, $|\mathcal{M}_t| \approx L$, so each step is $\mathcal{O}(L^2)$ work. Over $L$ steps, that's $\mathcal{O}(L^3)$.</p>
+
+  <p>However, the <em>per-step</em> cost shrinks as more tokens get decoded — so by the end, we're only recomputing a few positions. The aggregate speedup is real but not asymptotic.</p>
+
+  <div class="quiz">
+    <div class="quiz-question">🧠 Why might dKV-Cache-Decode <em>improve</em> accuracy on long sequences (e.g., GSM8K accuracy 80.97% → 83.13%)?</div>
+    <div class="quiz-option" onclick="checkQuiz1(this, false)">A. The cache reduces noise from random masking.</div>
+    <div class="quiz-option" onclick="checkQuiz1(this, true)">B. Caching forces the model to keep stable, contextually-grounded representations from earlier steps, mitigating some over-correction in late steps.</div>
+    <div class="quiz-option" onclick="checkQuiz1(this, false)">C. The model gets to see more parameters because of the cache.</div>
+    <div class="quiz-feedback"></div>
+  </div>
+</div>
+
+<!-- ============== SECTION 8 ============== -->
+<div class="section" id="greedy">
+  <h2><span class="num">8</span> Variant 2: dKV-Cache-Greedy (faster, $\mathcal{O}(L^2)$)</h2>
+
+  <p>The lossless variant still needs $\mathcal{O}(L^3)$ work because $|\mathcal{M}_t|$ is large early on. To match the AR complexity, dKV-Cache-Greedy is more aggressive about what it recomputes.</p>
+
+  <h3>The recipe</h3>
+
+  <p>At each step $t$, we restrict $\mathcal{M}_t$ to <strong>just three components</strong>:</p>
+
+  <ol class="step-list">
+    <li><strong>$D_t$</strong> — the token currently being decoded.</li>
+    <li><strong>$D_{t-1}$</strong> — the previous decoded token (motivated by one-step delayed caching: it needs its K, V refreshed once).</li>
+    <li><strong>Local window $\mathcal{W}(t)$</strong> — neighboring tokens around $D_t$, with a small fixed window size (the paper uses $w = 6$).</li>
+  </ol>
+
+  <p>Mathematically:</p>
+
+  <div class="formula-box">
+    $$\mathcal{M}_t = \{D_t\} \cup \{D_{t-1}\} \cup \mathcal{W}(t), \quad \mathcal{W}(t) = \left\{ x_i \mid i \in \left[D_t - \lfloor w/2 \rfloor,\, D_t + \lfloor w/2 \rfloor\right] \right\}$$
+  </div>
+
+  <p>With $|\mathcal{M}_t| \leq w + 2 \approx 8$ (a constant!), the per-step cost is $\mathcal{O}(L)$ and the total cost is $\mathcal{O}(L^2)$. <strong>Same complexity as a standard AR model.</strong></p>
+
+  <h3>Interactive: see the window</h3>
+
+  <div class="controls">
+    <label>Window size $w$: <span class="control-value" id="winval">6</span></label>
+    <input type="range" id="winslider" min="0" max="12" value="6" step="2">
+    <button onclick="advanceGreedy()">▶ Advance one step</button>
+    <button class="secondary" onclick="resetGreedy()">Reset</button>
+  </div>
+  <div id="greedyDemo"></div>
+
+  <div class="legend" style="margin-top: 8px;">
+    <div class="legend-item"><div class="legend-box" style="background: var(--cached)"></div>Cached (frozen)</div>
+    <div class="legend-item"><div class="legend-box" style="background: var(--decoded)"></div>$D_t$ (decoding now)</div>
+    <div class="legend-item"><div class="legend-box" style="background: var(--window)"></div>Local window (recompute)</div>
+    <div class="legend-item"><div class="legend-box" style="background: var(--mask)"></div>Still masked (but frozen cache!)</div>
+  </div>
+
+  <h3>The trade-off</h3>
+
+  <div class="warning">
+    <strong>Why "greedy"?</strong> By caching even still-masked tokens (outside the window) and not refreshing them, we accept that their K, V are stale. For tokens far from $D_t$, this is empirically fine. For nearby tokens (within $w$), we still recompute — which is why the window matters. The result: small accuracy hit, big speed win.
+  </div>
+
+  <p>The paper shows dKV-Cache-Greedy outperforms few-step baselines (where you simply use fewer denoising steps) on most benchmarks at similar throughput.</p>
+</div>
+
+<!-- ============== SECTION 9 ============== -->
+<div class="section" id="prefill">
+  <h2><span class="num">9</span> Variants 3 &amp; 4: dKV-Cache-Prefill &amp; PD</h2>
+
+  <p>Long prompts (think: 8-shot in-context learning) dominate runtime cost. The authors carve out two more variants for this setting.</p>
+
+  <div class="grid-2">
+    <div class="compare-card">
+      <h4>📌 dKV-Cache-Prefill</h4>
+      <p>Cache the K, V of the <em>prompt tokens</em> once, then never refresh them. Experiments show prompt tokens "primarily attend to each other" — they're insulated from changes in the decoded answer.</p>
+      <p style="margin-bottom:0;"><strong>Key result:</strong> up to <span class="speedup">18.91× speedup</span> on GPQA (long prompt, short generation).</p>
+    </div>
+    <div class="compare-card">
+      <h4>🔄 dKV-Cache-PD</h4>
+      <p>Mixed strategy: cache prefill tokens without refresh (like Prefill), but <em>intermittently refresh</em> the cache of newly decoded tokens. Best of both worlds.</p>
+      <p style="margin-bottom:0;"><strong>Inspired by</strong> the disaggregation of prefill/decoding phases in LLM serving systems.</p>
+    </div>
+  </div>
+
+  <h3>When to use which variant?</h3>
+
+  <table>
+    <thead>
+      <tr><th>Scenario</th><th>Recommended variant</th><th>Why</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Short prompt, long output, accuracy matters</td><td><strong>dKV-Cache-Decode</strong></td><td>Lossless, may even improve quality.</td></tr>
+      <tr><td>Short prompt, long output, speed matters</td><td><strong>dKV-Cache-Greedy</strong></td><td>$\mathcal{O}(L^2)$ complexity.</td></tr>
+      <tr><td>Long prompt, short output (few-shot ICL)</td><td><strong>dKV-Cache-Prefill</strong></td><td>Prompt dominates runtime — cache it once.</td></tr>
+      <tr><td>Long prompt + long output</td><td><strong>dKV-Cache-PD</strong></td><td>Disaggregated approach handles both phases.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ============== SECTION 10 ============== -->
+<div class="section" id="results">
+  <h2><span class="num">10</span> Results &amp; Benchmarks</h2>
+
+  <h3>LLaDA-8B-Instruct (zero-shot)</h3>
+
+  <p>Format: <strong>accuracy</strong> · throughput · <span class="speedup">speedup</span></p>
+
+  <table>
+    <thead>
+      <tr><th>Benchmark</th><th>Base (full steps)</th><th>Half-Steps</th><th>dKV-Cache-Decode</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>MMLU</td><td>51.11 · 28.27 · 1×</td><td>51.11 · 55.80 · <span class="speedup">1.97×</span></td><td class="highlight">51.00 · 66.52 · <span class="speedup">2.35×</span></td></tr>
+      <tr><td>GSM8K</td><td>77.56 · 14.68 · 1×</td><td>77.91 · 28.71 · <span class="speedup">2.00×</span></td><td class="highlight">78.85 · 27.50 · <span class="speedup">1.92×</span></td></tr>
+      <tr><td>Math500</td><td>36.6 · 11.53 · 1×</td><td>34.2 · 23.10 · <span class="speedup">2.00×</span></td><td class="highlight">36.8 · 24.46 · <span class="speedup">2.12×</span></td></tr>
+      <tr><td>GPQA</td><td>30.80 · 11.86 · 1×</td><td>27.68 · 23.88 · <span class="speedup">2.01×</span></td><td class="highlight">28.13 · 28.73 · <span class="speedup">2.42×</span></td></tr>
+      <tr><td>HumanEval</td><td>39.63 · 7.08 · 1×</td><td>33.54 · 14.18 · <span class="speedup">2.00×</span></td><td class="highlight">46.34 · 13.76 · <span class="speedup">1.83×</span></td></tr>
+      <tr><td>MBPP</td><td>40.4 · 7.50 · 1×</td><td>33.8 · 15.01 · <span class="speedup">2.00×</span></td><td class="highlight">43.93 · 13.93 · <span class="speedup">1.86×</span></td></tr>
+    </tbody>
+  </table>
+
+  <div class="insight">
+    <strong>Note on HumanEval:</strong> Accuracy jumps from 39.63 to <strong>46.34</strong> with dKV-Cache — a +6.7-point improvement. The paper attributes this to baseline DLMs under-using contextual information; caching <em>preserves</em> stable token representations and forces the model to lean on them.
+  </div>
+
+  <h3>Dream-7B (few-shot ICL)</h3>
+
+  <table>
+    <thead>
+      <tr><th>Benchmark</th><th>T</th><th>Dream baseline</th><th>dKV-Cache-Decode</th><th>dKV-Cache-Prefill</th><th>dKV-Cache-PD</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>GSM8K (8-shot) L=256</td><td>256</td><td>76.88 · 15.1 · 1×</td><td class="highlight">76.57 · 31.6 · <span class="speedup">2.09×</span></td><td>75.66 · 53.6 · <span class="speedup">3.55×</span></td><td>74.07 · 50.2 · <span class="speedup">3.32×</span></td></tr>
+      <tr><td>GSM8K (8-shot) L=256</td><td>128</td><td>68.81 · 30.3 · 2.01×</td><td>65.35 · 62.31 · <span class="speedup">4.13×</span></td><td class="highlight">65.96 · 107.4 · <span class="speedup">7.11×</span></td><td>63.31 · 99.5 · <span class="speedup">6.6×</span></td></tr>
+      <tr><td>GPQA (5-shot) L=128</td><td>64</td><td>35.49 · 29.4 · 3.97×</td><td>34.15 · 36.8 · <span class="speedup">4.97×</span></td><td class="highlight">35.27 · <strong>139.9</strong> · <span class="speedup">18.91×</span></td><td>—</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Headline speedup numbers</h3>
+
+  <div class="chart-bar">
+    <span class="chart-label">LLaDA, GSM8K</span>
+    <div class="chart-track"><div class="chart-fill" style="width:25%">1.92×</div></div>
+  </div>
+  <div class="chart-bar">
+    <span class="chart-label">Dream, GSM8K L=256 T=256</span>
+    <div class="chart-track"><div class="chart-fill" style="width:28%">2.09×</div></div>
+  </div>
+  <div class="chart-bar">
+    <span class="chart-label">Dream, GSM8K L=256 T=128 (Prefill)</span>
+    <div class="chart-track"><div class="chart-fill" style="width:38%">7.11×</div></div>
+  </div>
+  <div class="chart-bar">
+    <span class="chart-label">Dream, GPQA T=64 (Prefill)</span>
+    <div class="chart-track"><div class="chart-fill" style="width:100%">18.91×</div></div>
+  </div>
+
+  <h3>What the one-step delay buys you</h3>
+
+  <p>Figure 3 in the paper shows a striking contrast:</p>
+
+  <div class="panel-compare">
+    <div class="panel">
+      <h4>❌ Without one-step delay</h4>
+      <p style="margin:0;">Accuracy is okay at low cache ratios but <strong>collapses to ~0%</strong> as cache ratio approaches 50%.</p>
+    </div>
+    <div class="panel">
+      <h4>✅ With one-step delay</h4>
+      <p style="margin:0;">Accuracy stays <strong>nearly lossless</strong> at high cache ratios — small drop only.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ============== SECTION 11 ============== -->
+<div class="section" id="summary">
+  <h2><span class="num">11</span> Summary &amp; Comparison with Fast-dLLM</h2>
+
+  <div class="insight">
+    <strong>One-sentence summary:</strong> dKV-Cache is a training-free KV-cache for diffusion language models that exploits the empirical observation that K, V vectors of <em>decoded</em> tokens stabilize after their decoding step — with the crucial twist of <em>delaying</em> caching by one step to capture the most stable representation.
+  </div>
+
+  <h3>Five key takeaways</h3>
+
+  <ol class="step-list">
+    <li><strong>Cache only decoded tokens.</strong> Masked tokens keep changing across denoising steps — recompute them.</li>
+    <li><strong>Delay caching by one step.</strong> The K, V at the exact moment of decoding are unstable; wait one step for them to settle.</li>
+    <li><strong>Two complexity regimes.</strong> Decode variant: $\mathcal{O}(L^3)$ with low constant. Greedy variant: $\mathcal{O}(L^2)$ matching AR models.</li>
+    <li><strong>Long prefill is the biggest win.</strong> Caching prompts once delivers up to 18.91× speedup on long-context, short-generation tasks.</li>
+    <li><strong>Sometimes caching <em>improves</em> quality.</strong> On HumanEval and long-output GSM8K, stable representations help the model use context more effectively.</li>
+  </ol>
+
+  <h3>How does this compare to Fast-dLLM?</h3>
+
+  <p>Both papers tackle the same problem from May 2025, but with different philosophies:</p>
+
+  <table>
+    <thead>
+      <tr><th>Aspect</th><th>dKV-Cache (this paper)</th><th>Fast-dLLM</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Caching granularity</td><td>Per-token (token-by-token)</td><td>Block-wise (fixed-size blocks, e.g. 32)</td></tr>
+      <tr><td>Approximation</td><td>One-step delay, refresh every N</td><td>Approximate within block, recompute between blocks</td></tr>
+      <tr><td>Parallel decoding</td><td>Not the focus — caching only</td><td>Confidence-aware parallel decoding is a core contribution</td></tr>
+      <tr><td>Theoretical analysis</td><td>Empirical (representation similarity)</td><td>Theorem 1: equivalence under high confidence</td></tr>
+      <tr><td>Max speedup reported</td><td>~19× (long prefill)</td><td>~27.6× (long generation)</td></tr>
+      <tr><td>When most useful</td><td>Long prefill, ICL, careful accuracy</td><td>Long generation, throughput-focused</td></tr>
+    </tbody>
+  </table>
+
+  <div class="insight">
+    <strong>They're complementary.</strong> In principle, you could combine dKV-Cache's delayed token-level caching with Fast-dLLM's confidence-aware parallel decoding. The papers tackle orthogonal axes of the speedup problem.
+  </div>
+
+  <h3>Limitations &amp; open questions</h3>
+
+  <ul>
+    <li>The "best" cache refresh interval is dataset-dependent — needs tuning.</li>
+    <li>The greedy variant relies on a predefined decoding order; combining with confidence-based remasking is non-trivial.</li>
+    <li>How does the method interact with KV-cache compression schemes (quantization, eviction)?</li>
+    <li>The "improvement on long sequences" effect is interesting but not theoretically explained.</li>
+  </ul>
+
+  <h3>Where to go next</h3>
+
+  <ul>
+    <li>Read Appendix in the paper for the <code>concat_reorder</code> operator + RoPE interaction.</li>
+    <li>Try the official code: <a href="https://github.com/horseee/dKV-Cache" style="color: var(--accent-2);">github.com/horseee/dKV-Cache</a></li>
+    <li>Related: <a href="fast_dllm_tutorial.html" style="color: var(--accent-2);">Fast-dLLM tutorial</a> in this same folder.</li>
+    <li>Compare with LLaDA paper (Nie et al. 2025) and Dream (Ye et al. 2025) for the underlying models.</li>
+  </ul>
+
+  <div class="nav-buttons">
+    <a class="nav-button" href="../dan_fu/research_papers/dKV-Cache.pdf">📄 Read the original paper (PDF)</a>
+    <a class="nav-button" href="fast_dllm_tutorial.html">🔗 Compare with Fast-dLLM</a>
+    <a class="nav-button" href="#bigpic">🔝 Back to top</a>
+  </div>
+</div>
+
+</div><!-- /container -->
+
+<script>
+// ============================ Section 2: AR demo ============================
+const arTokens = ['The', 'cat', 'sat', 'on', 'the', 'mat'];
+let arStep = 0;
+function renderAR() {
+  const c = document.getElementById('arDemo');
+  c.innerHTML = '';
+  const row = document.createElement('div');
+  row.className = 'token-row';
+  const lbl = document.createElement('span'); lbl.className = 'token-label'; lbl.textContent = 'sequence:'; row.appendChild(lbl);
+  arTokens.forEach((t, i) => {
+    const d = document.createElement('div');
+    if (i < arStep) {
+      d.className = 'token cached';
+      d.textContent = t;
+    } else if (i === arStep) {
+      d.className = 'token computing';
+      d.textContent = t;
+    } else {
+      d.className = 'token mask';
+      d.textContent = '?';
+    }
+    row.appendChild(d);
+  });
+  c.appendChild(row);
+
+  const info = document.createElement('div');
+  info.style.color = 'var(--text-dim)';
+  info.style.fontSize = '0.9em';
+  info.style.marginTop = '8px';
+  if (arStep === 0) {
+    info.innerHTML = 'Step 0: empty cache. Compute K, V for "<strong>The</strong>".';
+  } else if (arStep <= arTokens.length) {
+    info.innerHTML = `Step ${arStep}: cache contains K, V for tokens 1..${arStep}. Compute Q, K, V only for "<strong>${arTokens[arStep] || '(done)'}</strong>".`;
+  } else {
+    info.innerHTML = 'Done. Total work: $\\mathcal{O}(L^2)$.';
+  }
+  c.appendChild(info);
+  document.getElementById('arStep').textContent = arStep;
+}
+function stepAR() { if (arStep < 6) arStep++; renderAR(); }
+function resetAR() { arStep = 0; renderAR(); }
+renderAR();
+
+// ============================ Section 4: dynamics chart ============================
+function renderDyn() {
+  const c = document.getElementById('dynChart');
+  const W = 600, H = 200;
+  let svg = `<svg width="100%" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+  // axes
+  svg += `<line x1="40" y1="${H-30}" x2="${W-20}" y2="${H-30}" stroke="#475569" stroke-width="1"/>`;
+  svg += `<line x1="40" y1="20" x2="40" y2="${H-30}" stroke="#475569" stroke-width="1"/>`;
+  svg += `<text x="${W/2}" y="${H-8}" fill="#94a3b8" text-anchor="middle" font-size="11">Denoising step (left = early, right = late)</text>`;
+  svg += `<text x="14" y="${H/2}" fill="#94a3b8" text-anchor="middle" font-size="11" transform="rotate(-90, 14, ${H/2})">||ΔK||</text>`;
+
+  // 5 token curves, each peaks at its own decoding step
+  const colors = ['#5eead4', '#a78bfa', '#fbbf24', '#f87171', '#60a5fa'];
+  const decodeSteps = [10, 30, 50, 70, 90]; // out of 100
+  for (let k = 0; k < 5; k++) {
+    let path = '';
+    for (let x = 0; x <= 100; x += 2) {
+      const dist = Math.abs(x - decodeSteps[k]);
+      // peak at decode step, also higher early on
+      const y = 0.7 * Math.exp(-dist*dist/100) + 0.2 * Math.exp(-x*x/300) + 0.05;
+      const px = 40 + (x/100) * (W - 60);
+      const py = (H-30) - y * (H - 60);
+      path += (x === 0 ? 'M' : 'L') + px + ',' + py + ' ';
+    }
+    svg += `<path d="${path}" fill="none" stroke="${colors[k]}" stroke-width="2" opacity="0.8"/>`;
+    // mark decoding step
+    const px = 40 + (decodeSteps[k]/100) * (W - 60);
+    svg += `<circle cx="${px}" cy="${(H-30) - 0.75 * (H - 60)}" r="4" fill="${colors[k]}"/>`;
+    svg += `<text x="${px}" y="${(H-30) - 0.75 * (H - 60) - 8}" fill="${colors[k]}" text-anchor="middle" font-size="10">tok ${k+1}</text>`;
+  }
+  svg += '</svg>';
+  c.innerHTML = svg;
+}
+renderDyn();
+
+// ============================ Section 5: DLM demo (delayed caching) ============================
+// Sequence of 8 answer slots. Simulate decoding order: [3, 0, 5, 1, 7, 4, 6, 2]
+const dlmTokens = ['T', 'h', 'e', ' ', 'c', 'a', 't', '.'];
+const decodeOrder = [3, 0, 5, 1, 7, 4, 6, 2]; // position decoded at each step
+let dlmStep = 0;
+
+function renderDLM() {
+  const c = document.getElementById('dlmDemo');
+  c.innerHTML = '';
+
+  // Compute what's decoded and what's just-decoded
+  const decoded = new Set();
+  for (let i = 0; i < dlmStep; i++) decoded.add(decodeOrder[i]);
+  const justDecoded = dlmStep > 0 ? decodeOrder[dlmStep - 1] : null;
+
+  const row = document.createElement('div');
+  row.className = 'token-row';
+  const lbl = document.createElement('span'); lbl.className = 'token-label'; lbl.textContent = 'positions:'; row.appendChild(lbl);
+  for (let i = 0; i < dlmTokens.length; i++) {
+    const d = document.createElement('div');
+    if (decoded.has(i) && i !== justDecoded) {
+      // cached (decoded in a previous step, stable now)
+      d.className = 'token cached';
+      d.textContent = dlmTokens[i];
+    } else if (i === justDecoded) {
+      // just decoded — recompute K,V this step
+      d.className = 'token decoded';
+      d.textContent = dlmTokens[i];
+    } else {
+      d.className = 'token mask';
+      d.textContent = 'M';
+    }
+    row.appendChild(d);
+  }
+  c.appendChild(row);
+
+  const info = document.createElement('div');
+  info.style.color = 'var(--text-dim)';
+  info.style.fontSize = '0.9em';
+  info.style.marginTop = '8px';
+  if (dlmStep === 0) {
+    info.innerHTML = '<strong>Step 0:</strong> all positions masked. Recompute K, V for all (no cache yet).';
+  } else {
+    const recomputeCount = dlmTokens.length - decoded.size + 1; // masked + just-decoded
+    const cacheCount = decoded.size - 1;
+    info.innerHTML = `<strong>Step ${dlmStep}:</strong> just decoded position ${justDecoded} (<strong>${dlmTokens[justDecoded]}</strong>). ` +
+      `Recompute K, V for <span style="color:var(--decoded)">${recomputeCount}</span> positions (masked + just-decoded). ` +
+      `Reuse cache for <span style="color:var(--cached)">${cacheCount}</span> positions.`;
+  }
+  c.appendChild(info);
+  document.getElementById('dlmStep').textContent = dlmStep;
+}
+function stepDLM() { if (dlmStep < decodeOrder.length) dlmStep++; renderDLM(); }
+function resetDLM() { dlmStep = 0; renderDLM(); }
+renderDLM();
+
+// ============================ Section 8: Greedy demo ============================
+let greedyStep = 0;
+const greedyTokens = Array(16).fill('M');
+const greedyDecodeOrder = [3, 5, 8, 11, 2, 10, 13, 6, 0, 14, 1, 4, 9, 7, 12, 15];
+const greedyTargetTokens = ['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p'];
+
+function renderGreedy() {
+  const w = parseInt(document.getElementById('winslider').value);
+  document.getElementById('winval').textContent = w;
+  const c = document.getElementById('greedyDemo');
+  c.innerHTML = '';
+
+  const decoded = new Set();
+  for (let i = 0; i < greedyStep; i++) decoded.add(greedyDecodeOrder[i]);
+  const dt = greedyStep < greedyDecodeOrder.length ? greedyDecodeOrder[greedyStep] : null;
+  const dtPrev = greedyStep > 0 ? greedyDecodeOrder[greedyStep - 1] : null;
+
+  // Window around D_t
+  const windowSet = new Set();
+  if (dt !== null) {
+    for (let i = Math.max(0, dt - Math.floor(w/2)); i <= Math.min(greedyTokens.length - 1, dt + Math.floor(w/2)); i++) {
+      windowSet.add(i);
+    }
+  }
+  if (dtPrev !== null) windowSet.add(dtPrev);
+
+  const row = document.createElement('div');
+  row.className = 'token-row';
+  const lbl = document.createElement('span'); lbl.className = 'token-label'; lbl.textContent = 'positions:'; row.appendChild(lbl);
+
+  for (let i = 0; i < greedyTokens.length; i++) {
+    const d = document.createElement('div');
+    if (i === dt) {
+      d.className = 'token decoded';
+      d.textContent = greedyTargetTokens[i];
+    } else if (windowSet.has(i)) {
+      d.className = 'token window';
+      d.textContent = decoded.has(i) ? greedyTargetTokens[i] : 'M';
+    } else if (decoded.has(i)) {
+      d.className = 'token cached';
+      d.textContent = greedyTargetTokens[i];
+    } else {
+      d.className = 'token cached';
+      d.textContent = 'M';
+      d.style.opacity = '0.5';
+    }
+    row.appendChild(d);
+  }
+  c.appendChild(row);
+
+  const info = document.createElement('div');
+  info.style.color = 'var(--text-dim)';
+  info.style.fontSize = '0.9em';
+  info.style.marginTop = '8px';
+  const mt = windowSet.size + (dt !== null && !windowSet.has(dt) ? 1 : 0);
+  info.innerHTML = `<strong>Step ${greedyStep}:</strong> recompute K, V for only <span style="color:var(--window)">|M_t| = ${mt}</span> positions ` +
+    `(window of ${w} + $D_t$ + $D_{t-1}$). All other ${greedyTokens.length - mt} positions: <span style="color:var(--cached)">frozen cache</span>. ` +
+    `Per-step cost: $\\mathcal{O}(L)$ → total $\\mathcal{O}(L^2)$.`;
+  c.appendChild(info);
+
+  // Trigger MathJax re-render
+  if (window.MathJax && window.MathJax.typeset) {
+    setTimeout(() => window.MathJax.typeset([info]), 50);
+  }
+}
+function advanceGreedy() {
+  if (greedyStep < greedyDecodeOrder.length) greedyStep++;
+  renderGreedy();
+}
+function resetGreedy() { greedyStep = 0; renderGreedy(); }
+document.getElementById('winslider').addEventListener('input', renderGreedy);
+renderGreedy();
+
+// ============================ Quiz ============================
+function checkQuiz1(el, correct) {
+  const parent = el.parentElement;
+  parent.querySelectorAll('.quiz-option').forEach(o => {
+    o.classList.remove('correct', 'wrong');
+  });
+  el.classList.add(correct ? 'correct' : 'wrong');
+  const fb = parent.querySelector('.quiz-feedback');
+  fb.classList.add('show');
+  if (correct) {
+    fb.style.background = 'rgba(94,234,212,0.15)';
+    fb.style.color = 'var(--accent)';
+    fb.textContent = '✓ Correct! The paper observes that baseline DLMs may "under-utilise contextual information during inference". Caching enforces stable, contextually-grounded representations, helping the model leverage what it already produced.';
+  } else {
+    fb.style.background = 'rgba(248,113,113,0.15)';
+    fb.style.color = 'var(--danger)';
+    fb.textContent = '✗ Not quite. The paper attributes the improvement to baseline DLMs not making full use of context. Caching stabilizes earlier-decoded representations, helping the model rely on them.';
+  }
+}
+</script>
+
+</body>
+</html>
