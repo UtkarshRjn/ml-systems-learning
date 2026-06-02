@@ -1,33 +1,52 @@
 # ml-systems-learning
 
-A collection of self-made HTML tutorials and lesson notes I built while studying
-work from **Dan Fu's lab** and **Hao Zhang's lab** at UCSD — primarily around
-efficient ML systems, video diffusion, sparse attention, and state-space models.
+Self-made HTML tutorials and lesson notes I build while studying papers and
+open-source code in efficient ML systems — mostly around **video diffusion**,
+**diffusion language models**, **state-space models**, and the **GPU
+programming** that underpins all of it.
 
-These are my personal learning artifacts: I make them as I read papers and code
-to internalize the ideas. Sharing publicly in case they help anyone else
-working through the same material.
+These are personal learning artifacts: I write them as I read to internalize
+the ideas. Sharing publicly in case they help anyone working through the same
+material.
 
 ## Contents
 
+### [`gpu-programming/`](gpu-programming/) — GPU & CUDA
 | File | Topic |
 | --- | --- |
-| [`ssm_tutorial.html`](ssm_tutorial.html) | State-space models walkthrough |
-| [`fastvideo_lesson.html`](fastvideo_lesson.html) | Notes on the FastVideo framework (Hao lab) |
-| [`vsa_varlen_simple.html`](vsa_varlen_simple.html) | Short intro to variable-length VSA (Video Sparse Attention) |
-| [`vsa_varlen_tutorial.html`](vsa_varlen_tutorial.html) | Deeper tutorial on VSA varlen kernel design |
+| [`cuda_cpp_tutorial.html`](gpu-programming/cuda_cpp_tutorial.html) | A complete CUDA C++ background-knowledge tutorial — structured around the 6 reusable patterns (element-wise, stencil, reduction, scan, matmul tile, online softmax) plus tensor cores, MXFP4/8 + NVFP4 quantized GEMM, GPU graph algorithms, finite-field arithmetic, FlashAttention. Built from a survey of all 84 problems on [tensara.org](https://tensara.org/problems), with 1D convolution as the worked end-to-end example. |
+
+### [`sequence-models/`](sequence-models/) — Sequence-modeling architectures
+| File | Topic |
+| --- | --- |
+| [`ssm_tutorial.html`](sequence-models/ssm_tutorial.html) | State-space models from scratch. RNN refresher, the four matrices (A, B, C, D), the recurrent / convolutional dual modes, SSM-vs-Transformer trade-offs, an interactive 1D SSM playground, and a deep-dive tab on where the non-linearity actually lives. |
+
+### [`video-diffusion/`](video-diffusion/) — Video diffusion & sparse attention
+| File | Topic |
+| --- | --- |
+| [`fastvideo_lesson.html`](video-diffusion/fastvideo_lesson.html) | FastVideo framework (Hao lab) — what it is, how it parallelizes long-context video generation. |
+| [`vsa_varlen_simple.html`](video-diffusion/vsa_varlen_simple.html) | Short intro to variable-length Video Sparse Attention. |
+| [`vsa_varlen_tutorial.html`](video-diffusion/vsa_varlen_tutorial.html) | Deeper tutorial on VSA varlen kernel design. |
+| [`chipmunk_tutorial.html`](video-diffusion/chipmunk_tutorial.html) | Chipmunk — sparse-attention / sparse-MLP acceleration for video diffusion inference. |
+
+### [`diffusion-llms/`](diffusion-llms/) — Diffusion language models
+| File | Topic |
+| --- | --- |
+| [`fast_dllm_tutorial.html`](diffusion-llms/fast_dllm_tutorial.html) | Fast-dLLM — accelerating diffusion language model inference. |
+| [`dkv_cache_tutorial.html`](diffusion-llms/dkv_cache_tutorial.html) | dKV-Cache — KV caching adapted for diffusion language models. |
 
 ## How to view
 
-Just open any `.html` file directly in your browser, or browse via GitHub Pages
-if enabled.
+Open any `.html` directly in your browser — they're self-contained (single
+file, embedded CSS/JS, no build step).
 
 ## Acknowledgements
 
 Material is based on research and open-source code from:
 
-- [Dan Fu's lab](https://www.danfu.org/) — state-space models, efficient sequence modeling
-- [Hao Zhang's lab](https://cseweb.ucsd.edu/~haozhang/) — FastVideo, distributed training, video diffusion systems
+- [Hao Zhang's lab](https://cseweb.ucsd.edu/~haozhang/) at UCSD — FastVideo, video sparse attention, distributed training, video diffusion systems
+- [Dan Fu's lab](https://www.danfu.org/) at UCSD — state-space models, efficient sequence modeling
+- The respective authors of Chipmunk, Fast-dLLM, dKV-Cache, and the wider efficient-ML community
 
-All credit for the underlying ideas goes to the original authors. Any errors in
-these notes are mine.
+All credit for the underlying ideas goes to the original authors. Any errors
+in these notes are mine.
