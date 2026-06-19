@@ -199,6 +199,7 @@
   <a href="#elemwise">Element-wise</a>
   <a href="#stencil">Stencils</a>
   <a href="#reduce">Reductions</a>
+  <a href="#max-dim">Max-over-dim</a>
   <a href="#scan">Scans</a>
   <a href="#softmax">Softmax</a>
   <a href="#sort">Sort</a>
@@ -968,6 +969,130 @@ M2   = M2A + M2B + d*d * (float)(nA * nB) / (float)n
   Minimum Spanning Tree (argmin per round) &middot; Edge-Detection rescale-max &middot;
   the K-reduction inside every GEMM (see section 13).
 </div>
+
+<!-- ====================================================== -->
+<h3 id="max-dim">9.8 Worked example: Max Over Dimension (tensara)</h3>
+
+<p>
+  The tensara problem <a href="https://tensara.org/problems/max-dim">Max Over Dimension</a> is the
+  cleanest worked example of the generic n-D dim reduction in 9.5. The signature is:
+</p>
+<pre>extern "C" void solve(const float* input, int dim, float* output,
+                      const size_t* shape, size_t ndim);</pre>
+<p>
+  The output keeps the reduced dim with size 1 (<code>keepdim=True</code>): for input shape
+  <code>(S<sub>1</sub>,&hellip;,S<sub>d</sub>,&hellip;,S<sub>n</sub>)</code> the output is
+  <code>(S<sub>1</sub>,&hellip;,1,&hellip;,S<sub>n</sub>)</code>.
+</p>
+
+<h4>Setup: the (outer, axis, inner) decomposition</h4>
+<p>
+  In the host wrapper from the screenshot, two scalars are precomputed by walking <code>shape[]</code>:
+</p>
+<pre>total     = product of every shape[i] with i &ne; dim     // # of outputs
+dim_right = product of shape[dim+1 .. ndim-1]            // "inner" stride</pre>
+<p>
+  Mapping back to 9.5's vocabulary: <code>outer = total / dim_right</code>,
+  <code>axis = shape[dim]</code>, <code>inner = dim_right</code>. Total output elements equal
+  <code>total</code> because the reduced dimension contributes a factor of 1 (it's kept as size 1).
+</p>
+
+<h4>The launch: one thread per output</h4>
+<pre>int idx = blockIdx.x * blockDim.x + threadIdx.x;
+if (idx &gt;= total) return;
+
+int row = idx / dim_right;     // which (outer) block am I in?
+int col = idx % dim_right;     // which (inner) offset am I at?
+
+int base = row * shape[dim] * dim_right + col;
+
+for (int i = 0; i &lt; shape[dim]; i++) {
+    output[idx] = fmaxf(output[idx], input[base + i * dim_right]);
+}</pre>
+
+<h4>Why <code>row = a*B + b</code>, not <code>(a*B + b)*C</code></h4>
+<p>
+  Make it concrete with <code>shape = (A, B, C, D)</code> and <code>dim = 2</code> (so we reduce over
+  <code>C</code>). After reduction, the output shape is <code>(A, B, 1, D)</code> and the dim-1 axis
+  drops out of the index math &mdash; the output is effectively a 3D tensor
+  <code>(A, B, D)</code> with <code>total = A*B*D</code> and <code>dim_right = D</code>.
+</p>
+<p>
+  A flat output index <code>idx</code> decomposes as
+</p>
+<pre>idx = (a * B + b) * D + d           // a in [0,A), b in [0,B), d in [0,D)</pre>
+<p>
+  Dividing by <code>D</code> kills the <code>d</code> term and leaves exactly
+  <code>row = a*B + b</code>. There is no <code>*C</code> anywhere on the output side because
+  <b>the output doesn't contain a <code>C</code> axis</b> &mdash; we reduced it away. Two coordinates
+  determine an output element, not three.
+</p>
+<div class="warn">
+  The temptation to write <code>row = (a*B + b)*C</code> comes from mixing input and output indexing.
+  <code>idx</code> is an <i>output</i> index, so its decomposition only mentions axes that survived the
+  reduction. The factor of <code>C</code> only appears later, when we ask "where does this (a,b,d)
+  slice <b>start in the input</b>?"
+</div>
+
+<h4>Where <code>*C</code> actually shows up</h4>
+<p>
+  Each <code>(a,b)</code> pair in the input owns a contiguous block of <code>C * D</code> floats.
+  To find the first element of the reduction stripe for output <code>(a, b, d)</code>:
+</p>
+<pre>base = row * (C * D) + col
+     = (a*B + b) * C * D + d</pre>
+<p>
+  That's what <code>row * shape[dim] * dim_right + col</code> evaluates to in the kernel: the
+  <code>*C</code> (i.e. <code>*shape[dim]</code>) lives in the <i>input address</i>, not in
+  <code>row</code>. Then the loop walks the C axis by adding <code>dim_right = D</code> each step:
+</p>
+<pre>input[base + 0*D]   // c = 0
+input[base + 1*D]   // c = 1
+...
+input[base + (C-1)*D]</pre>
+
+<div class="key">
+  Separate the two questions:
+  <ul>
+    <li><b>"Which output am I?"</b> &rarr; <code>row = idx / dim_right</code>,
+        <code>col = idx % dim_right</code>. Only mentions surviving axes.</li>
+    <li><b>"Where does my input stripe start?"</b> &rarr;
+        <code>base = row * shape[dim] * dim_right + col</code>. The reduced axis size shows up here.</li>
+  </ul>
+</div>
+
+<h4>Why the screenshot's submission TLE'd, and how to fix it</h4>
+<p>
+  The kernel above is correct but reads <code>output[idx]</code> on every iteration of the
+  <code>fmaxf</code> loop &mdash; that's <code>shape[dim]</code> uncached global loads per thread,
+  on top of the stripe reads. It also relies on <code>output</code> being pre-initialized to a
+  sentinel (it isn't: tensara hands you uninitialized device memory), so the first iteration's
+  <code>fmaxf(output[idx], &hellip;)</code> compares against garbage. Both bugs at once produce
+  a "passes some cases, hangs on big ones" failure profile &mdash; exactly the 60 s TLE shown.
+</p>
+<p>The minimal fix: accumulate in a register, seed from <code>-FLT_MAX</code>, write once.</p>
+<pre>float m = -FLT_MAX;
+for (int i = 0; i &lt; shape[dim]; i++) {
+    m = fmaxf(m, input[base + i * dim_right]);
+}
+output[idx] = m;</pre>
+<p>
+  That's the "dim is outer / middle" regime from 9.5: one output per thread, strided loads
+  <code>dim_right</code> apart. Coalescing is across threads (consecutive <code>col</code>s),
+  not within a thread. For the "dim is innermost" case (<code>dim_right == 1</code>), switch
+  to one block per output row with the block-reduction pattern from 9.2 &mdash; that's the regime
+  where the strided one-thread-per-output kernel would be slowest.
+</p>
+<p>
+  Also: <code>shape</code> is a device pointer (see section 2). Reading <code>shape[dim]</code> inside
+  the hot loop is a global load every iteration. Hoist it into a register (or stage <code>shape</code>
+  into shared memory at kernel entry) before looping:
+</p>
+<pre>int axis_len  = shape[dim];      // one global load, reused
+int dim_right_ = dim_right;
+for (int i = 0; i &lt; axis_len; i++) {
+    m = fmaxf(m, input[base + i * dim_right_]);
+}</pre>
 
 <!-- ====================================================== -->
 <h2 id="scan">10. Pattern D &mdash; Parallel scans</h2>
