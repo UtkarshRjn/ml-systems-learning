@@ -1,0 +1,1313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FastVideo Optimizations — The Game</title>
+<style>
+:root {
+  --bg-0: #0a0e27;
+  --bg-1: #11172e;
+  --bg-2: #1a2342;
+  --panel: #1e2a4a;
+  --line: #2a3760;
+  --text: #e6ecff;
+  --muted: #8a99c4;
+  --p: #7c5cff;    /* purple */
+  --c: #00d4ff;    /* cyan */
+  --g: #00ffa1;    /* green */
+  --y: #ffd166;    /* yellow */
+  --r: #ff5d8f;    /* pink/red */
+  --o: #ff9f43;    /* orange */
+  --code: #0d1226;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+  background: radial-gradient(ellipse at top, #16204a 0%, var(--bg-0) 60%);
+  color: var(--text);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+body::before {
+  content: ''; position: fixed; inset: 0;
+  background-image:
+    radial-gradient(circle at 20% 10%, rgba(124,92,255,0.15), transparent 40%),
+    radial-gradient(circle at 80% 80%, rgba(0,212,255,0.10), transparent 40%);
+  pointer-events: none; z-index: 0;
+}
+.wrap { max-width: 1100px; margin: 0 auto; padding: 2rem 1.25rem 6rem; position: relative; z-index: 1; }
+
+/* ---------- Top HUD ---------- */
+.hud {
+  position: sticky; top: 0; z-index: 50;
+  background: rgba(10,14,39,0.85); backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+  padding: 0.85rem 1.25rem;
+  display: flex; align-items: center; gap: 1rem;
+  margin: -2rem -1.25rem 1.5rem;
+}
+.hud .logo {
+  font-weight: 800; letter-spacing: 0.04em;
+  background: linear-gradient(135deg, var(--p), var(--c));
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; font-size: 1.05rem;
+}
+.hud .bar-wrap { flex: 1; height: 8px; background: var(--bg-2); border-radius: 999px; overflow: hidden; }
+.hud .bar { height: 100%; width: 0%;
+  background: linear-gradient(90deg, var(--p), var(--c), var(--g));
+  transition: width 0.6s cubic-bezier(.6,.2,.2,1);
+  box-shadow: 0 0 14px rgba(124,92,255,0.6);
+}
+.hud .xp { font-variant-numeric: tabular-nums; color: var(--y); font-weight: 600; min-width: 90px; text-align: right; }
+.hud .lvl { color: var(--muted); font-size: 0.85rem; }
+
+/* ---------- Hero ---------- */
+.hero { text-align: center; padding: 3rem 0 2rem; }
+.hero .tag {
+  display: inline-block; padding: 0.35rem 0.9rem; border-radius: 999px;
+  background: rgba(124,92,255,0.15); color: var(--p); font-size: 0.78rem;
+  letter-spacing: 0.15em; text-transform: uppercase; font-weight: 700;
+  border: 1px solid rgba(124,92,255,0.3);
+}
+.hero h1 {
+  font-size: clamp(2rem, 5vw, 3.4rem);
+  font-weight: 800; line-height: 1.1; margin: 1rem 0 0.75rem;
+  background: linear-gradient(135deg, #fff 0%, var(--c) 60%, var(--p) 100%);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.hero p { color: var(--muted); max-width: 640px; margin: 0 auto; font-size: 1.05rem; }
+.hero .start {
+  margin-top: 1.75rem; padding: 0.95rem 2rem; font-size: 1rem; font-weight: 700;
+  border: none; border-radius: 12px; cursor: pointer; color: white;
+  background: linear-gradient(135deg, var(--p), var(--c));
+  box-shadow: 0 8px 30px rgba(124,92,255,0.45);
+  transition: transform 0.15s ease;
+}
+.hero .start:hover { transform: translateY(-2px); }
+
+/* ---------- Level cards ---------- */
+.level {
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: 18px; padding: 2rem; margin: 1.5rem 0;
+  position: relative; overflow: hidden;
+  transition: opacity 0.4s, transform 0.4s;
+}
+.level.locked { opacity: 0.35; pointer-events: none; filter: grayscale(0.6); }
+.level.locked::after {
+  content: 'LOCKED'; position: absolute; top: 1rem; right: 1rem;
+  font-size: 0.7rem; letter-spacing: 0.2em; color: var(--muted); font-weight: 700;
+  padding: 0.25rem 0.7rem; border: 1px solid var(--line); border-radius: 4px;
+}
+.level.complete { border-color: rgba(0,255,161,0.4); }
+.level.complete::after {
+  content: 'CLEARED'; position: absolute; top: 1rem; right: 1rem;
+  font-size: 0.7rem; letter-spacing: 0.2em; color: var(--g); font-weight: 700;
+  padding: 0.25rem 0.7rem; border: 1px solid var(--g); border-radius: 4px;
+}
+.level h2 {
+  font-size: 1.7rem; margin-bottom: 0.3rem; display: flex; align-items: center; gap: 0.75rem;
+}
+.level .badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; border-radius: 10px; font-weight: 800;
+  background: linear-gradient(135deg, var(--p), var(--c)); color: white;
+  font-size: 0.95rem; box-shadow: 0 4px 14px rgba(124,92,255,0.4);
+}
+.level .sub { color: var(--muted); margin-bottom: 1.25rem; font-size: 0.95rem; }
+.level p { margin: 0.75rem 0; line-height: 1.7; }
+.level code {
+  background: var(--code); padding: 0.15rem 0.45rem; border-radius: 5px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.9em; color: var(--c);
+  border: 1px solid var(--line);
+}
+.level pre {
+  background: var(--code); border: 1px solid var(--line); border-radius: 10px;
+  padding: 1rem; overflow-x: auto; margin: 1rem 0;
+  font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.85rem; line-height: 1.6;
+}
+.level pre code { background: none; border: none; padding: 0; color: var(--text); }
+
+.complete-btn {
+  margin-top: 1.5rem; padding: 0.7rem 1.5rem; font-weight: 700;
+  border: none; border-radius: 10px; cursor: pointer; color: white;
+  background: linear-gradient(135deg, var(--g), var(--c));
+  box-shadow: 0 4px 18px rgba(0,255,161,0.3);
+}
+.complete-btn:disabled { background: var(--bg-2); color: var(--muted); cursor: not-allowed; box-shadow: none; }
+.complete-btn.done { background: var(--bg-2); color: var(--g); }
+
+/* ---------- Generic interactive bits ---------- */
+.demo {
+  background: var(--bg-1); border: 1px solid var(--line);
+  border-radius: 12px; padding: 1.25rem; margin: 1.25rem 0;
+}
+.demo-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--p); font-weight: 700; margin-bottom: 0.75rem; }
+
+.row { display: flex; gap: 1rem; flex-wrap: wrap; align-items: stretch; }
+.col { flex: 1; min-width: 250px; }
+
+.pill { display: inline-block; padding: 0.25rem 0.65rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
+.pill.green { background: rgba(0,255,161,0.15); color: var(--g); }
+.pill.cyan  { background: rgba(0,212,255,0.15); color: var(--c); }
+.pill.purple{ background: rgba(124,92,255,0.18); color: var(--p); }
+.pill.yellow{ background: rgba(255,209,102,0.18); color: var(--y); }
+.pill.red   { background: rgba(255,93,143,0.18); color: var(--r); }
+
+/* ---------- Level 1: memory hierarchy ---------- */
+.gpu-stage { display: flex; gap: 1rem; align-items: stretch; min-height: 240px; flex-wrap: wrap; }
+.mem-box {
+  flex: 1; min-width: 220px; border: 2px solid var(--line); border-radius: 14px;
+  padding: 1rem; background: var(--bg-2); position: relative; overflow: hidden;
+}
+.mem-box h4 { font-size: 0.95rem; margin-bottom: 0.5rem; }
+.mem-box .speed { font-size: 0.78rem; color: var(--muted); margin-bottom: 0.6rem; }
+.mem-cells { display: grid; gap: 4px; grid-template-columns: repeat(8, 1fr); }
+.cell { aspect-ratio: 1; border-radius: 3px; background: var(--bg-1); transition: background 0.3s; }
+.cell.filled { background: var(--p); box-shadow: 0 0 6px rgba(124,92,255,0.7); }
+.cell.compute { background: var(--g); box-shadow: 0 0 10px rgba(0,255,161,0.8); animation: pulse 0.6s ease; }
+@keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.15); } 100% { transform: scale(1); } }
+.bus {
+  width: 60px; min-width: 60px;
+  background: repeating-linear-gradient(90deg, var(--line) 0 6px, transparent 6px 12px);
+  border-radius: 4px; position: relative; align-self: center; height: 6px;
+}
+.packet {
+  position: absolute; top: -5px; width: 16px; height: 16px; border-radius: 50%;
+  background: var(--c); box-shadow: 0 0 12px var(--c);
+}
+.btn {
+  padding: 0.55rem 1.1rem; font-weight: 600; font-size: 0.9rem;
+  border: 1px solid var(--line); border-radius: 8px; cursor: pointer;
+  background: var(--bg-2); color: var(--text); transition: all 0.15s;
+}
+.btn:hover { background: var(--panel); border-color: var(--p); }
+.btn.primary { background: linear-gradient(135deg, var(--p), var(--c)); border: none; color: white; }
+.btn.warn { background: linear-gradient(135deg, var(--o), var(--r)); border: none; color: white; }
+.controls { display: flex; gap: 0.6rem; margin-top: 1rem; flex-wrap: wrap; }
+
+.fact-card {
+  padding: 0.9rem 1.1rem; background: rgba(0,212,255,0.06);
+  border-left: 3px solid var(--c); border-radius: 6px; margin: 0.9rem 0;
+  font-size: 0.95rem;
+}
+
+/* ---------- Level 2: backend cards ---------- */
+.backend-grid { display: grid; gap: 0.75rem; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-top: 1rem; }
+.backend-card {
+  background: var(--bg-2); border: 1px solid var(--line); border-radius: 12px;
+  padding: 1rem; cursor: pointer; transition: all 0.2s; position: relative;
+}
+.backend-card:hover { transform: translateY(-3px); border-color: var(--p); }
+.backend-card.active { border-color: var(--c); background: rgba(0,212,255,0.08); box-shadow: 0 0 24px rgba(0,212,255,0.25); }
+.backend-card h5 { font-size: 1rem; margin-bottom: 0.35rem; display: flex; justify-content: space-between; align-items: center; }
+.backend-card .flag { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.74rem; color: var(--c); margin-bottom: 0.55rem; }
+.backend-card .desc { font-size: 0.85rem; color: var(--muted); line-height: 1.5; }
+
+.metrics { display: flex; flex-direction: column; gap: 0.7rem; margin-top: 1.25rem; }
+.metric { display: flex; align-items: center; gap: 0.75rem; }
+.metric .label { width: 110px; font-size: 0.85rem; color: var(--muted); }
+.metric .barbg { flex: 1; height: 10px; background: var(--bg-2); border-radius: 999px; overflow: hidden; border: 1px solid var(--line); }
+.metric .barfill { height: 100%; border-radius: 999px; transition: width 0.7s cubic-bezier(.6,.2,.2,1); }
+.metric .val { width: 50px; text-align: right; font-variant-numeric: tabular-nums; font-size: 0.85rem; font-weight: 600; }
+
+.terminal {
+  background: #050813; border: 1px solid var(--line); border-radius: 10px;
+  padding: 0.9rem 1.1rem; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.85rem;
+  margin-top: 1rem; min-height: 60px;
+}
+.terminal .prompt { color: var(--g); }
+.terminal .var { color: var(--y); }
+.terminal .val { color: var(--c); }
+.terminal .cursor { display: inline-block; width: 8px; height: 1em; background: var(--c); animation: blink 1s steps(2) infinite; vertical-align: text-bottom; }
+@keyframes blink { 50% { opacity: 0; } }
+
+/* ---------- Level 3: tiling animation ---------- */
+.tile-stage {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;
+  background: var(--bg-1); border-radius: 12px; padding: 1.25rem; border: 1px solid var(--line);
+}
+.tile-stage h5 { font-size: 0.85rem; color: var(--muted); margin-bottom: 0.6rem; }
+.matrix {
+  display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; padding: 4px;
+  background: var(--bg-2); border-radius: 6px; aspect-ratio: 1;
+}
+.matrix .m-cell { background: var(--bg-0); border-radius: 2px; transition: all 0.3s; }
+.matrix .m-cell.tile { background: var(--p); box-shadow: 0 0 8px rgba(124,92,255,0.5); }
+.matrix .m-cell.done { background: var(--g); opacity: 0.6; }
+.tile-info { font-size: 0.85rem; color: var(--muted); margin-top: 0.8rem; }
+.naive-warn { background: rgba(255,93,143,0.1); border-left: 3px solid var(--r); padding: 0.7rem 1rem; border-radius: 6px; margin-top: 0.8rem; font-size: 0.85rem; }
+.flash-good  { background: rgba(0,255,161,0.08); border-left: 3px solid var(--g); padding: 0.7rem 1rem; border-radius: 6px; margin-top: 0.8rem; font-size: 0.85rem; }
+
+/* ---------- Level 4: precision slider ---------- */
+.precision-stage {
+  background: var(--bg-1); border: 1px solid var(--line); border-radius: 12px; padding: 1.25rem;
+}
+.slider-row { display: flex; align-items: center; gap: 1rem; margin: 1rem 0; }
+.slider-row label { width: 80px; font-size: 0.9rem; color: var(--muted); }
+input[type="range"] {
+  flex: 1; -webkit-appearance: none; appearance: none; background: transparent; cursor: pointer;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px; border-radius: 999px;
+  background: linear-gradient(90deg, var(--r), var(--y), var(--g), var(--c), var(--p));
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 22px; height: 22px; border-radius: 50%;
+  background: white; margin-top: -8px; box-shadow: 0 0 10px rgba(255,255,255,0.5); border: 3px solid var(--p);
+}
+.precision-display {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.75rem; margin-top: 1rem;
+}
+.pd-box { background: var(--bg-2); border: 1px solid var(--line); border-radius: 8px; padding: 0.8rem; text-align: center; }
+.pd-box .v { font-size: 1.6rem; font-weight: 800; }
+.pd-box .l { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
+
+.bits-row { display: flex; gap: 3px; margin: 0.8rem 0; flex-wrap: wrap; }
+.bit { width: 22px; height: 28px; border-radius: 4px; background: var(--bg-2); border: 1px solid var(--line);
+  display: flex; align-items: center; justify-content: center; font-family: monospace; font-size: 0.85rem; font-weight: 600;
+}
+.bit.on { background: var(--c); color: var(--bg-0); border-color: var(--c); }
+.bit.off { color: var(--muted); }
+
+/* ---------- Level 5: torch.compile timeline ---------- */
+.timeline-stage { background: var(--bg-1); border: 1px solid var(--line); border-radius: 12px; padding: 1.25rem; }
+.timeline { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1rem; }
+.tline { display: flex; align-items: center; gap: 0.75rem; }
+.tline .name { width: 110px; font-size: 0.85rem; color: var(--muted); }
+.tline .barbg { flex: 1; height: 28px; background: var(--bg-2); border-radius: 6px; overflow: hidden; position: relative; }
+.tline .barfill { height: 100%; display: flex; align-items: center; padding: 0 0.6rem; font-size: 0.78rem; font-weight: 600; color: var(--bg-0); white-space: nowrap; transition: width 0.7s cubic-bezier(.6,.2,.2,1); }
+.tline .compile-overhead { background: var(--o); }
+.tline .normal { background: var(--c); }
+.tline .compiled { background: var(--g); }
+
+/* ---------- Level 6: CFG gating ---------- */
+.steps-strip { display: flex; gap: 4px; margin: 1rem 0; flex-wrap: wrap; }
+.step-box {
+  width: 28px; height: 36px; border-radius: 5px; background: var(--bg-2);
+  border: 1px solid var(--line); display: flex; align-items: center; justify-content: center;
+  font-size: 0.7rem; font-weight: 600; color: var(--muted); transition: all 0.3s;
+}
+.step-box.full { background: var(--p); color: white; border-color: var(--p); }
+.step-box.cached { background: rgba(0,255,161,0.15); color: var(--g); border-color: var(--g); border-style: dashed; }
+
+/* ---------- Level 7: benchmark lab ---------- */
+.bench-stage { background: var(--bg-1); border: 1px solid var(--line); border-radius: 12px; padding: 1.25rem; }
+.bench-row { display: flex; gap: 1rem; align-items: center; margin: 0.7rem 0; flex-wrap: wrap; }
+.bench-row label { min-width: 140px; font-size: 0.9rem; color: var(--muted); }
+select, .num-input {
+  background: var(--bg-2); border: 1px solid var(--line); color: var(--text);
+  padding: 0.55rem 0.8rem; border-radius: 7px; font-size: 0.9rem; min-width: 180px;
+}
+.run-btn {
+  padding: 0.7rem 1.5rem; font-weight: 700; border: none; border-radius: 10px;
+  background: linear-gradient(135deg, var(--g), var(--c)); color: white;
+  box-shadow: 0 4px 18px rgba(0,255,161,0.3); cursor: pointer; margin-top: 0.8rem;
+}
+.result-card {
+  margin-top: 1rem; padding: 1.1rem; background: var(--bg-2);
+  border-radius: 10px; border: 1px solid var(--line);
+}
+.result-card.ok { border-color: var(--g); background: rgba(0,255,161,0.05); }
+.result-card.warn { border-color: var(--y); background: rgba(255,209,102,0.05); }
+.result-card.bad { border-color: var(--r); background: rgba(255,93,143,0.05); }
+.result-card h5 { margin-bottom: 0.5rem; }
+.result-card .stat { display: inline-block; margin-right: 1.2rem; font-size: 0.9rem; }
+.result-card .stat b { color: var(--c); font-variant-numeric: tabular-nums; }
+
+/* ---------- Level 8: recipe boss ---------- */
+.boss-stage {
+  background: linear-gradient(135deg, rgba(124,92,255,0.12), rgba(0,212,255,0.08));
+  border: 1px solid var(--p); border-radius: 14px; padding: 1.5rem;
+}
+.boss-stage h3 { margin-bottom: 0.5rem; }
+.recipe-grid { display: grid; gap: 0.75rem; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-top: 1rem; }
+.recipe-card {
+  background: var(--bg-2); border: 1px solid var(--line); border-radius: 10px;
+  padding: 0.9rem; cursor: pointer; transition: all 0.2s;
+}
+.recipe-card:hover { border-color: var(--p); transform: translateY(-2px); }
+.recipe-card.on { border-color: var(--g); background: rgba(0,255,161,0.06); }
+.recipe-card h6 { font-size: 0.95rem; margin-bottom: 0.3rem; }
+.recipe-card .note { font-size: 0.78rem; color: var(--muted); }
+
+/* ---------- Win screen ---------- */
+.win-screen {
+  display: none; text-align: center; padding: 3rem 1.5rem;
+  background: linear-gradient(135deg, rgba(0,255,161,0.1), rgba(0,212,255,0.08));
+  border: 1px solid var(--g); border-radius: 18px; margin-top: 2rem;
+}
+.win-screen.show { display: block; animation: zoomin 0.6s ease; }
+@keyframes zoomin { from { transform: scale(0.92); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.win-screen h2 { font-size: 2.2rem; margin-bottom: 0.5rem;
+  background: linear-gradient(135deg, var(--g), var(--c));
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+}
+
+/* ---------- Misc ---------- */
+.toast {
+  position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%);
+  background: var(--panel); border: 1px solid var(--g); border-radius: 10px;
+  padding: 0.8rem 1.5rem; font-weight: 600; color: var(--g);
+  opacity: 0; pointer-events: none; transition: all 0.4s;
+  z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(-10px); }
+
+.scroll-hint { text-align: center; color: var(--muted); font-size: 0.85rem; margin: 1rem 0 0; }
+
+@media (max-width: 700px) {
+  .hud { padding: 0.7rem 1rem; }
+  .hud .lvl { display: none; }
+  .tile-stage { grid-template-columns: 1fr; }
+  .level { padding: 1.5rem 1.2rem; }
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<!-- HUD -->
+<div class="hud">
+  <div class="logo">FASTVIDEO QUEST</div>
+  <div class="bar-wrap"><div class="bar" id="progressBar"></div></div>
+  <div class="lvl"><span id="lvlText">Stage 0 of 8</span></div>
+  <div class="xp"><span id="xpText">0 XP</span></div>
+</div>
+
+<!-- HERO -->
+<div class="hero">
+  <span class="tag">Interactive Learning</span>
+  <h1>Make Video Diffusion Go Brrr</h1>
+  <p>A hands-on game to learn every optimization FastVideo uses to generate videos faster — from GPU memory tricks to FP4 attention to compiler magic. Click, drag, and watch animations to build intuition.</p>
+  <button class="start" onclick="document.getElementById('lvl1').scrollIntoView({behavior:'smooth'})">START QUEST</button>
+  <p class="scroll-hint">8 levels • ~15 min • no scrolling fatigue, promise</p>
+</div>
+
+<!-- ============ LEVEL 1: GPU MEMORY ============ -->
+<div class="level" id="lvl1">
+  <h2><span class="badge">1</span> Your GPU Has Two Memories</h2>
+  <p class="sub">And one of them is dramatically slower than the other.</p>
+
+  <p>Before any optimization makes sense, you need to know <b>the secret bottleneck of GPUs</b>: data movement, not math. GPUs can do trillions of operations per second — but only if data is sitting close to the compute cores.</p>
+
+  <p>Every GPU has two key memory tiers:</p>
+  <ul style="margin: 0.5rem 0 1rem 1.5rem; color: var(--text);">
+    <li><b style="color: var(--c);">SRAM</b> (on-chip cache): tiny (~100KB per block), but blazingly fast.</li>
+    <li><b style="color: var(--p);">HBM</b> (off-chip "VRAM"): huge (40–80 GB), but ~10× slower.</li>
+  </ul>
+
+  <div class="demo">
+    <div class="demo-title">Try it — load a matrix and watch the speed difference</div>
+    <div class="gpu-stage">
+      <div class="mem-box">
+        <h4 style="color: var(--p);">HBM (off-chip)</h4>
+        <div class="speed">40+ GB, slow lane</div>
+        <div class="mem-cells" id="hbmCells"></div>
+      </div>
+      <div class="bus"><div class="packet" id="packet1" style="display:none;"></div></div>
+      <div class="mem-box">
+        <h4 style="color: var(--c);">SRAM (on-chip)</h4>
+        <div class="speed">~100 KB, fast lane</div>
+        <div class="mem-cells" id="sramCells"></div>
+      </div>
+    </div>
+    <div class="controls">
+      <button class="btn" onclick="lvl1FillHBM()">Fill HBM with data</button>
+      <button class="btn primary" onclick="lvl1LoadTile()">Stream a tile to SRAM</button>
+      <button class="btn warn" onclick="lvl1NaiveBlow()">Try to load it all at once</button>
+    </div>
+    <div id="lvl1Msg" class="fact-card" style="display:none;"></div>
+  </div>
+
+  <p>This single fact — <b>SRAM is fast, HBM is slow, SRAM is tiny</b> — is the reason every optimization in this game exists. Memorize it. Tattoo it. Move on.</p>
+
+  <button class="complete-btn" id="btn1" disabled onclick="completeLevel(1)">Got it — unlock next level</button>
+</div>
+
+<!-- ============ LEVEL 2: ATTENTION BACKENDS ============ -->
+<div class="level locked" id="lvl2">
+  <h2><span class="badge">2</span> Pick Your Attention Backend</h2>
+  <p class="sub">Same math, many implementations. The env var <code>FASTVIDEO_ATTENTION_BACKEND</code> picks which.</p>
+
+  <p>Attention is the most expensive thing the model does. FastVideo ships <b>many</b> implementations ("backends") of it. Same input, same output — different kernels under the hood, optimized for different goals.</p>
+
+  <p>Set the backend with one environment variable:</p>
+  <pre><code>export FASTVIDEO_ATTENTION_BACKEND=FLASH_ATTN
+python generate.py</code></pre>
+
+  <p>Click a card below to see its profile light up. The terminal shows what your <code>export</code> command would look like.</p>
+
+  <div class="demo">
+    <div class="demo-title">Backend showroom</div>
+    <div class="backend-grid" id="backendGrid"></div>
+
+    <div class="row" style="margin-top: 1.25rem;">
+      <div class="col">
+        <div class="metrics">
+          <div class="metric"><span class="label">Speed</span><div class="barbg"><div class="barfill" id="mSpeed" style="background: var(--g); width: 0%;"></div></div><span class="val" id="vSpeed">—</span></div>
+          <div class="metric"><span class="label">Memory eff.</span><div class="barbg"><div class="barfill" id="mMem"   style="background: var(--c); width: 0%;"></div></div><span class="val" id="vMem">—</span></div>
+          <div class="metric"><span class="label">Quality</span><div class="barbg"><div class="barfill" id="mQual"  style="background: var(--p); width: 0%;"></div></div><span class="val" id="vQual">—</span></div>
+          <div class="metric"><span class="label">HW support</span><div class="barbg"><div class="barfill" id="mHW"    style="background: var(--y); width: 0%;"></div></div><span class="val" id="vHW">—</span></div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="terminal" id="lvl2Term">
+          <span class="prompt">$</span> <span style="color: var(--muted);">click a backend to see the command</span>
+        </div>
+        <div id="lvl2Desc" style="margin-top: 0.8rem; font-size: 0.9rem; color: var(--muted); min-height: 60px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <p style="font-size: 0.9rem;"><b>Selection priority</b> (highest first):
+    <span class="pill purple">global_force_attn_backend()</span>
+    <span class="pill cyan">FASTVIDEO_ATTENTION_BACKEND env var</span>
+    <span class="pill green">auto-select based on your GPU</span>
+  </p>
+
+  <button class="complete-btn" id="btn2" disabled onclick="completeLevel(2)">Try every backend to continue</button>
+</div>
+
+<!-- ============ LEVEL 3: FLASH ATTENTION ============ -->
+<div class="level locked" id="lvl3">
+  <h2><span class="badge">3</span> Flash Attention — Tiling The Beast</h2>
+  <p class="sub">The default backend. How it pulls off "exact attention, half the memory, 2× the speed."</p>
+
+  <p>Standard attention has a fatal flaw: it materializes a full <code>N × N</code> matrix in HBM. For video, <code>N</code> can be 100,000+ tokens. That matrix doesn't fit, and even when it does, shoveling it between HBM ↔ SRAM dominates wall-clock time.</p>
+
+  <p>Flash Attention's trick: <b>never materialize the full matrix</b>. Process tiny tiles in SRAM, accumulate running stats, and only write the final output back. Watch it run:</p>
+
+  <div class="demo">
+    <div class="demo-title">Naïve vs Flash — race them</div>
+    <div class="tile-stage">
+      <div>
+        <h5>Naïve attention</h5>
+        <div class="matrix" id="naiveMatrix"></div>
+        <div class="tile-info" id="naiveStatus">Idle</div>
+        <div class="naive-warn">Writes the full N×N to HBM. Memory explodes with sequence length.</div>
+      </div>
+      <div>
+        <h5>Flash attention</h5>
+        <div class="matrix" id="flashMatrix"></div>
+        <div class="tile-info" id="flashStatus">Idle</div>
+        <div class="flash-good">Streams tiles through SRAM. Same output, O(N) memory, 2–4× faster.</div>
+      </div>
+    </div>
+    <div class="controls">
+      <button class="btn primary" onclick="lvl3Race()">Race them</button>
+      <button class="btn" onclick="lvl3Reset()">Reset</button>
+    </div>
+    <div id="lvl3Msg" class="fact-card" style="display:none;"></div>
+  </div>
+
+  <p><b>The math trick that makes this work</b> is "online softmax": as each tile streams in, you update a running max and running sum on the fly. You never need the whole row of scores at once.</p>
+
+  <p>Install it once and FastVideo will pick it automatically:</p>
+  <pre><code>uv pip install flash-attn==2.7.4.post1 --no-build-isolation</code></pre>
+
+  <p>On H100s (Hopper), compile FlashAttention <b>3</b> from source for an extra speedup.</p>
+
+  <button class="complete-btn" id="btn3" disabled onclick="completeLevel(3)">Race them, then continue</button>
+</div>
+
+<!-- ============ LEVEL 4: FP4 / SAGE ============ -->
+<div class="level locked" id="lvl4">
+  <h2><span class="badge">4</span> Lower Precision = More Speed</h2>
+  <p class="sub">Drop bits, gain throughput. Drag the slider.</p>
+
+  <p>Every number in the model is stored with some number of bits. Fewer bits = less data to move, faster math, smaller memory footprint. The cost is precision. Modern hardware (especially NVIDIA Hopper and Blackwell) accelerates aggressive low-bit formats.</p>
+
+  <div class="precision-stage">
+    <div class="slider-row">
+      <label>Precision</label>
+      <input type="range" id="precSlider" min="0" max="4" step="1" value="2">
+    </div>
+    <div class="bits-row" id="bitsRow"></div>
+    <div class="precision-display">
+      <div class="pd-box"><div class="v" id="pdName">BF16</div><div class="l">Format</div></div>
+      <div class="pd-box"><div class="v" id="pdBits">16</div><div class="l">Bits</div></div>
+      <div class="pd-box"><div class="v" id="pdSpeed">1.0×</div><div class="l">Speed (rel)</div></div>
+      <div class="pd-box"><div class="v" id="pdMem">100%</div><div class="l">Memory</div></div>
+      <div class="pd-box"><div class="v" id="pdQual">100%</div><div class="l">Quality</div></div>
+      <div class="pd-box"><div class="v" id="pdHW" style="font-size: 0.95rem; line-height: 1.3;">Most GPUs</div><div class="l">Needs</div></div>
+    </div>
+    <p style="margin-top: 1rem; color: var(--muted); font-size: 0.9rem;" id="pdStory">BF16 / FP16 are the default — 16 bits per number, runs on any modern GPU.</p>
+  </div>
+
+  <p style="margin-top: 1rem;"><b>FastVideo's low-precision attention backends</b>:</p>
+  <ul style="margin: 0.5rem 0 1rem 1.5rem;">
+    <li><code>SAGE_ATTN</code> — INT8/FP8 quantized attention, 1.3–2× faster than FlashAttention 2.</li>
+    <li><code>SAGE_ATTN_THREE</code> — FP4-aware, targets RTX 5090 / consumer Blackwell.</li>
+    <li><code>ATTN_QAT_INFER</code> — 4-bit DiT + modified SageAttention 3. Hard-gates on sm_120 (RTX 5090).</li>
+    <li><b>FP4 Flash Attention 4</b> — official Blackwell datacenter path. Up to <b>1.31× kernel speedup</b> over BF16, reaching 2018 TFLOPS.</li>
+  </ul>
+
+  <p>FP4 FlashAttention 4 in code:</p>
+  <pre><code>gen = VideoGenerator.from_pretrained("model-id", nvfp4_fa4=True)</code></pre>
+  <p style="font-size: 0.9rem; color: var(--muted);">Catch: incompatible with <code>use_fsdp_inference=True</code>. Cosine similarity vs BF16 ≈ 0.99.</p>
+
+  <button class="complete-btn" id="btn4" disabled onclick="completeLevel(4)">Try the full range, then continue</button>
+</div>
+
+<!-- ============ LEVEL 5: TORCH.COMPILE ============ -->
+<div class="level locked" id="lvl5">
+  <h2><span class="badge">5</span> torch.compile — Pay Once, Run Fast Forever</h2>
+  <p class="sub">Compile the model graph. First run slow, every run after is faster.</p>
+
+  <p>By default, PyTorch is "eager" — it runs one operation at a time. <code>torch.compile</code> traces the model into a single graph and lets the Inductor compiler fuse ops, pick faster kernels, and skip Python overhead.</p>
+
+  <p>Enabling it:</p>
+  <pre><code>generator = VideoGenerator.from_pretrained("model-id", enable_torch_compile=True)</code></pre>
+
+  <div class="demo">
+    <div class="demo-title">Real measurement — Wan2.1-T2V-1.3B on A100-80GB (480×832, 81 frames, 50 steps)</div>
+    <div class="timeline-stage">
+      <div class="timeline">
+        <div class="tline"><span class="name">Eager (run 1)</span><div class="barbg"><div class="barfill normal" id="tl1" style="width: 0%;"></div></div></div>
+        <div class="tline"><span class="name">Eager (run 2)</span><div class="barbg"><div class="barfill normal" id="tl2" style="width: 0%;"></div></div></div>
+        <div class="tline"><span class="name">Compile (run 1)</span><div class="barbg"><div class="barfill compile-overhead" id="tl3" style="width: 0%;"></div></div></div>
+        <div class="tline"><span class="name">Compile (run 2)</span><div class="barbg"><div class="barfill compiled" id="tl4" style="width: 0%;"></div></div></div>
+      </div>
+      <div class="controls">
+        <button class="btn primary" onclick="lvl5Animate()">Run benchmark</button>
+        <button class="btn" onclick="lvl5Reset()">Reset</button>
+      </div>
+      <div id="lvl5Msg" class="fact-card" style="display:none;"></div>
+    </div>
+  </div>
+
+  <p><b>Key rules</b>:</p>
+  <ul style="margin: 0.5rem 0 1rem 1.5rem;">
+    <li>Always <b>discard the first generation</b> when measuring — that one ate the compile cost.</li>
+    <li>The compiled graph is shape-specialized. Change resolution or frame count → it recompiles.</li>
+    <li><code>reduce-overhead</code> mode (CUDA graphs) isn't supported end-to-end yet — stick with default Inductor mode.</li>
+    <li>Combined with quantized backends or FP4, validate output quality with MS-SSIM on your config.</li>
+  </ul>
+
+  <button class="complete-btn" id="btn5" disabled onclick="completeLevel(5)">Run the benchmark to continue</button>
+</div>
+
+<!-- ============ LEVEL 6: CFG GATING ============ -->
+<div class="level locked" id="lvl6">
+  <h2><span class="badge">6</span> Adaptive Guidance — Skip Half The Work</h2>
+  <p class="sub">Classifier-free guidance does <i>two</i> forward passes per step. We can cache.</p>
+
+  <p><b>Classifier-free guidance (CFG)</b> is how diffusion models follow a prompt. Each denoising step runs the DiT <b>twice</b>: once <i>with</i> the prompt (conditional), once <i>without</i> (unconditional). The model output is a mix of the two, controlled by a guidance scale.</p>
+
+  <p>Doing both passes every step costs 2× compute. The insight: after some point in the denoising schedule, the <b>difference</b> between conditional and unconditional outputs stops changing much. So we cache that difference and stop running the unconditional pass.</p>
+
+  <p>FastVideo exposes this via <code>FASTVIDEO_CFG_GATE_STEP</code>, a float in [0, 1]:</p>
+
+  <div class="demo">
+    <div class="demo-title">Drag the gate — watch the schedule</div>
+    <div class="slider-row">
+      <label>Gate step</label>
+      <input type="range" id="cfgSlider" min="0" max="100" step="5" value="100">
+      <span id="cfgVal" style="font-variant-numeric: tabular-nums; color: var(--c); font-weight: 700; min-width: 50px; text-align: right;">1.00</span>
+    </div>
+    <div class="steps-strip" id="stepsStrip"></div>
+    <div class="row">
+      <div class="col"><span class="pill purple">solid</span> full CFG: 2 forward passes</div>
+      <div class="col"><span class="pill green">dashed</span> cached: ~1 forward pass</div>
+    </div>
+    <div class="precision-display" style="margin-top: 1rem;">
+      <div class="pd-box"><div class="v" id="cfgSaved">0%</div><div class="l">Compute saved</div></div>
+      <div class="pd-box"><div class="v" id="cfgQual">100%</div><div class="l">Quality kept</div></div>
+      <div class="pd-box"><div class="v" id="cfgPasses">100</div><div class="l">Total passes</div></div>
+    </div>
+    <p style="margin-top: 1rem; color: var(--muted); font-size: 0.9rem;" id="cfgStory">Gate at 1.0 = disabled. Legacy behavior: every step does 2 forward passes.</p>
+  </div>
+
+  <pre><code>export FASTVIDEO_CFG_GATE_STEP=0.5</code></pre>
+
+  <p style="font-size: 0.9rem; color: var(--muted);">Memory cost: one extra model-output tensor per rank. Quality cost: scales with how aggressive the gate is.</p>
+
+  <button class="complete-btn" id="btn6" disabled onclick="completeLevel(6)">Try a few gate values to continue</button>
+</div>
+
+<!-- ============ LEVEL 7: BENCHMARK LAB ============ -->
+<div class="level locked" id="lvl7">
+  <h2><span class="badge">7</span> The Benchmarking Lab</h2>
+  <p class="sub">Combine options. Time them. Don't lie to yourself about warmup.</p>
+
+  <p>Optimization without measurement is gambling. FastVideo's docs codify a <b>standard benchmarking methodology</b>:</p>
+  <ol style="margin: 0.5rem 0 1rem 1.5rem;">
+    <li>Same prompt. Same seed. Same configuration.</li>
+    <li><b>Discard the first generation.</b> It pays one-time costs (CUDA init, compile, kernel autotune).</li>
+    <li>Measure steady-state across a few runs.</li>
+  </ol>
+
+  <pre><code>for backend in ["TORCH_SDPA", "FLASH_ATTN", "SAGE_ATTN"]:
+    os.environ["FASTVIDEO_ATTENTION_BACKEND"] = backend
+    generator = VideoGenerator.from_pretrained("model-id")
+    # warmup run (discard)
+    generator.generate(prompt, seed=1024)
+    # timed runs
+    t = time_generation(generator, prompt, seed=1024)</code></pre>
+
+  <div class="bench-stage">
+    <div class="demo-title">Build a config and run it</div>
+    <div class="bench-row">
+      <label>GPU</label>
+      <select id="bGPU">
+        <option value="A100">A100 (Ampere)</option>
+        <option value="H100">H100 (Hopper)</option>
+        <option value="B200">B200 (Blackwell, datacenter)</option>
+        <option value="RTX5090">RTX 5090 (Blackwell, consumer)</option>
+      </select>
+    </div>
+    <div class="bench-row">
+      <label>Attention backend</label>
+      <select id="bBackend">
+        <option value="TORCH_SDPA">TORCH_SDPA</option>
+        <option value="FLASH_ATTN" selected>FLASH_ATTN</option>
+        <option value="SAGE_ATTN">SAGE_ATTN</option>
+        <option value="SAGE_ATTN_THREE">SAGE_ATTN_THREE</option>
+        <option value="ATTN_QAT_INFER">ATTN_QAT_INFER</option>
+        <option value="VIDEO_SPARSE_ATTN">VIDEO_SPARSE_ATTN</option>
+      </select>
+    </div>
+    <div class="bench-row">
+      <label>FP4 FA4</label>
+      <select id="bFP4">
+        <option value="false">off</option>
+        <option value="true">nvfp4_fa4=True</option>
+      </select>
+    </div>
+    <div class="bench-row">
+      <label>torch.compile</label>
+      <select id="bCompile">
+        <option value="false">off</option>
+        <option value="true">enable_torch_compile=True</option>
+      </select>
+    </div>
+    <div class="bench-row">
+      <label>CFG gate step</label>
+      <select id="bCFG">
+        <option value="1.0">1.0 (disabled)</option>
+        <option value="0.75">0.75</option>
+        <option value="0.5">0.5</option>
+        <option value="0.25">0.25</option>
+        <option value="0.0">0.0 (most aggressive)</option>
+      </select>
+    </div>
+    <div class="bench-row">
+      <label>Skip warmup?</label>
+      <select id="bWarmup">
+        <option value="true">yes (correct)</option>
+        <option value="false">no (will mislead)</option>
+      </select>
+    </div>
+    <button class="run-btn" onclick="runBench()">Run benchmark</button>
+    <div id="benchResult"></div>
+  </div>
+
+  <button class="complete-btn" id="btn7" disabled onclick="completeLevel(7)">Run at least one benchmark</button>
+</div>
+
+<!-- ============ LEVEL 8: RECIPE BOSS ============ -->
+<div class="level locked" id="lvl8">
+  <h2><span class="badge">8</span> Boss Fight — Build The Fastest Recipe</h2>
+  <p class="sub">Compose every optimization. The HUD scores your build.</p>
+
+  <p>Final challenge: pick a GPU, then toggle the optimizations. The system checks compatibility (some combos crash, some are pointless on your hardware) and grades your build. Aim for max speed without breaking it.</p>
+
+  <div class="boss-stage">
+    <div class="bench-row">
+      <label style="color: var(--text); font-weight: 700;">Your GPU</label>
+      <select id="rGPU" onchange="recomputeRecipe()">
+        <option value="A100">A100 (Ampere, no FP8/FP4)</option>
+        <option value="H100">H100 (Hopper — FP8 + FA3)</option>
+        <option value="B200" selected>B200 (Blackwell datacenter — FP4)</option>
+        <option value="RTX5090">RTX 5090 (consumer Blackwell — FP4, sm_120)</option>
+      </select>
+    </div>
+
+    <div class="recipe-grid" id="recipeGrid"></div>
+
+    <div class="result-card" id="recipeResult" style="margin-top: 1.25rem;">
+      <h5>Build a recipe to see scoring</h5>
+      <div class="stat">Pick a GPU and toggle options above.</div>
+    </div>
+  </div>
+
+  <button class="complete-btn" id="btn8" disabled onclick="completeLevel(8)">Land a passing build to finish</button>
+</div>
+
+<!-- WIN -->
+<div class="win-screen" id="winScreen">
+  <h2>QUEST COMPLETE</h2>
+  <p style="color: var(--muted); margin-bottom: 1rem;">You now have the mental model behind every speed knob in FastVideo.</p>
+  <p style="max-width: 600px; margin: 0 auto; line-height: 1.7;">
+    The recipes you've internalized: <b>SRAM &gt; HBM</b> drives every kernel design.
+    <b>Tiling</b> is how Flash Attention wins. <b>Lower bits</b> = more throughput, scaled to your GPU.
+    <b>torch.compile</b> trades a one-time cost for forever speed. <b>CFG gating</b> halves passes for cheap.
+    Always <b>warmup, then measure</b>.
+  </p>
+  <p style="margin-top: 1.5rem; color: var(--c); font-size: 0.9rem;">XP earned: <span id="finalXP">0</span></p>
+</div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ========== State ========== */
+const state = {
+  level: 1,
+  xp: 0,
+  completed: new Set(),
+  backendsTried: new Set(),
+  precisionsTried: new Set(),
+  cfgTried: new Set(),
+  raced: false,
+  compiled: false,
+  benched: false,
+  recipeWon: false,
+};
+
+const TOTAL = 8;
+
+function updateHUD() {
+  const pct = (state.completed.size / TOTAL) * 100;
+  document.getElementById('progressBar').style.width = pct + '%';
+  document.getElementById('lvlText').textContent = `Stage ${Math.min(state.level, TOTAL)} of ${TOTAL}`;
+  document.getElementById('xpText').textContent = state.xp + ' XP';
+}
+
+function toast(msg, color) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.borderColor = color || 'var(--g)';
+  t.style.color = color || 'var(--g)';
+  t.classList.add('show');
+  clearTimeout(t._timeout);
+  t._timeout = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+function unlock(n) {
+  const el = document.getElementById('lvl' + n);
+  if (!el) return;
+  el.classList.remove('locked');
+  state.level = Math.max(state.level, n);
+  updateHUD();
+}
+
+function completeLevel(n) {
+  if (state.completed.has(n)) return;
+  state.completed.add(n);
+  state.xp += 100;
+  document.getElementById('btn' + n).textContent = 'Cleared';
+  document.getElementById('btn' + n).classList.add('done');
+  document.getElementById('lvl' + n).classList.add('complete');
+  updateHUD();
+  toast('+100 XP — Stage ' + n + ' cleared');
+  if (n < TOTAL) {
+    unlock(n + 1);
+    setTimeout(() => document.getElementById('lvl' + (n+1)).scrollIntoView({behavior:'smooth', block:'start'}), 600);
+  } else {
+    document.getElementById('finalXP').textContent = state.xp;
+    document.getElementById('winScreen').classList.add('show');
+    setTimeout(() => document.getElementById('winScreen').scrollIntoView({behavior:'smooth'}), 400);
+  }
+}
+
+/* ========== LEVEL 1: Memory hierarchy ========== */
+function buildCells(elId, count) {
+  const el = document.getElementById(elId);
+  el.innerHTML = '';
+  for (let i = 0; i < count; i++) {
+    const c = document.createElement('div');
+    c.className = 'cell';
+    el.appendChild(c);
+  }
+}
+buildCells('hbmCells', 64);
+buildCells('sramCells', 16);
+
+function lvl1FillHBM() {
+  const cells = document.querySelectorAll('#hbmCells .cell');
+  cells.forEach((c, i) => setTimeout(() => c.classList.add('filled'), i * 12));
+  document.getElementById('lvl1Msg').style.display = 'block';
+  document.getElementById('lvl1Msg').innerHTML = 'HBM filled. Notice it has 64 slots — plenty of room. But every read costs time.';
+}
+function lvl1LoadTile() {
+  const sramCells = document.querySelectorAll('#sramCells .cell');
+  const packet = document.getElementById('packet1');
+  packet.style.display = 'block';
+  packet.style.left = '0%';
+  let t = 0;
+  const anim = setInterval(() => {
+    t += 4;
+    packet.style.left = t + '%';
+    if (t >= 100) {
+      clearInterval(anim);
+      packet.style.display = 'none';
+      sramCells.forEach((c, i) => setTimeout(() => {
+        c.classList.add('compute');
+        setTimeout(() => { c.classList.remove('compute'); c.classList.add('filled'); }, 250);
+      }, i * 40));
+      document.getElementById('lvl1Msg').style.display = 'block';
+      document.getElementById('lvl1Msg').innerHTML = '<b>Tile streamed into SRAM.</b> Math runs ~10× faster here. Process it, write the result back, load the next tile.';
+      state.xp += 10;
+      updateHUD();
+      document.getElementById('btn1').disabled = false;
+    }
+  }, 20);
+}
+function lvl1NaiveBlow() {
+  const sramCells = document.querySelectorAll('#sramCells .cell');
+  sramCells.forEach(c => c.style.background = 'var(--r)');
+  document.getElementById('lvl1Msg').style.display = 'block';
+  document.getElementById('lvl1Msg').innerHTML = '<b style="color: var(--r);">SRAM OVERFLOW</b> — you tried to fit 64 slots of data into 16. This is exactly what naïve attention does when sequences get long.';
+  setTimeout(() => sramCells.forEach(c => { c.style.background = ''; c.classList.remove('filled', 'compute'); }), 1500);
+}
+
+/* ========== LEVEL 2: Backends ========== */
+const BACKENDS = [
+  { id: 'TORCH_SDPA', name: 'Torch SDPA', desc: "PyTorch's built-in attention. Most compatible fallback. Works anywhere.",
+    speed: 40, mem: 50, qual: 100, hw: 100,
+    long: "PyTorch's scaled_dot_product_attention. No external deps. Slowest but works on every backend (CUDA, MPS, CPU, ROCm). Use when debugging numerics — it's the reference." },
+  { id: 'FLASH_ATTN', name: 'Flash Attention 2/3', desc: 'The default. Exact attention, dramatically faster and lighter than naïve.',
+    speed: 80, mem: 90, qual: 100, hw: 80,
+    long: 'Fused CUDA kernels that tile through SRAM. 2-4× faster than SDPA on long sequences. Install with: uv pip install flash-attn==2.7.4.post1. FA3 on Hopper is faster still.' },
+  { id: 'SAGE_ATTN', name: 'Sage Attention', desc: 'INT8/FP8 quantized attention. Faster than FlashAttention, tiny quality cost.',
+    speed: 92, mem: 92, qual: 96, hw: 70,
+    long: 'Quantizes Q, K to INT8/FP8 for the heavy matmuls. Roughly 1.3-2× faster than FA2. Quality drop is small but real — validate with SSIM if you care.' },
+  { id: 'SAGE_ATTN_THREE', name: 'Sage Attention 3', desc: 'FP4-aware Sage. RTX 5090 only currently.',
+    speed: 98, mem: 95, qual: 92, hw: 25,
+    long: 'Targets consumer Blackwell. Needs Python ≥3.13, torch ≥2.8, CUDA ≥12.8. Install from thu-ml/SageAttention.' },
+  { id: 'ATTN_QAT_INFER', name: 'Attn-QAT Inference', desc: '4-bit DiT + modified SageAttention 3. Hard-gated to sm_120.',
+    speed: 100, mem: 100, qual: 90, hw: 20,
+    long: 'Runs the DiT fully in 4-bit with NVFP4 linears + quantized attention. RTX 5090 / consumer Blackwell only. Falls back to FlashAttention on other GPUs.' },
+  { id: 'VIDEO_SPARSE_ATTN', name: 'Video Sparse Attention', desc: 'Sparsity for video. Skips token pairs that contribute little.',
+    speed: 88, mem: 96, qual: 94, hw: 70,
+    long: 'Provided by fastvideo-kernel. Exploits spatio-temporal redundancy in video tokens. Beats dense attention especially at long contexts.' },
+  { id: 'FLASH_ATTN_FP4', name: 'FP4 Flash Attention 4', desc: 'Blackwell datacenter. nvfp4_fa4=True. ~1.31× over BF16.',
+    speed: 98, mem: 99, qual: 95, hw: 20,
+    long: 'Official FlashAttention 4 with FP4 matmul on Blackwell (sm100a/sm103a). Up to 1.31× kernel speedup, 2018 TFLOPS. Incompatible with use_fsdp_inference=True.' },
+];
+
+const grid = document.getElementById('backendGrid');
+BACKENDS.forEach(b => {
+  const card = document.createElement('div');
+  card.className = 'backend-card';
+  card.innerHTML = `<h5>${b.name}</h5><div class="flag">${b.id}</div><div class="desc">${b.desc}</div>`;
+  card.addEventListener('click', () => selectBackend(b, card));
+  grid.appendChild(card);
+});
+
+function selectBackend(b, cardEl) {
+  document.querySelectorAll('.backend-card').forEach(c => c.classList.remove('active'));
+  cardEl.classList.add('active');
+  document.getElementById('mSpeed').style.width = b.speed + '%';
+  document.getElementById('mMem').style.width = b.mem + '%';
+  document.getElementById('mQual').style.width = b.qual + '%';
+  document.getElementById('mHW').style.width = b.hw + '%';
+  document.getElementById('vSpeed').textContent = b.speed;
+  document.getElementById('vMem').textContent = b.mem;
+  document.getElementById('vQual').textContent = b.qual;
+  document.getElementById('vHW').textContent = b.hw;
+  document.getElementById('lvl2Desc').textContent = b.long;
+  document.getElementById('lvl2Term').innerHTML =
+    `<span class="prompt">$</span> export <span class="var">FASTVIDEO_ATTENTION_BACKEND</span>=<span class="val">${b.id}</span><br>` +
+    `<span class="prompt">$</span> python generate.py<span class="cursor"></span>`;
+
+  state.backendsTried.add(b.id);
+  if (state.backendsTried.size >= 3) {
+    document.getElementById('btn2').disabled = false;
+  }
+}
+
+/* ========== LEVEL 3: Flash tiling ========== */
+function buildMatrix(elId) {
+  const el = document.getElementById(elId);
+  el.innerHTML = '';
+  for (let i = 0; i < 64; i++) {
+    const c = document.createElement('div');
+    c.className = 'm-cell';
+    el.appendChild(c);
+  }
+}
+buildMatrix('naiveMatrix');
+buildMatrix('flashMatrix');
+
+function lvl3Race() {
+  lvl3Reset();
+  // naïve: light every cell in HBM all at once, slowly
+  const naive = document.querySelectorAll('#naiveMatrix .m-cell');
+  const flash = document.querySelectorAll('#flashMatrix .m-cell');
+  document.getElementById('naiveStatus').textContent = 'Computing full N×N matrix in HBM...';
+  document.getElementById('flashStatus').textContent = 'Streaming 2×2 tiles through SRAM...';
+
+  let naiveIdx = 0;
+  const naiveInterval = setInterval(() => {
+    if (naiveIdx >= 64) {
+      clearInterval(naiveInterval);
+      naive.forEach(c => { c.classList.remove('tile'); c.classList.add('done'); });
+      document.getElementById('naiveStatus').textContent = 'Done. Wrote 64 cells of HBM. Time: 64 units.';
+      return;
+    }
+    naive[naiveIdx].classList.add('tile');
+    naiveIdx++;
+  }, 70);
+
+  // flash: light a 2x2 tile, then mark done, move to next
+  const tiles = [];
+  for (let r = 0; r < 8; r += 2) for (let c = 0; c < 8; c += 2) tiles.push([r, c]);
+  let tIdx = 0;
+  const flashInterval = setInterval(() => {
+    if (tIdx >= tiles.length) {
+      clearInterval(flashInterval);
+      document.getElementById('flashStatus').textContent = 'Done. Streamed 16 tiles through SRAM. Time: 32 units.';
+      state.raced = true;
+      document.getElementById('btn3').disabled = false;
+      document.getElementById('lvl3Msg').style.display = 'block';
+      document.getElementById('lvl3Msg').innerHTML = '<b>Flash finished in half the time</b>, with one-fourth the HBM writes. Same output. This is the magic.';
+      return;
+    }
+    const [r, c] = tiles[tIdx];
+    // light tile
+    [[r, c], [r, c+1], [r+1, c], [r+1, c+1]].forEach(([rr, cc]) => {
+      flash[rr * 8 + cc].classList.add('tile');
+    });
+    // after a moment, mark done
+    setTimeout(() => {
+      [[r, c], [r, c+1], [r+1, c], [r+1, c+1]].forEach(([rr, cc]) => {
+        flash[rr * 8 + cc].classList.remove('tile');
+        flash[rr * 8 + cc].classList.add('done');
+      });
+    }, 100);
+    tIdx++;
+  }, 130);
+}
+function lvl3Reset() {
+  document.querySelectorAll('#naiveMatrix .m-cell, #flashMatrix .m-cell').forEach(c => {
+    c.classList.remove('tile', 'done');
+  });
+  document.getElementById('naiveStatus').textContent = 'Idle';
+  document.getElementById('flashStatus').textContent = 'Idle';
+  document.getElementById('lvl3Msg').style.display = 'none';
+}
+
+/* ========== LEVEL 4: Precision ========== */
+const PRECISIONS = [
+  { name: 'FP4', bits: 4, speed: '4.0×', mem: '25%', qual: '92%', hw: 'Blackwell (B200/RTX5090)',
+    story: 'FP4 (with microscaling): 16 distinct values per element, but block-shared scale factors preserve dynamic range. Hardware-accelerated only on Blackwell. Up to 4× over FP16.' },
+  { name: 'FP8', bits: 8, speed: '2.0×', mem: '50%', qual: '97%', hw: 'Hopper+ (H100, Blackwell)',
+    story: 'FP8 (E4M3 / E5M2): used by SageAttention and FA3 on Hopper. ~2× over FP16 with negligible quality loss for most inference workloads.' },
+  { name: 'BF16', bits: 16, speed: '1.0×', mem: '100%', qual: '100%', hw: 'Most modern GPUs',
+    story: 'BFloat16: the default training/inference format. Same exponent range as FP32, half the storage. Universal support.' },
+  { name: 'FP16', bits: 16, speed: '1.0×', mem: '100%', qual: '99.5%', hw: 'Most modern GPUs',
+    story: 'Half-precision float. Same speed as BF16 but smaller dynamic range — can overflow on big activations.' },
+  { name: 'FP32', bits: 32, speed: '0.5×', mem: '200%', qual: '100%', hw: 'Everywhere',
+    story: 'Full single precision. Used for accumulators and softmax. Almost never used for full inference today — too slow, too memory-hungry.' },
+];
+
+const precSlider = document.getElementById('precSlider');
+precSlider.addEventListener('input', updatePrecision);
+
+function updatePrecision() {
+  const p = PRECISIONS[precSlider.value];
+  document.getElementById('pdName').textContent = p.name;
+  document.getElementById('pdBits').textContent = p.bits;
+  document.getElementById('pdSpeed').textContent = p.speed;
+  document.getElementById('pdMem').textContent = p.mem;
+  document.getElementById('pdQual').textContent = p.qual;
+  document.getElementById('pdHW').textContent = p.hw;
+  document.getElementById('pdStory').textContent = p.story;
+  // bits
+  const row = document.getElementById('bitsRow');
+  row.innerHTML = '';
+  for (let i = 0; i < 32; i++) {
+    const b = document.createElement('div');
+    b.className = 'bit ' + (i < p.bits ? 'on' : 'off');
+    b.textContent = i < p.bits ? (Math.random() < 0.5 ? '1' : '0') : '·';
+    row.appendChild(b);
+  }
+  state.precisionsTried.add(p.name);
+  if (state.precisionsTried.size >= 3) document.getElementById('btn4').disabled = false;
+}
+updatePrecision();
+
+/* ========== LEVEL 5: torch.compile timeline ========== */
+function lvl5Reset() {
+  ['tl1','tl2','tl3','tl4'].forEach(id => {
+    const el = document.getElementById(id);
+    el.style.width = '0%';
+    el.textContent = '';
+  });
+  document.getElementById('lvl5Msg').style.display = 'none';
+}
+function lvl5Animate() {
+  lvl5Reset();
+  // baseline 259.7s, compiled 198.1s, compile overhead +120s on first run
+  const data = [
+    { id: 'tl1', label: '259.7s', pct: 65 },
+    { id: 'tl2', label: '259.7s', pct: 65 },
+    { id: 'tl3', label: '+120s warmup → 318s', pct: 80 },
+    { id: 'tl4', label: '198.1s (−23.7%)', pct: 50 },
+  ];
+  data.forEach((d, idx) => {
+    setTimeout(() => {
+      const el = document.getElementById(d.id);
+      el.style.width = d.pct + '%';
+      setTimeout(() => el.textContent = d.label, 500);
+    }, idx * 700);
+  });
+  setTimeout(() => {
+    document.getElementById('lvl5Msg').style.display = 'block';
+    document.getElementById('lvl5Msg').innerHTML = '<b>If you measure run 1 of "compile" naively, you conclude compile is slower.</b> That\'s why you ALWAYS discard the first generation. Run 2+ is the real number.';
+    state.compiled = true;
+    document.getElementById('btn5').disabled = false;
+  }, 3200);
+}
+
+/* ========== LEVEL 6: CFG gating ========== */
+const STEPS_TOTAL = 50;
+function buildSteps() {
+  const s = document.getElementById('stepsStrip');
+  s.innerHTML = '';
+  for (let i = 0; i < STEPS_TOTAL; i++) {
+    const b = document.createElement('div');
+    b.className = 'step-box full';
+    b.textContent = i + 1;
+    s.appendChild(b);
+  }
+}
+buildSteps();
+document.getElementById('cfgSlider').addEventListener('input', updateCFG);
+function updateCFG() {
+  const v = parseFloat(document.getElementById('cfgSlider').value) / 100;
+  document.getElementById('cfgVal').textContent = v.toFixed(2);
+  const gateAt = Math.floor(STEPS_TOTAL * v);
+  const boxes = document.querySelectorAll('#stepsStrip .step-box');
+  boxes.forEach((b, i) => {
+    b.classList.remove('full', 'cached');
+    if (i < gateAt) b.classList.add('full');
+    else b.classList.add('cached');
+  });
+  const fullPasses = gateAt * 2;
+  const cachedPasses = (STEPS_TOTAL - gateAt);
+  const totalPasses = fullPasses + cachedPasses;
+  const baseline = STEPS_TOTAL * 2;
+  const saved = Math.round((1 - totalPasses / baseline) * 100);
+  document.getElementById('cfgSaved').textContent = saved + '%';
+  document.getElementById('cfgPasses').textContent = totalPasses;
+  // quality: starts at 100% at gate=1.0, drops slowly
+  const qual = Math.round(100 - (1 - v) * 6);
+  document.getElementById('cfgQual').textContent = qual + '%';
+  let story = '';
+  if (v >= 0.95) story = 'Gate at 1.0 = disabled. Legacy behavior: every step does 2 forward passes.';
+  else if (v >= 0.5) story = 'After the gate fires, FastVideo caches the cond/uncond delta and skips the uncond pass.';
+  else if (v >= 0.2) story = 'Aggressive gating. Big speedup, some texture and motion artifacts may appear.';
+  else story = 'Most aggressive setting. Caches from step 1. Best for previews, not final renders.';
+  document.getElementById('cfgStory').textContent = story;
+  state.cfgTried.add(v.toFixed(2));
+  if (state.cfgTried.size >= 3) document.getElementById('btn6').disabled = false;
+}
+updateCFG();
+
+/* ========== LEVEL 7: Benchmark lab ========== */
+function runBench() {
+  const gpu = document.getElementById('bGPU').value;
+  const backend = document.getElementById('bBackend').value;
+  const fp4 = document.getElementById('bFP4').value === 'true';
+  const compile = document.getElementById('bCompile').value === 'true';
+  const cfg = parseFloat(document.getElementById('bCFG').value);
+  const warmup = document.getElementById('bWarmup').value === 'true';
+
+  // baseline (A100 + TORCH_SDPA + no compile + cfg=1.0): 260s
+  let time = 260;
+  let quality = 100;
+  let issues = [];
+  let status = 'ok';
+
+  // GPU multiplier
+  if (gpu === 'H100') time *= 0.6;
+  if (gpu === 'B200') time *= 0.4;
+  if (gpu === 'RTX5090') time *= 0.5;
+
+  // backend
+  const backendMult = { TORCH_SDPA: 1.0, FLASH_ATTN: 0.55, SAGE_ATTN: 0.42, SAGE_ATTN_THREE: 0.36, ATTN_QAT_INFER: 0.32, VIDEO_SPARSE_ATTN: 0.5 };
+  const backendQual = { TORCH_SDPA: 100, FLASH_ATTN: 100, SAGE_ATTN: 97, SAGE_ATTN_THREE: 95, ATTN_QAT_INFER: 92, VIDEO_SPARSE_ATTN: 96 };
+  time *= backendMult[backend];
+  quality = Math.min(quality, backendQual[backend]);
+
+  // backend gating
+  if ((backend === 'SAGE_ATTN_THREE' || backend === 'ATTN_QAT_INFER') && !(gpu === 'RTX5090')) {
+    issues.push(`${backend} hard-gates to sm_120 (RTX 5090). On ${gpu} it falls back to FlashAttention.`);
+    time = time / backendMult[backend] * backendMult.FLASH_ATTN;
+    quality = 100;
+    status = 'warn';
+  }
+
+  // fp4
+  if (fp4) {
+    if (gpu !== 'B200' && gpu !== 'RTX5090') {
+      issues.push('nvfp4_fa4=True needs Blackwell (B200 / RTX 5090). It will not be used on ' + gpu + '.');
+      status = 'warn';
+    } else {
+      time *= 0.76;
+      quality -= 1;
+    }
+  }
+
+  // compile
+  if (compile) {
+    time *= 0.76;
+    if (!warmup) {
+      issues.push('You enabled torch.compile but did NOT skip warmup. First-run compile overhead (~120s) corrupts your timing.');
+      time += 120;
+      status = 'bad';
+    }
+  }
+
+  // cfg
+  const cfgMult = 0.5 + cfg * 0.5;  // cfg=1.0 → 1.0×, cfg=0 → 0.5×
+  time *= cfgMult;
+  quality -= (1 - cfg) * 5;
+
+  // skipping warmup wrong
+  if (!warmup && !compile) {
+    issues.push('First run includes CUDA init + kernel autotune. Without warmup, your timing is inflated by 5-15s.');
+    time += 10;
+    status = status === 'bad' ? 'bad' : 'warn';
+  }
+
+  state.benched = true;
+  document.getElementById('btn7').disabled = false;
+
+  const el = document.getElementById('benchResult');
+  el.innerHTML = `
+    <div class="result-card ${status}">
+      <h5>${status === 'ok' ? 'Clean run' : status === 'warn' ? 'Warnings' : 'Misleading benchmark'}</h5>
+      <div class="stat">Time: <b>${time.toFixed(1)}s</b></div>
+      <div class="stat">Quality: <b>${Math.max(0, quality).toFixed(0)}%</b></div>
+      <div class="stat">GPU: <b>${gpu}</b></div>
+      <div class="stat">Backend: <b>${backend}</b></div>
+      ${issues.length ? '<p style="margin-top: 0.7rem; color: var(--y);">' + issues.map(i => '• ' + i).join('<br>') + '</p>' : ''}
+    </div>
+  `;
+}
+
+/* ========== LEVEL 8: Recipe boss ========== */
+const RECIPE_OPTS = [
+  { key: 'flash', label: 'FlashAttention 2/3', note: 'Default attention backend' },
+  { key: 'sage',  label: 'SageAttention',     note: 'Quantized attention (FP8/INT8)' },
+  { key: 'fp4',   label: 'FP4 FlashAttention 4', note: 'nvfp4_fa4=True (Blackwell only)' },
+  { key: 'qat',   label: 'ATTN_QAT_INFER (NVFP4)', note: '4-bit DiT (sm_120 only)' },
+  { key: 'compile', label: 'torch.compile', note: 'Graph-compile the DiT' },
+  { key: 'cfg',   label: 'CFG Gating (0.5)',  note: 'Cache uncond after 50%' },
+  { key: 'fsdp',  label: 'FSDP Inference',    note: 'Multi-GPU shard (incompatible with FP4 FA4)' },
+];
+
+let recipe = new Set();
+
+function buildRecipeGrid() {
+  const grid = document.getElementById('recipeGrid');
+  grid.innerHTML = '';
+  RECIPE_OPTS.forEach(opt => {
+    const c = document.createElement('div');
+    c.className = 'recipe-card';
+    c.innerHTML = `<h6>${opt.label}</h6><div class="note">${opt.note}</div>`;
+    c.addEventListener('click', () => {
+      if (recipe.has(opt.key)) { recipe.delete(opt.key); c.classList.remove('on'); }
+      else { recipe.add(opt.key); c.classList.add('on'); }
+      recomputeRecipe();
+    });
+    grid.appendChild(c);
+  });
+}
+buildRecipeGrid();
+
+function recomputeRecipe() {
+  const gpu = document.getElementById('rGPU').value;
+  let time = 260;
+  let quality = 100;
+  let warnings = [];
+  let crashes = [];
+
+  // GPU base
+  if (gpu === 'H100') time *= 0.6;
+  if (gpu === 'B200') time *= 0.4;
+  if (gpu === 'RTX5090') time *= 0.5;
+
+  // backend choice — prefer fastest enabled
+  if (recipe.has('qat')) {
+    if (gpu === 'RTX5090') { time *= 0.32; quality -= 8; }
+    else { warnings.push('ATTN_QAT_INFER hard-gates to sm_120 (RTX 5090). Falls back to FlashAttention here.'); time *= 0.55; }
+  } else if (recipe.has('fp4')) {
+    if (gpu === 'B200' || gpu === 'RTX5090') { time *= 0.4; quality -= 3; }
+    else { warnings.push('FP4 FA4 needs Blackwell. No effect on ' + gpu + '.'); time *= 0.55; }
+  } else if (recipe.has('sage')) {
+    time *= 0.42; quality -= 3;
+  } else if (recipe.has('flash')) {
+    time *= 0.55;
+  } else {
+    warnings.push('No fast attention backend selected — you are running TORCH_SDPA fallback.');
+  }
+
+  // compile
+  if (recipe.has('compile')) time *= 0.76;
+
+  // cfg gating
+  if (recipe.has('cfg')) { time *= 0.75; quality -= 2; }
+
+  // fsdp
+  if (recipe.has('fsdp')) {
+    if (recipe.has('fp4')) {
+      crashes.push('use_fsdp_inference=True is incompatible with nvfp4_fa4=True. Pipeline will not start.');
+    }
+    time *= 0.75;  // multi-GPU sharing
+  }
+
+  // boundary: too many attention backends at once
+  const attnPicked = ['flash','sage','fp4','qat'].filter(k => recipe.has(k)).length;
+  if (attnPicked > 1) {
+    warnings.push('You picked multiple attention backends. Only one wins — FastVideo will use the most specific compatible one.');
+  }
+
+  const el = document.getElementById('recipeResult');
+  let status = 'ok';
+  if (crashes.length) status = 'bad';
+  else if (warnings.length) status = 'warn';
+
+  let grade = 'F';
+  if (time < 60) grade = 'S';
+  else if (time < 90) grade = 'A';
+  else if (time < 140) grade = 'B';
+  else if (time < 200) grade = 'C';
+  else grade = 'D';
+
+  if (crashes.length) {
+    el.className = 'result-card bad';
+    el.innerHTML = `<h5>Build FAILED to launch</h5>` + crashes.map(c => `<div class="stat" style="color: var(--r);">• ${c}</div>`).join('');
+    return;
+  }
+
+  el.className = 'result-card ' + status;
+  el.innerHTML = `
+    <h5>Build: Grade <b style="color: var(--g);">${grade}</b></h5>
+    <div class="stat">Time: <b>${time.toFixed(1)}s</b></div>
+    <div class="stat">Quality: <b>${Math.max(0, quality).toFixed(0)}%</b></div>
+    <div class="stat">GPU: <b>${gpu}</b></div>
+    <div class="stat">Recipe: <b>${[...recipe].join(' + ') || 'baseline'}</b></div>
+    ${warnings.length ? '<p style="margin-top: 0.7rem; color: var(--y);">' + warnings.map(w => '• ' + w).join('<br>') + '</p>' : ''}
+  `;
+
+  if (['S','A','B'].includes(grade) && !crashes.length) {
+    state.recipeWon = true;
+    document.getElementById('btn8').disabled = false;
+  }
+}
+
+/* ========== Init ========== */
+updateHUD();
+</script>
+
+</body>
+</html>
