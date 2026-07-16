@@ -1010,26 +1010,41 @@ Attention mask (rows = query, cols = key; 1 = visible):
 
 <p>
   Every round uses the same draft distribution $q$, but tries to
-  accept against a <em>shrinking</em> target $p_j$ that reflects the
+  accept against a target that <em>shrinks</em> with each rejection
+  — round $j$ uses target $p_{j-1}$, and if it rejects, the target
+  becomes $p_j$ for round $j+1$. Each shrinking target reflects the
   probability mass still unexplained by previous rejections.
 </p>
 
 <div class="proof">
-  <p>Induction on $j$: assuming the algorithm run starting from
-  target $p_{j-1}$ produces samples exactly from $p_{j-1}$, we show
-  the same is true starting from $p_j = \text{norm}(\max(0, p_{j-1}-q))$
-  after one round of processing candidate $x^{(j)}$.</p>
+  <p>Reverse induction on $j$, from $j = k$ down to $j = 0$. Let
+  $\mathcal{A}_j$ denote the sub-algorithm that starts from target
+  $p_j$ with candidates $x^{(j+1)}, \ldots, x^{(k)}$ remaining. We
+  show $\mathcal{A}_j$ produces a sample distributed exactly as $p_j$.</p>
 
-  <p>Fix $x$. Applying the single-round correctness proof from tab 2
-  with target $p_{j-1}$ and draft $q$:
-  $$P(X = x \mid \text{start from } p_{j-1}) = \min(p_{j-1}(x), q(x)) + \max(0, p_{j-1}(x) - q(x)) = p_{j-1}(x).$$
-  So each level of the recursion is unbiased with respect to the
-  <em>current</em> target $p_{j-1}$; the recursion is unrolled from
-  $j = 1$ (target $= p$) upward, so the marginal output distribution
-  is $p$. The final "if all rejected, sample from $p_k$" step is
-  correct because $p_k$ is what $p$ has become after $k$ residualizations,
-  and that mass is exactly the probability of reaching the "all rejected"
-  branch. $\square$</p>
+  <p><strong>Base case ($j = k$).</strong> $\mathcal{A}_k$ has zero
+  candidates left, so it samples directly from $p_k$. Trivially
+  distributed as $p_k$. ✓</p>
+
+  <p><strong>Inductive step.</strong> Assume $\mathcal{A}_j$ produces
+  samples from $p_j$. We show $\mathcal{A}_{j-1}$ produces samples
+  from $p_{j-1}$.
+  $\mathcal{A}_{j-1}$ processes candidate $x^{(j)}$: accept with
+  probability $\min(1, p_{j-1}(x^{(j)}) / q(x^{(j)}))$, else reject
+  and recurse into $\mathcal{A}_j$.</p>
+
+  <p>Applying the single-round correctness identity with target
+  $p_{j-1}$ and draft $q$:</p>
+
+  $$P(X = x \mid \mathcal{A}_{j-1}) = \underbrace{\min(p_{j-1}(x), q(x))}_{\text{accept path: draft picks } x} + \underbrace{\max(0, p_{j-1}(x) - q(x))}_{\text{reject path via IH}} = p_{j-1}(x).$$
+
+  <p>The reject-path term equals $Z_j \cdot p_j(x)$ (the probability
+  of rejecting times the distribution the IH gives us), which
+  simplifies to $\max(0, p_{j-1}(x) - q(x))$ by the residual formula.</p>
+
+  <p>Unrolling the reverse induction all the way to $j = 0$: the full
+  algorithm $\mathcal{A}_0$ starts from $p_0 = p$ and produces a
+  sample distributed as $p$. $\square$</p>
 </div>
 
 <h3>How much does a second candidate buy you?</h3>
