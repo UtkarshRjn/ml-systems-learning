@@ -984,12 +984,12 @@ Attention mask (rows = query, cols = key; 1 = visible):
 Initialize p₀ &larr; p.
 
 For j = 1 ... k:
-  Accept x⁽ʲ⁾ with probability min(1, p_{j-1}(x⁽ʲ⁾) / q(x⁽ʲ⁾)).
+  Accept x⁽ʲ⁾ with probability min(1, pⱼ₋₁(x⁽ʲ⁾) / q(x⁽ʲ⁾)).
   If accepted:  return x⁽ʲ⁾.
-  If rejected:  p_j(x) &larr; max(0, p_{j-1}(x) - q(x)) / Z_j
-                where Z_j = &sum;_x max(0, p_{j-1}(x) - q(x)).
+  If rejected:  pⱼ(x) &larr; max(0, pⱼ₋₁(x) - q(x)) / Zⱼ
+                where Zⱼ = &sum;ₓ max(0, pⱼ₋₁(x) - q(x)).
 
-If all k rejected: return a fresh sample from p_k.</pre>
+If all k rejected: return a fresh sample from pₖ.</pre>
 
 <p>
   Every round uses the same draft distribution $q$, but tries to
