@@ -1,0 +1,1690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Speculative Decoding, from Rejection Sampling to Trees</title>
+<script>
+  window.MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$', '$$'], ['\\[', '\\]']]
+    },
+    svg: { fontCache: 'global' }
+  };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2030;
+    --text: #e7ecf3;
+    --muted: #a3b1c6;
+    --accent: #7cc4ff;
+    --accent2: #ffb86b;
+    --good: #6ee7b7;
+    --bad: #ff9aa2;
+    --line: #2a3346;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.65;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 40px 24px 80px; }
+  h1 { font-size: 2.1rem; margin: 0 0 6px; }
+  h2 { color: var(--accent); margin-top: 2.2em; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+  h3 { color: var(--accent2); margin-top: 1.5em; }
+  h4 { color: var(--good); margin-top: 1.2em; }
+  .subtitle { color: var(--muted); font-size: 1.05rem; margin-bottom: 24px; }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 18px 22px;
+    margin: 18px 0;
+  }
+  .analogy {
+    border-left: 4px solid var(--accent2);
+    background: #1f2535;
+    padding: 14px 18px;
+    margin: 18px 0;
+    border-radius: 4px;
+  }
+  .analogy::before {
+    content: "Intuition";
+    display: block;
+    font-weight: 700;
+    color: var(--accent2);
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .key {
+    border-left: 4px solid var(--good);
+    background: #1c2a26;
+    padding: 14px 18px;
+    margin: 18px 0;
+    border-radius: 4px;
+  }
+  .key::before {
+    content: "Key idea";
+    display: block;
+    font-weight: 700;
+    color: var(--good);
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .proof {
+    border-left: 4px solid var(--accent);
+    background: #182233;
+    padding: 14px 18px;
+    margin: 18px 0;
+    border-radius: 4px;
+  }
+  .proof::before {
+    content: "Proof";
+    display: block;
+    font-weight: 700;
+    color: var(--accent);
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .warn {
+    border-left: 4px solid var(--bad);
+    background: #2a1e22;
+    padding: 14px 18px;
+    margin: 18px 0;
+    border-radius: 4px;
+  }
+  .warn::before {
+    content: "Common pitfall";
+    display: block;
+    font-weight: 700;
+    color: var(--bad);
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  code {
+    background: #0a0f1a;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.92em;
+    color: #ffd29a;
+  }
+  pre {
+    background: #0a0f1a;
+    border: 1px solid var(--line);
+    padding: 14px 16px;
+    border-radius: 8px;
+    overflow-x: auto;
+    color: #d6dceb;
+    font-size: 0.9em;
+    line-height: 1.55;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 14px 0;
+  }
+  th, td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: left; font-size: 0.95em; }
+  th { color: var(--accent); font-weight: 600; }
+  td.num { font-variant-numeric: tabular-nums; }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    border-bottom: 1px solid var(--line);
+    margin: 24px 0 0;
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    padding-top: 8px;
+    z-index: 10;
+  }
+  .tab {
+    padding: 10px 14px;
+    cursor: pointer;
+    color: var(--muted);
+    border-bottom: 2px solid transparent;
+    font-size: 0.95rem;
+    user-select: none;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tabpane { display: none; padding-top: 8px; }
+  .tabpane.active { display: block; }
+
+  /* Playground */
+  .demo {
+    background: #0a0f1a;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 20px;
+    margin: 20px 0;
+  }
+  .demo label {
+    display: block;
+    margin: 10px 0 4px;
+    color: var(--muted);
+    font-size: 0.92rem;
+  }
+  .bars {
+    display: grid;
+    grid-template-columns: 40px 1fr 60px;
+    gap: 6px 10px;
+    align-items: center;
+    margin: 4px 0;
+  }
+  .bar-container {
+    background: #12192a;
+    border-radius: 4px;
+    height: 18px;
+    position: relative;
+    overflow: hidden;
+  }
+  .bar {
+    height: 100%;
+    border-radius: 4px;
+  }
+  .bar.p { background: var(--accent); }
+  .bar.q { background: var(--accent2); }
+  .bar.min { background: var(--good); }
+  .bar.resid { background: var(--bad); }
+  .bar-label { color: var(--muted); font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+  .slider-row {
+    display: grid;
+    grid-template-columns: 40px 1fr 60px;
+    gap: 10px;
+    align-items: center;
+    margin: 6px 0;
+  }
+  input[type=range] { width: 100%; }
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 10px;
+    margin: 14px 0;
+  }
+  .metric {
+    background: #12192a;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 10px 12px;
+  }
+  .metric .label { color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
+  .metric .value { color: var(--accent); font-size: 1.3rem; font-variant-numeric: tabular-nums; margin-top: 4px; }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; margin: 10px 0; font-size: 0.88rem; color: var(--muted); }
+  .legend .sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 4px; vertical-align: middle; }
+
+  /* Tree diagram */
+  svg.tree { width: 100%; height: 340px; display: block; background: #0a0f1a; border-radius: 8px; }
+  .node circle { stroke-width: 2; }
+  .node text { fill: var(--text); font-size: 11px; text-anchor: middle; dominant-baseline: middle; font-variant-numeric: tabular-nums; }
+  .edge { stroke: var(--line); stroke-width: 1.5; fill: none; }
+  .edge.accepted { stroke: var(--good); stroke-width: 2.5; }
+  .edge.rejected { stroke: var(--bad); stroke-width: 1.5; stroke-dasharray: 3,3; }
+
+  .footer { color: var(--muted); font-size: 0.85rem; margin-top: 48px; border-top: 1px solid var(--line); padding-top: 16px; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Speculative Decoding — from Rejection Sampling to Trees</h1>
+<div class="subtitle">
+  The math behind draft-and-verify: why the modified rejection rule
+  reproduces the target distribution <em>exactly</em>, how trees turn one
+  draft into many, and how EAGLE moves the draft into feature space.
+</div>
+
+<div class="tabs" id="tabs">
+  <div class="tab active" data-tab="setup">1 · Setup</div>
+  <div class="tab" data-tab="basics">2 · Basics</div>
+  <div class="tab" data-tab="vanilla">3 · Vanilla SD</div>
+  <div class="tab" data-tab="tree">4 · Tree drafts</div>
+  <div class="tab" data-tab="eagle">5 · EAGLE / EAGLE-2</div>
+  <div class="tab" data-tab="play">6 · Playground</div>
+</div>
+
+<!-- ============================================================= -->
+<!-- SETUP                                                          -->
+<!-- ============================================================= -->
+<div class="tabpane active" id="pane-setup">
+
+<h2>Why speculative decoding exists</h2>
+
+<p>
+  A large autoregressive model like Llama-70B generates one token at a time.
+  Each token needs a full forward pass over billions of parameters. In
+  practice, on modern GPUs, that forward pass is <strong>memory-bandwidth
+  bound</strong>, not compute bound: you spend most wall-clock time
+  streaming the weights from HBM into on-chip SRAM, and almost none of it
+  actually multiplying.
+</p>
+
+<div class="key">
+  A forward pass that produces 1 token uses roughly the same wall-clock
+  time as a forward pass that produces <em>k</em> tokens, as long as
+  <em>k</em> is small (say ≤ 8). The bottleneck is loading weights,
+  not the arithmetic on the activations.
+</div>
+
+<p>
+  This is the whole opening for speculative decoding. If a cheap
+  <strong>draft model</strong> can propose a plausible next few tokens,
+  and the expensive <strong>target model</strong> can <em>verify</em>
+  all of them in a single forward pass, we spend one target step to move
+  the sequence forward by (hopefully) many tokens.
+</p>
+
+<h3>The two contracts</h3>
+
+<table>
+  <tr><th>Component</th><th>What it produces</th><th>Cost</th></tr>
+  <tr>
+    <td>Draft model $M_q$</td>
+    <td>A conditional distribution $q(x \mid \text{context})$ over next tokens, cheap to sample from.</td>
+    <td>Small — one draft forward per proposed token.</td>
+  </tr>
+  <tr>
+    <td>Target model $M_p$</td>
+    <td>The conditional distribution $p(x \mid \text{context})$ we actually want to sample from.</td>
+    <td>Large — but one forward evaluates $p$ at <em>every</em> drafted position in parallel.</td>
+  </tr>
+</table>
+
+<div class="analogy">
+  Think of the draft model as a legal assistant preparing a contract.
+  They write $\gamma$ clauses in advance. The partner (target) reads
+  the whole draft in one sitting and signs off clause-by-clause until
+  they hit one they'd have written differently. From that point onward,
+  the partner writes themselves.
+</div>
+
+<h3>The two things we want to prove</h3>
+
+<ol>
+  <li><strong>Correctness.</strong> The tokens we emit must be
+  distributed <em>exactly</em> as if we had sampled them from $p$
+  directly. No approximation, no bias toward the draft.</li>
+  <li><strong>Speedup.</strong> The expected number of tokens produced
+  per target forward pass must be $> 1$, and the wall-clock cost
+  (target + $\gamma$ drafts) must be low enough that the trade is
+  favorable.</li>
+</ol>
+
+<p>
+  The next tab derives both, from the rejection sampling identity up.
+</p>
+
+<h3>Notation used throughout</h3>
+
+<table>
+  <tr><th>Symbol</th><th>Meaning</th></tr>
+  <tr><td>$p(x)$</td><td>target model's next-token distribution, shorthand for $p(x \mid \text{context})$</td></tr>
+  <tr><td>$q(x)$</td><td>draft model's next-token distribution</td></tr>
+  <tr><td>$\gamma$</td><td>number of tokens the draft proposes per iteration (draft depth)</td></tr>
+  <tr><td>$\alpha$</td><td>per-token acceptance probability, averaged over the sampling distribution</td></tr>
+  <tr><td>$c$</td><td>cost ratio: (one draft forward) / (one target forward)</td></tr>
+  <tr><td>$\text{TV}(p, q)$</td><td>total-variation distance $= \tfrac12 \sum_x |p(x) - q(x)|$</td></tr>
+</table>
+
+</div>
+
+<!-- ============================================================= -->
+<!-- BASICS                                                         -->
+<!-- ============================================================= -->
+<div class="tabpane" id="pane-basics">
+
+<h2>Basics — intuition before algorithm</h2>
+
+<p>
+  Before we look at the algorithm and the correctness proof, two ideas
+  are worth building up intuition for on their own:
+</p>
+
+<ol>
+  <li>Where does the accept rule $\min(1, p(x)/q(x))$ come from? Why
+  that specific formula, and why the cap at 1?</li>
+  <li>What does the phrase "averaged over the sampling distribution"
+  mean when we define the acceptance rate $\alpha$? Which distribution
+  are we averaging over, and why does it matter?</li>
+</ol>
+
+<p>
+  Both feel mysterious until you look at them from the right angle;
+  after that they're inevitable.
+</p>
+
+<h2>Where do the accept probabilities come from?</h2>
+
+<p>
+  The algorithm we'll see in the next tab accepts a drafted token $x$
+  with probability $\min(1, p(x)/q(x))$. Let's understand
+  <em>intuitively</em> why this specific formula, and why the cap at 1.
+</p>
+
+<p>
+  Every emitted token $x$ arrives via exactly one of two paths:
+</p>
+
+<ul>
+  <li><strong>Path 1 — draft path:</strong> the draft picked $x$ and we accepted it.</li>
+  <li><strong>Path 2 — residual path:</strong> the draft picked something else, we rejected it, and we resampled from $p'$.</li>
+</ul>
+
+<p>
+  For the output frequency of $x$ to equal $p(x)$, the two paths must
+  add up:
+</p>
+
+$$\underbrace{q(x) \cdot a(x)}_{\text{path 1}} \;+\; \underbrace{P(\text{reject}) \cdot p'(x)}_{\text{path 2}} \;=\; p(x).$$
+
+<h4>Unpacking the equation, symbol by symbol</h4>
+
+<ul>
+  <li>$q(x)$ — probability the draft samples $x$ in the first place (the draft samples from its own distribution $q$).</li>
+  <li>$a(x)$ — probability we accept $x$, <em>given</em> that $x$ was drafted.</li>
+  <li>$q(x) \cdot a(x)$ — joint probability that "the draft sampled $x$ AND we accepted it." This is path 1's contribution to the frequency of $x$ emissions.</li>
+  <li>$P(\text{reject})$ — overall probability we ended up rejecting the draft (summed over all tokens the draft might have picked). Call this $Z$.</li>
+  <li>$p'(x)$ — probability of drawing $x$ when we resample from the residual. Importantly, $p'$ doesn't depend on <em>which</em> token got rejected — once the algorithm rejects, the drafted token is thrown out and we sample fresh from $p'$.</li>
+  <li>$P(\text{reject}) \cdot p'(x)$ — joint probability that "we rejected AND the resample happened to be $x$." This is path 2's contribution.</li>
+</ul>
+
+<p>
+  There's no third way to emit a token — the accept/reject decision is
+  strict either/or. So $P(\text{output} = x) = $ path 1 $+$ path 2,
+  and correctness requires this to equal $p(x)$.
+</p>
+
+<h4>Quick numerical sanity check</h4>
+
+<p>
+  Using the tutorial's toy distributions with $\alpha = 0.85$ (so
+  $Z = 0.15$, and the residual $p' = (0.667, 0, 0, 0, 0.333)$ on
+  tokens A–E):
+</p>
+
+<p><strong>Token B</strong> (over-supplied: $p(B) = 0.30$, $q(B) = 0.40$, $a(B) = 0.75$, $p'(B) = 0$):</p>
+
+$$q(B) \cdot a(B) + Z \cdot p'(B) = 0.40 \cdot 0.75 + 0.15 \cdot 0 = 0.30 = p(B). \checkmark$$
+
+<p>All B-emissions come from path 1; path 2 never produces B.</p>
+
+<p><strong>Token A</strong> (under-supplied: $p(A) = 0.20$, $q(A) = 0.10$, $a(A) = 1.00$, $p'(A) = 0.667$):</p>
+
+$$q(A) \cdot a(A) + Z \cdot p'(A) = 0.10 \cdot 1.00 + 0.15 \cdot 0.667 = 0.10 + 0.10 = 0.20 = p(A). \checkmark$$
+
+<p>Half of A's emissions come from path 1, half from path 2.</p>
+
+<p>
+  Applying this bookkeeping to each token separately pins down
+  $a(x)$ completely.
+</p>
+
+<h4>Case 1: $p(x) < q(x)$ — draft over-proposes this token</h4>
+
+<p>
+  The residual $p'(x) = \max(0, p(x) - q(x))/Z$ has <strong>zero
+  mass</strong> here, so path 2 contributes nothing. The only way to
+  emit $x$ is path 1, and it must deliver frequency $p(x)$ on its own:
+</p>
+
+$$q(x) \cdot a(x) = p(x) \quad\Longrightarrow\quad a(x) = \frac{p(x)}{q(x)} < 1.$$
+
+<p>
+  This is a genuine "reject some of the time" probability. Its exact
+  value $p(x)/q(x)$ is forced — anything smaller under-emits $x$,
+  anything larger over-emits it.
+</p>
+
+<h4>Case 2: $p(x) \ge q(x)$ — draft under-proposes this token</h4>
+
+<p>
+  Even if we accept every single draft of $x$ ($a(x) = 1$), path 1
+  only delivers frequency $q(x) < p(x)$. There's a shortage of
+  $p(x) - q(x)$ that must come from somewhere.
+</p>
+
+<p>
+  That "somewhere" is exactly the residual. When the draft picks
+  some <em>other</em> token $y$ (from an over-represented bucket)
+  and we reject it, we resample from $p'$ — which puts positive mass
+  precisely on the under-represented tokens like $x$. Path 2
+  contributes:
+</p>
+
+$$P(\text{reject}) \cdot p'(x) = Z \cdot \frac{p(x) - q(x)}{Z} = p(x) - q(x).$$
+
+<p>
+  Adding both paths: $q(x) + (p(x) - q(x)) = p(x)$. ✓
+</p>
+
+<p>
+  Why is $a(x) = 1$ forced (rather than some smaller value)? Because
+  we <em>can't</em> accept with probability greater than 1. If we
+  could, we'd set $a(x) = p(x)/q(x) > 1$ and skip the residual
+  entirely — but probabilities cap at 1, so we accept everything and
+  let the residual make up the shortfall. That cap is exactly what
+  the $\min(1, \cdot)$ in the formula encodes.
+</p>
+
+<div class="analogy">
+  You want a cart of groceries matching recipe $p$. Your friend
+  (draft) shops using their preferences $q$.
+  <table style="margin-top: 10px;">
+    <tr><th>Situation</th><th>What you do</th><th>Why</th></tr>
+    <tr><td>Friend brings too many onions ($q > p$)</td><td>Keep only fraction $p/q$, toss the rest back</td><td>Otherwise you'd have too many onions relative to the recipe</td></tr>
+    <tr><td>Friend brings too few garlic cloves ($q < p$)</td><td>Keep every single one</td><td>Every clove counts — you're behind on garlic</td></tr>
+    <tr><td>End of trip: cart is short on garlic</td><td>Go back yourself and grab garlic (residual)</td><td>The friend won't fix it; you top up from the pantry</td></tr>
+  </table>
+  <p style="margin-bottom: 0; margin-top: 10px;">The <code>min(1, p/q)</code>
+  rule is: "keep everything if you're short, thin proportionally if
+  you're over." The residual handles the topping-up.</p>
+</div>
+
+<div class="warn">
+  Common confusion: <em>"If the draft over-proposes token B and I
+  reject some, shouldn't I also emit B from the residual sometimes?"</em>
+  No — that's the elegance. When you reject B, you resample from
+  $p'$, which puts <em>zero</em> mass on B (because B is
+  over-represented, not under-represented). Rejected B's are always
+  swapped for tokens the draft was <em>under</em>-representing.
+  Every rejection is a redistribution.
+</div>
+
+<h2>Where does the residual formula $p'(x) = \max(0, p(x) - q(x))/Z$ come from?</h2>
+
+<p>
+  We just used the residual to derive the accept probabilities.
+  Now let's go the other way: given the accept rule, what does the
+  residual formula have to look like? The same two-path equation
+  forces it.
+</p>
+
+<h3>Intuition: deficit accounting</h3>
+
+<p>
+  For each token, compare draft supply $q(x)$ to target demand $p(x)$:
+</p>
+
+<ul>
+  <li><strong>Over-supplied tokens</strong> ($q > p$): the draft brings too many. The accept rule throttles them down via $a(x) = p(x)/q(x)$. Path 1 delivers exactly $p(x)$. No help needed from the residual — it should give these tokens <em>zero</em> mass.</li>
+  <li><strong>Under-supplied tokens</strong> ($p > q$): even if we accept every draft ($a(x) = 1$), path 1 only delivers $q(x)$ — leaving a <strong>deficit of $p(x) - q(x)$</strong> unfilled. This deficit <em>must</em> come from the residual.</li>
+</ul>
+
+<p>
+  So the residual's job is to supply exactly the profile of deficits:
+</p>
+
+$$\text{residual delivers } \max(0, p(x) - q(x)) \text{ to each token } x.$$
+
+<p>
+  The $\max(0, \cdot)$ zeros out the over-supplied tokens (they have
+  no deficit). That's the numerator.
+</p>
+
+<h3>Why divide by $Z$?</h3>
+
+<p>
+  The residual $p'$ has to be a proper probability distribution — its
+  values must sum to 1. But $\max(0, p(x) - q(x))$ doesn't sum to 1;
+  it sums to some smaller number:
+</p>
+
+$$Z \;=\; \sum_x \max(0, p(x) - q(x)).$$
+
+<p>
+  $Z$ is the total unfilled deficit across all under-supplied tokens.
+  Dividing by $Z$ turns the deficit profile into a valid probability
+  distribution:
+</p>
+
+$$p'(x) \;=\; \frac{\max(0, p(x) - q(x))}{Z}.$$
+
+<h3>The beautiful coincidence: $Z = P(\text{reject})$</h3>
+
+<p>
+  Here's why the arithmetic closes exactly. The total <em>surplus</em>
+  from over-supplied tokens equals the total <em>deficit</em> from
+  under-supplied tokens — because $p$ and $q$ both sum to 1:
+</p>
+
+$$\underbrace{\sum_x \max(0, q(x) - p(x))}_{\text{total surplus}} \;=\; \underbrace{\sum_x \max(0, p(x) - q(x))}_{\text{total deficit}} \;=\; Z.$$
+
+<p>
+  And the total rejection rate is exactly the total surplus (we only
+  reject over-supplied tokens, and we reject them at rate
+  $1 - p(x)/q(x)$, contributing $q(x) - p(x)$ per over-supplied token):
+</p>
+
+$$P(\text{reject}) \;=\; \sum_x q(x) \cdot (1 - a(x)) \;=\; \sum_x \max(0, q(x) - p(x)) \;=\; Z.$$
+
+<p>
+  So $P(\text{reject}) \cdot p'(x) = Z \cdot \max(0, p(x) - q(x))/Z = \max(0, p(x) - q(x))$
+  — the residual delivers precisely what's needed at each token,
+  no more, no less. The residual is invoked exactly as often as
+  needed to fill the deficits.
+</p>
+
+<h3>Algebraic derivation from the two-path equation</h3>
+
+<p>
+  Same conclusion the mechanical way: plug the accept rule
+  $a(x) = \min(1, p(x)/q(x))$ into the two-path equation and solve
+  for $p'(x)$.
+</p>
+
+<p><strong>Case 1: $p(x) < q(x)$</strong>. Then $a(x) = p(x)/q(x)$, so</p>
+
+$$q(x) \cdot \frac{p(x)}{q(x)} + Z \cdot p'(x) = p(x) \;\Longrightarrow\; p(x) + Z \cdot p'(x) = p(x) \;\Longrightarrow\; p'(x) = 0.$$
+
+<p><strong>Case 2: $p(x) \ge q(x)$</strong>. Then $a(x) = 1$, so</p>
+
+$$q(x) + Z \cdot p'(x) = p(x) \;\Longrightarrow\; p'(x) = \frac{p(x) - q(x)}{Z}.$$
+
+<p>
+  Combining: $p'(x) = \max(0, p(x) - q(x)) / Z$. ✓
+</p>
+
+<h3>Numerical example</h3>
+
+<p>Using the same toy distributions:</p>
+
+<table>
+  <tr><th>token</th><th>$p(x)$</th><th>$q(x)$</th><th>$p(x) - q(x)$</th><th>$\max(0, p - q)$</th></tr>
+  <tr><td>A</td><td class="num">0.20</td><td class="num">0.10</td><td class="num">+0.10</td><td class="num">0.10</td></tr>
+  <tr><td>B</td><td class="num">0.30</td><td class="num">0.40</td><td class="num">−0.10</td><td class="num">0.00</td></tr>
+  <tr><td>C</td><td class="num">0.30</td><td class="num">0.30</td><td class="num">0.00</td><td class="num">0.00</td></tr>
+  <tr><td>D</td><td class="num">0.10</td><td class="num">0.15</td><td class="num">−0.05</td><td class="num">0.00</td></tr>
+  <tr><td>E</td><td class="num">0.10</td><td class="num">0.05</td><td class="num">+0.05</td><td class="num">0.05</td></tr>
+</table>
+
+<p>
+  $Z = 0.10 + 0.05 = 0.15$. Residual: $p' = (0.667,\ 0,\ 0,\ 0,\ 0.333)$.
+</p>
+
+<p>
+  Notice the residual is <strong>concentrated on exactly the
+  under-supplied tokens</strong> (A and E), and their probabilities
+  are proportional to how badly under-supplied they were: A had twice
+  the deficit of E, so A gets twice E's residual mass.
+</p>
+
+<div class="key">
+  The residual is the target's leftover shopping list — the exact
+  profile of tokens the draft failed to supply enough of,
+  renormalized into a probability distribution so we can sample
+  from it. Every time we reject, we go back to this list and
+  grab one item to top up the missing mass.
+</div>
+
+<h2>The acceptance rate $\alpha$</h2>
+
+<p>
+  Now let's define the single most important quantity in speculative
+  decoding: the <strong>per-position acceptance rate</strong> $\alpha$,
+  the probability that a given draft token survives verification.
+</p>
+
+$$\alpha \;=\; \mathbb{E}_{x \sim q}\!\left[\min\!\left(1, \frac{p(x)}{q(x)}\right)\right] = \sum_x \min(p(x), q(x)) = 1 - \text{TV}(p, q).$$
+
+<p>
+  The clean interpretation: $\alpha$ is the overlap between $p$ and
+  $q$, or equivalently one minus their total-variation distance. A
+  draft model that is close to the target in TV distance has high
+  acceptance. This is what the next tab's expected-tokens formula
+  hinges on.
+</p>
+
+<h3>What does "averaged over the sampling distribution" mean?</h3>
+
+<p>
+  The subscript $x \sim q$ under the expectation is worth being
+  precise about, because there are two distributions floating around
+  ($p$ and $q$) and mixing them up is a common source of confusion.
+</p>
+
+<p>
+  For a <em>specific</em> drafted token $x$, the accept probability is
+  $\min(1, p(x)/q(x))$ (from the previous section). Different tokens
+  have different accept probabilities. But we don't get to pick which
+  token becomes the draft — the draft <em>samples</em> it from $q$.
+  So the per-token accept rate we actually observe averages the
+  per-token accept probability <strong>weighted by how often that
+  token is the one drafted</strong>, which is exactly $q(x)$:
+</p>
+
+$$\alpha \;=\; \underbrace{\sum_x}_{\text{over tokens}} \underbrace{q(x)}_{\substack{\text{how often}\\ x \text{ is drafted}}} \cdot \underbrace{\min\!\left(1, \tfrac{p(x)}{q(x)}\right)}_{\text{accept prob if drafted}}.$$
+
+<p>
+  Using toy distributions over five tokens (we'll reuse these in
+  the Vanilla SD tab and the playground):
+</p>
+
+<table>
+  <tr><th>token</th><th>$q(x)$</th><th>$p(x)$</th><th>accept prob if drafted = $\min(1, p/q)$</th></tr>
+  <tr><td>A</td><td class="num">0.10</td><td class="num">0.20</td><td class="num">1.000</td></tr>
+  <tr><td>B</td><td class="num">0.40</td><td class="num">0.30</td><td class="num">0.750</td></tr>
+  <tr><td>C</td><td class="num">0.30</td><td class="num">0.30</td><td class="num">1.000</td></tr>
+  <tr><td>D</td><td class="num">0.15</td><td class="num">0.10</td><td class="num">0.667</td></tr>
+  <tr><td>E</td><td class="num">0.05</td><td class="num">0.10</td><td class="num">1.000</td></tr>
+</table>
+
+<p>
+  Token B is drafted 40% of the time and accepts 75% of the time.
+  Token E has accept prob 1.00, but the draft only picks it 5% of the
+  time. B's mediocre accept probability matters much more than E's
+  perfect one — because B is drafted $8\times$ more often.
+</p>
+
+<p>
+  Weighting each token's accept probability by how often it's drafted:
+</p>
+
+$$\alpha \;=\; 0.10(1.00) + 0.40(0.75) + 0.30(1.00) + 0.15(0.667) + 0.05(1.00) \;=\; 0.85.$$
+
+<div class="warn">
+  If you naively averaged the accept probabilities without weighting
+  by $q$, you'd get $(1.00 + 0.75 + 1.00 + 0.667 + 1.00) / 5 \approx 0.883$
+  — wrong, because that treats all tokens as equally likely to be
+  drafted, and they aren't. Any time you see "expected value" in
+  probability, there's an implicit "with respect to <em>which</em>
+  distribution?" — and here the answer is $q$, because $q$ is what
+  produces the sample.
+</div>
+
+<div class="key">
+  Takeaways from this tab, before we move on:
+  <ul style="margin-bottom: 0;">
+    <li>The accept rule $\min(1, p/q)$ is the <em>unique</em>
+    per-token acceptance probability that makes the output frequency
+    equal $p(x)$ (given the two-path structure of the algorithm).</li>
+    <li>The cap at 1 is a probability-can't-exceed-1 constraint; the
+    residual $p'$ fills the shortfall.</li>
+    <li>$\alpha = 1 - \text{TV}(p, q)$ is the overlap between $p$
+    and $q$, weighted by $q$ (the draft's own sampling
+    distribution) — not a naive average across tokens.</li>
+  </ul>
+</div>
+
+</div>
+
+<!-- ============================================================= -->
+<!-- VANILLA SD                                                     -->
+<!-- ============================================================= -->
+<div class="tabpane" id="pane-vanilla">
+
+<h2>Vanilla speculative decoding (linear draft)</h2>
+
+<p>
+  This is the algorithm from Leviathan et al. (2023) and Chen et al.
+  (2023). One draft, $\gamma$ tokens deep, one target verification pass.
+</p>
+
+<h3>The algorithm</h3>
+
+<pre>Given: context c, target p, draft q, draft length &gamma;
+
+Repeat until end-of-sequence:
+  1. Draft:  sample x&#8321;, x&#8322;, ..., x&#8320; sequentially from q, each conditioned
+             on c and prior x&#8322;&#8322;.
+  2. Verify: run ONE target forward on (c, x&#8321;, ..., x&#8320;) to get
+             p(&middot; | c, x&#8322;&lt;i) for i = 1 ... &gamma;+1  (all in parallel).
+  3. For i = 1 ... &gamma;:
+       r &sim; Uniform(0, 1)
+       If r &le; p(x&#8322;) / q(x&#8322;):        accept x&#8322;
+       Else:                          reject, resample x&#8322;' &sim; p&prime;, break
+     Where p&prime;(x) = max(0, p(x) - q(x)) / Z   with Z = &sum;&#8323; max(0, p(x) - q(x))
+  4. If all &gamma; drafts accepted: sample bonus token x&#8320;&#8330;&#8321; &sim; p directly.
+  5. Emit accepted tokens (+ resampled or bonus token). Extend context.</pre>
+
+<div class="key">
+  Step 3 is the whole trick. It is <em>not</em> ordinary rejection
+  sampling. Ordinary rejection sampling with a proposal $q$ and target
+  $p$ needs an envelope constant $M$ with $Mq(x) \ge p(x)$ everywhere,
+  which we don't have. The <strong>modified</strong> rejection rule
+  used here reuses the draft sample when possible and resamples from
+  the specific residual $p'$ when it doesn't — and this exact
+  construction is what makes the output distribution equal $p$.
+</div>
+
+<h3>Why the residual has that specific form</h3>
+
+<p>
+  Fix a position. Let $A$ be the event "we accept the draft" and let
+  $X$ be the token we ultimately emit. We want $P(X = x) = p(x)$ for
+  every $x$.
+</p>
+
+<div class="proof">
+  <p>
+    Compute $P(X = x)$ by conditioning on whether the draft was
+    accepted at this position.
+  </p>
+
+  <p><strong>Accept branch.</strong> The draft was sampled from $q$
+  and accepted with probability $\min(1, p(x)/q(x))$:
+  $$P(X = x \wedge A) = q(x) \cdot \min\!\left(1, \frac{p(x)}{q(x)}\right) = \min(p(x), q(x)).$$</p>
+
+  <p><strong>Reject branch.</strong> The overall rejection probability
+  (summing over which token was drafted) is
+  $$P(\bar A) = \sum_y q(y)\left(1 - \min\!\left(1, \frac{p(y)}{q(y)}\right)\right) = \sum_y \max(0, q(y) - p(y)).$$
+  Since $\sum_y p(y) = \sum_y q(y) = 1$, we also have
+  $\sum_y \max(0, q(y) - p(y)) = \sum_y \max(0, p(y) - q(y)) = Z$.
+  So $P(\bar A) = Z$.</p>
+
+  <p>Conditional on rejection, we resample $X$ from $p'(x) = \max(0, p(x) - q(x))/Z$, giving
+  $$P(X = x \wedge \bar A) = Z \cdot \frac{\max(0, p(x) - q(x))}{Z} = \max(0, p(x) - q(x)).$$</p>
+
+  <p><strong>Add them.</strong>
+  $$P(X = x) = \min(p(x), q(x)) + \max(0, p(x) - q(x)).$$
+  Case 1: $p(x) \ge q(x)$. Then $\min = q(x)$ and $\max = p(x) - q(x)$, sum is $p(x)$. ✓<br>
+  Case 2: $p(x) &lt; q(x)$. Then $\min = p(x)$ and $\max = 0$, sum is $p(x)$. ✓</p>
+
+  <p>Either way $P(X = x) = p(x)$. The output at every position is
+  distributed exactly as if sampled from $p$. $\square$</p>
+</div>
+
+<div class="warn">
+  The residual $p'$ is <strong>not</strong> the same as $p$
+  restricted to the tokens where $p > q$. It is $p - q$ restricted
+  to positive values, then renormalized. Concretely, if a token has
+  $p(x) = 0.1$ and $q(x) = 0.3$, then $p'(x) = 0$ — you will
+  <em>never</em> resample that token after a rejection, even though
+  $p(x)$ itself is nonzero. That's fine because the draft has
+  already been over-representing it, and the accept branch already
+  accounts for the $\min(p, q) = 0.1$ worth of probability mass.
+</div>
+
+<h3>Why the $\gamma+1$-th position gets a free "bonus" token</h3>
+
+<p>
+  Notice step 2 asks the target for $p(\cdot \mid c, x_{&lt;i})$ for
+  $i = 1, \ldots, \gamma + 1$ — one <em>past</em> the last draft
+  token. That extra distribution is available at zero additional cost
+  because the target forward pass produces logits at every input
+  position anyway.
+</p>
+
+<p>
+  If all $\gamma$ drafts are accepted, the algorithm samples the
+  $(\gamma+1)$-th token directly from that already-computed
+  $p(\cdot \mid c, x_1, \ldots, x_\gamma)$. This is the "bonus"
+  token. It's why the best case yields $\gamma + 1$ tokens per
+  target step, not $\gamma$.
+</p>
+
+<h3>Expected number of tokens per target step</h3>
+
+<p>
+  Recall from the <strong>Basics</strong> tab that the per-position
+  acceptance rate is $\alpha = 1 - \text{TV}(p, q)$ — the overlap
+  between draft and target distributions.
+</p>
+
+<p>
+  Assume the per-position acceptance probability is $\alpha$ at every
+  position (the standard simplifying assumption in the analysis).
+  Let $N$ be the number of consecutively accepted drafts (out of
+  $\gamma$). Then $P(N \ge i) = \alpha^i$ for $i \le \gamma$, so
+</p>
+
+$$\mathbb{E}[N] = \sum_{i=1}^{\gamma} P(N \ge i) = \sum_{i=1}^{\gamma} \alpha^i = \frac{\alpha(1 - \alpha^\gamma)}{1 - \alpha}.$$
+
+<p>
+  Every iteration emits exactly one extra token beyond $N$ — either
+  the resample from $p'$ (if a draft was rejected) or the bonus token
+  (if all $\gamma$ were accepted). So the expected number of tokens
+  per target forward pass is
+</p>
+
+$$\boxed{\;\mathbb{E}[\text{tokens per step}] = \mathbb{E}[N] + 1 = \frac{1 - \alpha^{\gamma + 1}}{1 - \alpha}.\;}$$
+
+<p>This is the classic Leviathan formula.</p>
+
+<h3>Worked example</h3>
+
+<p>
+  Suppose $p$ and $q$ are the following distributions over five tokens:
+</p>
+
+<table>
+  <tr><th>token</th><th>A</th><th>B</th><th>C</th><th>D</th><th>E</th></tr>
+  <tr><td>$q(x)$</td><td class="num">0.10</td><td class="num">0.40</td><td class="num">0.30</td><td class="num">0.15</td><td class="num">0.05</td></tr>
+  <tr><td>$p(x)$</td><td class="num">0.20</td><td class="num">0.30</td><td class="num">0.30</td><td class="num">0.10</td><td class="num">0.10</td></tr>
+  <tr><td>$\min(p,q)$</td><td class="num">0.10</td><td class="num">0.30</td><td class="num">0.30</td><td class="num">0.10</td><td class="num">0.05</td></tr>
+  <tr><td>$\max(0, p-q)$</td><td class="num">0.10</td><td class="num">0.00</td><td class="num">0.00</td><td class="num">0.00</td><td class="num">0.05</td></tr>
+</table>
+
+<p>
+  Then $\alpha = \sum \min(p, q) = 0.85$ and $Z = \sum \max(0, p - q) = 0.15$
+  (equal, as they must be). The residual is
+  $p' = (10/15,\ 0,\ 0,\ 0,\ 5/15) = (0.667,\ 0,\ 0,\ 0,\ 0.333)$
+  concentrated on the tokens the draft was under-representing.
+</p>
+
+<p>
+  With $\gamma = 4$: expected tokens per target step $= (1 - 0.85^5)/(1 - 0.85)
+  \approx 3.71$. So one expensive target pass yields, on average,
+  nearly four tokens instead of one — a ~$3.7\times$ speedup
+  in target passes. (Multiply by $1/(1 + c\gamma)$ to convert
+  target passes into wall-clock — with $c = 0.05$, wall-clock
+  speedup drops to $3.71/1.2 \approx 3.1\times$.)
+</p>
+
+<h3>The wall-clock speedup</h3>
+
+<p>
+  Total wall-clock per iteration is roughly (one target forward)
+  $+$ ($\gamma$ draft forwards). If the draft costs $c$ times a target
+  forward, then
+</p>
+
+$$\text{speedup} \;\approx\; \frac{\mathbb{E}[\text{tokens per step}]}{1 + c\gamma} \;=\; \frac{1 - \alpha^{\gamma + 1}}{(1 - \alpha)(1 + c\gamma)}.$$
+
+<p>
+  This function has an interior optimum in $\gamma$: too small and you
+  underuse the target's parallel-verification capacity; too large and
+  the draft cost $c\gamma$ swamps the gain, because deep drafts get
+  cut off by early rejections anyway. In practice $\gamma \in [4, 8]$
+  is where most systems land for chat models with a small draft.
+</p>
+
+</div>
+
+<!-- ============================================================= -->
+<!-- TREE DRAFTS                                                    -->
+<!-- ============================================================= -->
+<div class="tabpane" id="pane-tree">
+
+<h2>Tree drafts — many candidates verified at once</h2>
+
+<p>
+  Linear speculative decoding wastes work on rejection: the moment
+  draft token $x_i$ is rejected, all downstream draft tokens
+  $x_{i+1}, \ldots, x_\gamma$ get thrown away, even though the target
+  already spent compute on them. Tree drafts fix this by proposing
+  <em>multiple</em> candidates at each position, so a single rejection
+  along one branch doesn't kill all future work.
+</p>
+
+<div class="key">
+  A tree draft turns the draft's per-position uncertainty into extra
+  candidates. Instead of one path of length $\gamma$ (linear), the
+  draft proposes a tree of $T$ nodes covering many depth-$\gamma$
+  paths. The target still runs <em>one</em> forward pass — over all $T$
+  nodes — thanks to a specially crafted attention mask.
+</div>
+
+<h3>Tree attention: verifying $T$ nodes in one pass</h3>
+
+<p>
+  A draft tree has a root at the current end-of-context token; each
+  edge is a candidate next token. A node at depth $d$ represents a
+  particular length-$d$ continuation.
+</p>
+
+<p>
+  To evaluate the target on all tree nodes at once, we flatten the tree
+  into a token sequence and give the target a <strong>node-specific
+  attention mask</strong>: node $v$ can attend to (a) the original
+  context, and (b) exactly the ancestors of $v$ in the tree. Sibling
+  branches are invisible to each other.
+</p>
+
+<pre>Example tree (root R, two children a,b; a has children c,d):
+
+  R --a-- c
+       \-- d
+   \-b
+
+Flatten to sequence: [context] R a b c d
+Attention mask (rows = query, cols = key; 1 = visible):
+
+        ctx   R   a   b   c   d
+  ctx    1    .   .   .   .   .
+  R      1    1   .   .   .   .
+  a      1    1   1   .   .   .
+  b      1    1   .   1   .   .
+  c      1    1   1   .   1   .
+  d      1    1   1   .   .   1
+</pre>
+
+<p>
+  With this mask, one forward gives the target's
+  $p(\cdot \mid \text{context}, \text{path to } v)$ at every tree node
+  $v$ — everything we need to verify every candidate path.
+</p>
+
+<h3>Multi-round rejection sampling (SpecInfer / SpecTr)</h3>
+
+<p>
+  Now suppose at a single position we have $k$ iid candidates
+  $x^{(1)}, \ldots, x^{(k)}$ from the draft $q$, and we want to output
+  a token distributed exactly as $p$. Miao et al. (SpecInfer) and
+  Sun et al. (SpecTr) generalize modified rejection sampling to $k$
+  candidates:
+</p>
+
+<pre>Input: candidates x⁽¹⁾, ..., x⁽ᵏ⁾ &sim; q iid; target p.
+Initialize p₀ &larr; p.
+
+For j = 1 ... k:
+  Accept x⁽ʲ⁾ with probability min(1, p_{j-1}(x⁽ʲ⁾) / q(x⁽ʲ⁾)).
+  If accepted:  return x⁽ʲ⁾.
+  If rejected:  p_j(x) &larr; max(0, p_{j-1}(x) - q(x)) / Z_j
+                where Z_j = &sum;_x max(0, p_{j-1}(x) - q(x)).
+
+If all k rejected: return a fresh sample from p_k.</pre>
+
+<p>
+  Every round uses the same draft distribution $q$, but tries to
+  accept against a <em>shrinking</em> target $p_j$ that reflects the
+  probability mass still unexplained by previous rejections.
+</p>
+
+<div class="proof">
+  <p>Induction on $j$: assuming the algorithm run starting from
+  target $p_{j-1}$ produces samples exactly from $p_{j-1}$, we show
+  the same is true starting from $p_j = \text{norm}(\max(0, p_{j-1}-q))$
+  after one round of processing candidate $x^{(j)}$.</p>
+
+  <p>Fix $x$. Applying the single-round correctness proof from tab 2
+  with target $p_{j-1}$ and draft $q$:
+  $$P(X = x \mid \text{start from } p_{j-1}) = \min(p_{j-1}(x), q(x)) + \max(0, p_{j-1}(x) - q(x)) = p_{j-1}(x).$$
+  So each level of the recursion is unbiased with respect to the
+  <em>current</em> target $p_{j-1}$; the recursion is unrolled from
+  $j = 1$ (target $= p$) upward, so the marginal output distribution
+  is $p$. The final "if all rejected, sample from $p_k$" step is
+  correct because $p_k$ is what $p$ has become after $k$ residualizations,
+  and that mass is exactly the probability of reaching the "all rejected"
+  branch. $\square$</p>
+</div>
+
+<h3>How much does a second candidate buy you?</h3>
+
+<p>
+  Diminishing returns. Let $\beta_j = 1 - \text{TV}(p_{j-1}, q)$ be
+  the acceptance rate at round $j$. Then
+</p>
+
+$$P(\text{some candidate accepted}) = 1 - \prod_{j=1}^{k}(1 - \beta_j).$$
+
+<p>
+  In the toy example from tab 2, $\beta_1 = \alpha = 0.85$. After a
+  round-1 rejection, the target has shifted to
+  $p_1 = p' = (0.667, 0, 0, 0, 0.333)$; the draft's overlap with
+  $p_1$ is $\min(0.667, 0.10) + \min(0.333, 0.05) = 0.15$, so
+  $\beta_2 = 0.15$. The probability that one of the first two
+  candidates is accepted is $1 - (1 - 0.85)(1 - 0.15) = 1 - 0.1275
+  = 0.8725$. Only a 2.25-percentage-point improvement from adding
+  the second candidate. And $\beta_3$ collapses further.
+</p>
+
+<div class="analogy">
+  The draft $q$ over-represents some tokens and under-represents
+  others. The first candidate uses up all the "easy overlap." The
+  second candidate is trying to hit a residual $p'$ that is
+  <em>maximally different</em> from $q$ (that's what "residual"
+  means), so drawing another sample from $q$ has a low chance of
+  falling in that residual's support. Diminishing returns is
+  structural, not incidental.
+</div>
+
+<h3>Putting the tree together</h3>
+
+<p>
+  A depth-$\gamma$ tree with branching factor $k$ works like this at
+  verification time (walking depth-first from the root):
+</p>
+
+<ol>
+  <li>At the root's position, apply multi-round rejection sampling
+  against the $k$ children of the root, using the target's distribution
+  at that position. If a child $v^\star$ is accepted, emit it and
+  recurse into the subtree rooted at $v^\star$. If none is accepted,
+  resample from the final residual $p_k$ and stop.</li>
+  <li>At each accepted node, apply the same procedure to its children.
+  Continue until a rejection or until reaching a leaf. The leaf's
+  target distribution gives you the "bonus" position.</li>
+</ol>
+
+<p>
+  So a tree draft can advance the sequence by up to $\gamma + 1$
+  tokens per iteration, same as the linear case, but with a
+  <em>higher per-level acceptance probability</em> because you got
+  multiple bites at each level. The cost is that the target now has
+  to verify $T \gg \gamma$ nodes. Whether that is worth it depends
+  on how memory-bound the target still is at sequence length $T$.
+</p>
+
+<div class="warn">
+  Tree drafts are only free-ish while the target's forward pass is
+  memory-bound. Once $T$ is large enough that the target's attention
+  and MLP become compute-bound, extra tree nodes cost linear extra
+  time. In practice trees stay small: ~20–60 nodes for a 7B target,
+  and dynamic (EAGLE-2) rather than static.
+</div>
+
+</div>
+
+<!-- ============================================================= -->
+<!-- EAGLE                                                          -->
+<!-- ============================================================= -->
+<div class="tabpane" id="pane-eagle">
+
+<h2>EAGLE — drafting in feature space, not token space</h2>
+
+<p>
+  Vanilla speculative decoding uses a small language model as the
+  draft. EAGLE (Li et al. 2024) replaces that with a much lighter
+  autoregressive head that predicts the target model's
+  <em>hidden states</em> directly. It is faster, more accurate, and
+  it composes cleanly with tree verification.
+</p>
+
+<h3>Where does draft uncertainty come from?</h3>
+
+<p>
+  Suppose the true next-token distribution is close to uniform over
+  two tokens: "I" and "The". A small token-level draft model picks
+  one, say "I". Now it has to draft <em>the token after "I"</em>. But
+  the small model doesn't know whether the target would have picked
+  "I" or "The" — and the token that follows "I" vs "The" is very
+  different. That branching uncertainty accumulates fast, and the
+  draft's acceptance rate falls off with depth.
+</p>
+
+<div class="key">
+  Sampling in <strong>token space</strong> collapses ambiguity too
+  early: once you commit to "I", you condition on that choice.
+  Sampling in <strong>feature space</strong> preserves ambiguity —
+  the feature vector after "I or The" can encode a mixture, and the
+  final token-space distribution ($\text{LM head}(f)$) recovers the
+  bimodality. EAGLE exploits this by pushing the draft to feature
+  level and only converting to tokens at the last moment.
+</div>
+
+<h3>The EAGLE draft head</h3>
+
+<p>
+  Let $f_t \in \mathbb{R}^d$ be the target model's second-to-last
+  layer hidden state at position $t$, and let $e_t$ be the token
+  embedding at position $t$. EAGLE's draft is a single transformer
+  decoder layer (call it $\Phi$) that takes the concatenation
+  $(f_{t-1}, e_t)$ and predicts $f_t$:
+</p>
+
+$$\hat f_t = \Phi\big(f_{t-1},\, e_t\big).$$
+
+<p>
+  The draft's next-token distribution is then obtained by running the
+  target's own frozen LM head on $\hat f_t$:
+</p>
+
+$$q_t(x) = \text{softmax}\big(W_{\text{LM}}\, \hat f_t\big)(x).$$
+
+<p>
+  This is autoregressive on features, not tokens. The draft chain
+  looks like:
+</p>
+
+<pre>t = 0:  start from target's real f₀ (from the last accepted iteration)
+t = 1:  &hat;f₁ = &Phi;(f₀, e₁)         where e₁ = embedding of the last emitted token
+        sample x&#8321; from q₁ = softmax(W · &hat;f₁)
+t = 2:  &hat;f₂ = &Phi;(&hat;f₁, embed(x&#8321;))
+        sample x&#8322; from q₂ = softmax(W · &hat;f₂)
+...</pre>
+
+<h3>Why this beats a small token-level LM as a draft</h3>
+
+<table>
+  <tr><th></th><th>Small LM draft</th><th>EAGLE feature-level draft</th></tr>
+  <tr>
+    <td>Parameters</td>
+    <td>~10× smaller model, full transformer stack</td>
+    <td>One transformer decoder layer on top of the target's own features</td>
+  </tr>
+  <tr>
+    <td>Latency per draft token</td>
+    <td>One forward pass of the small LM</td>
+    <td>One layer + one LM-head projection — much cheaper</td>
+  </tr>
+  <tr>
+    <td>Uncertainty handling</td>
+    <td>Commits to a token, loses ambiguity</td>
+    <td>Feature vector encodes the mixture; LM head recovers it</td>
+  </tr>
+  <tr>
+    <td>Training</td>
+    <td>Full LM pre-training</td>
+    <td>Feature-regression loss ($\|\hat f_t - f_t\|_2^2$) plus cross-entropy on tokens; the target model is frozen</td>
+  </tr>
+</table>
+
+<p>
+  Because $\Phi$ is trained to <em>mimic the target's own feature
+  trajectory</em>, the draft's $q$ is much closer to the target's $p$
+  than a general-purpose small LM would be. In TV-distance terms,
+  $\alpha = 1 - \text{TV}(p, q)$ is substantially higher — accepted
+  runs are longer.
+</p>
+
+<h3>The correctness story is unchanged</h3>
+
+<p>
+  Even though the draft lives in feature space, at the moment of
+  verification we still have a proper token distribution $q(x)$ from
+  the draft and $p(x)$ from the target. The modified rejection rule
+  from tab 2 applies verbatim. EAGLE changes <em>how you obtain $q$
+  cheaply and how close it is to $p$</em>, not the correctness
+  contract.
+</p>
+
+<h2>EAGLE-2 — dynamic trees</h2>
+
+<p>
+  EAGLE-1 uses a fixed tree shape: at each depth, expand a fixed set
+  of top-$k$ children. But not every branch is equally worth expanding.
+  A high-confidence draft position (softmax nearly deterministic)
+  gets little marginal value from a wide fan-out; a low-confidence
+  position benefits from many children. EAGLE-2 turns this into an
+  online, context-dependent tree.
+</p>
+
+<h3>The confidence signal</h3>
+
+<p>
+  At every node $v$ in the growing tree, EAGLE-2 computes an estimate
+  of the <strong>cumulative acceptance probability</strong> along the
+  path from root to $v$:
+</p>
+
+$$\hat P(v) = \prod_{u \in \text{path}(v)} q_u(\text{token}_u)$$
+
+<p>
+  where $q_u$ is the draft's softmax at node $u$'s parent. The product
+  of draft-side softmax probabilities is a well-calibrated proxy for
+  target-side acceptance because EAGLE's draft has been trained to
+  mimic the target, so $q \approx p$ and thus
+  $\min(1, p/q) \approx 1$ along high-$q$ paths.
+</p>
+
+<h3>Two-phase tree construction</h3>
+
+<p>
+  EAGLE-2 grows the tree with a best-first expansion, then prunes to
+  keep verification cheap.
+</p>
+
+<ol>
+  <li><strong>Expand</strong>: maintain a priority queue over frontier
+  nodes keyed by $\hat P(v)$. Repeatedly pop the highest-scoring
+  frontier node, expand it into its top-$k$ children (from the draft's
+  softmax), and push those children back onto the queue. Stop when the
+  tree has grown to a budget of $N_{\text{total}}$ nodes.</li>
+  <li><strong>Rerank</strong>: after expansion, sort all nodes by
+  $\hat P(v)$ and keep only the top $N_{\text{final}}$. This is the
+  final draft tree that gets verified by the target.</li>
+</ol>
+
+<p>
+  So expansion prioritizes exploring where the draft is confident
+  (since deep confident paths have high expected acceptance),
+  while reranking makes sure the fixed-budget verification tree is
+  dominated by the highest-probability continuations across the
+  whole tree, not the fringes of low-confidence branches.
+</p>
+
+<div class="analogy">
+  EAGLE-2's tree is beam-search-shaped: put more depth where the
+  draft is sure, more breadth where it isn't, but always cap total
+  compute at $N_{\text{final}}$. It uses the draft's own confidence
+  as the heuristic — which is honest, because we know the draft has
+  been trained to look like the target.
+</div>
+
+<h3>Verification cost in the dynamic-tree regime</h3>
+
+<p>
+  The tree attention mask from tab 3 handles any tree shape, so
+  EAGLE-2's per-iteration target cost is:
+</p>
+
+<ul>
+  <li>Draft: $O(N_{\text{total}} \cdot d_{\text{layer}})$ — cheap
+  because $\Phi$ is one layer.</li>
+  <li>Target: one forward pass over $N_{\text{final}}$ nodes, with
+  tree attention. Dominated by loading the target's weights (still
+  memory-bound at these sequence lengths).</li>
+</ul>
+
+<p>
+  Empirically, EAGLE-2 lands ~3–5× wall-clock speedup on Llama-class
+  targets with a draft that's ~1% of the target's parameters,
+  compared to ~2× for a well-tuned linear speculative decoder.
+</p>
+
+<h3>Comparison at a glance</h3>
+
+<table>
+  <tr>
+    <th>Method</th>
+    <th>Draft output</th>
+    <th>Tree shape</th>
+    <th>Verification math</th>
+  </tr>
+  <tr>
+    <td>Vanilla SD (Leviathan)</td>
+    <td>Tokens (small LM), depth $\gamma$</td>
+    <td>Linear (single path)</td>
+    <td>Modified rejection at each position</td>
+  </tr>
+  <tr>
+    <td>SpecInfer</td>
+    <td>Tokens (small LM), tree</td>
+    <td>Static, hand-designed</td>
+    <td>Multi-round rejection (tab 3)</td>
+  </tr>
+  <tr>
+    <td>Medusa</td>
+    <td>Tokens (multiple heads on target's last hidden)</td>
+    <td>Static, hand-designed</td>
+    <td>"Typical acceptance" (an approximation, not exact)</td>
+  </tr>
+  <tr>
+    <td>EAGLE</td>
+    <td><strong>Features</strong> → tokens via target's LM head</td>
+    <td>Static tree</td>
+    <td>Modified rejection (exact, same as vanilla)</td>
+  </tr>
+  <tr>
+    <td>EAGLE-2</td>
+    <td>Features → tokens</td>
+    <td>Dynamic, confidence-weighted</td>
+    <td>Modified rejection (exact)</td>
+  </tr>
+</table>
+
+</div>
+
+<!-- ============================================================= -->
+<!-- PLAYGROUND                                                     -->
+<!-- ============================================================= -->
+<div class="tabpane" id="pane-play">
+
+<h2>Playground — see the acceptance geometry</h2>
+
+<p>
+  Drag the sliders below to shape the draft distribution $q$ and the
+  target distribution $p$ over five tokens (A–E). The panel updates
+  the accept mass, the residual, $\alpha$, TV, and the expected
+  tokens per iteration for $\gamma = 1, \ldots, 8$.
+</p>
+
+<div class="demo" id="dist-demo">
+  <h4>Target $p(x)$</h4>
+  <div id="p-sliders"></div>
+  <h4 style="margin-top: 18px;">Draft $q(x)$</h4>
+  <div id="q-sliders"></div>
+
+  <h4 style="margin-top: 18px;">Mass decomposition per token</h4>
+  <div class="legend">
+    <span><span class="sw" style="background: var(--good);"></span>accept mass $= \min(p, q)$</span>
+    <span><span class="sw" style="background: var(--bad);"></span>residual mass $= \max(0, p - q)$</span>
+    <span><span class="sw" style="background: var(--accent);"></span>$p(x)$</span>
+    <span><span class="sw" style="background: var(--accent2);"></span>$q(x)$</span>
+  </div>
+  <div id="decomp"></div>
+
+  <div class="metrics">
+    <div class="metric"><div class="label">$\alpha = 1 - \text{TV}$</div><div class="value" id="m-alpha">—</div></div>
+    <div class="metric"><div class="label">TV$(p, q)$</div><div class="value" id="m-tv">—</div></div>
+    <div class="metric"><div class="label">$Z = \sum \max(0, p-q)$</div><div class="value" id="m-z">—</div></div>
+  </div>
+
+  <h4>Expected tokens per target step vs draft depth $\gamma$</h4>
+  <table>
+    <tr id="gamma-header"><th>$\gamma$</th></tr>
+    <tr id="gamma-tokens"><td><b>tokens/step</b></td></tr>
+    <tr id="gamma-speedup"><td><b>speedup (c=0.05)</b></td></tr>
+  </table>
+  <p style="color: var(--muted); font-size: 0.9rem;">
+    Speedup uses $\text{tokens/step}\,/\,(1 + c\gamma)$ with cost
+    ratio $c = 0.05$ (draft ~ 5% of target). Try setting $p = q$ to
+    see $\alpha = 1$ and unbounded growth; try setting them disjoint
+    to see the algorithm collapse to $\gamma = 1$.
+  </p>
+</div>
+
+<h3>Multi-round rejection — where the second candidate helps</h3>
+
+<p>
+  Below: given the current $p$ and $q$, we compute the sequence of
+  per-round acceptance probabilities $\beta_1, \beta_2, \beta_3$ for
+  three iid draft candidates from $q$, and the cumulative probability
+  that at least one is accepted.
+</p>
+
+<div class="demo">
+  <table>
+    <tr><th>round $j$</th><th>$\beta_j$ (per-round accept)</th><th>$P(\text{any accepted through } j)$</th></tr>
+    <tbody id="multi-round-tbody"></tbody>
+  </table>
+  <p style="color: var(--muted); font-size: 0.9rem;">
+    Notice how quickly $\beta_j$ shrinks after round 1. That's the
+    diminishing return that pushes practical tree drafts toward
+    <em>shallow branching, deeper trees</em>: branching gives ~1
+    extra effective acceptance at each level, not $k$.
+  </p>
+</div>
+
+<h3>Tree draft — one step, $k = 2$ branching</h3>
+
+<p>
+  A depth-3 draft tree with $k=2$ children per node. Each edge shows
+  its draft probability under the current $q$. Nodes are colored by
+  their estimated cumulative acceptance $\hat P(v)$ (product of edge
+  probabilities along the path from root). This is the signal EAGLE-2
+  uses to prioritize expansion.
+</p>
+
+<div class="demo">
+  <svg class="tree" id="treeviz" viewBox="0 0 800 320" preserveAspectRatio="xMidYMid meet"></svg>
+  <p style="color: var(--muted); font-size: 0.9rem;">
+    Darker nodes = higher $\hat P(v)$. In EAGLE-2, only the top-$N_{\text{final}}$
+    nodes by $\hat P(v)$ survive reranking and get verified. Nodes
+    with $\hat P \approx 0$ get pruned before the target ever sees them.
+  </p>
+</div>
+
+</div>
+
+<div class="footer">
+  Based on: Leviathan, Kalman, Matias (2023) <em>Fast Inference from
+  Transformers via Speculative Decoding</em>; Chen et al. (2023)
+  <em>Accelerating Large Language Model Decoding with Speculative
+  Sampling</em>; Miao et al. (2023) <em>SpecInfer</em>; Sun et al.
+  (2023) <em>SpecTr</em>; Li et al. (2024) <em>EAGLE</em> and
+  <em>EAGLE-2</em>. Any errors here are mine.
+</div>
+
+</div>
+
+<script>
+  // --- Tab switching ---
+  const tabs = document.querySelectorAll('.tab');
+  const panes = document.querySelectorAll('.tabpane');
+  tabs.forEach(t => t.addEventListener('click', () => {
+    tabs.forEach(x => x.classList.remove('active'));
+    panes.forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById('pane-' + t.dataset.tab).classList.add('active');
+    if (window.MathJax && window.MathJax.typesetPromise) {
+      window.MathJax.typesetPromise();
+    }
+  }));
+
+  // --- Distribution playground ---
+  const TOKENS = ['A', 'B', 'C', 'D', 'E'];
+  // Initial values (will be renormalized).
+  let pRaw = [0.20, 0.30, 0.30, 0.10, 0.10];
+  let qRaw = [0.10, 0.40, 0.30, 0.15, 0.05];
+
+  function normalize(arr) {
+    const s = arr.reduce((a, b) => a + b, 0);
+    if (s === 0) return arr.map(() => 1 / arr.length);
+    return arr.map(v => v / s);
+  }
+
+  function buildSliders(containerId, arr, onChange) {
+    const c = document.getElementById(containerId);
+    c.innerHTML = '';
+    TOKENS.forEach((tok, i) => {
+      const row = document.createElement('div');
+      row.className = 'slider-row';
+      const label = document.createElement('div');
+      label.className = 'bar-label';
+      label.textContent = tok;
+      const slider = document.createElement('input');
+      slider.type = 'range';
+      slider.min = '0';
+      slider.max = '100';
+      slider.step = '1';
+      slider.value = String(Math.round(arr[i] * 100));
+      const readout = document.createElement('div');
+      readout.className = 'bar-label';
+      readout.textContent = arr[i].toFixed(3);
+      slider.addEventListener('input', () => {
+        arr[i] = Number(slider.value) / 100;
+        readout.textContent = arr[i].toFixed(3);
+        onChange();
+      });
+      row.appendChild(label);
+      row.appendChild(slider);
+      row.appendChild(readout);
+      c.appendChild(row);
+    });
+  }
+
+  function renderDecomp(p, q) {
+    const c = document.getElementById('decomp');
+    c.innerHTML = '';
+    const maxVal = Math.max(...p, ...q, 0.01);
+    TOKENS.forEach((tok, i) => {
+      const pv = p[i], qv = q[i];
+      const mn = Math.min(pv, qv);
+      const rs = Math.max(0, pv - qv);
+      // p row
+      const rowP = document.createElement('div');
+      rowP.className = 'bars';
+      rowP.innerHTML = `
+        <div class="bar-label">${tok} p</div>
+        <div class="bar-container">
+          <div class="bar min" style="width: ${(mn / maxVal * 100).toFixed(1)}%; display: inline-block;"></div><div class="bar resid" style="width: ${(rs / maxVal * 100).toFixed(1)}%; display: inline-block;"></div>
+        </div>
+        <div class="bar-label">${pv.toFixed(3)}</div>`;
+      c.appendChild(rowP);
+      const rowQ = document.createElement('div');
+      rowQ.className = 'bars';
+      rowQ.innerHTML = `
+        <div class="bar-label">${tok} q</div>
+        <div class="bar-container">
+          <div class="bar q" style="width: ${(qv / maxVal * 100).toFixed(1)}%;"></div>
+        </div>
+        <div class="bar-label">${qv.toFixed(3)}</div>`;
+      c.appendChild(rowQ);
+    });
+  }
+
+  function tvDist(p, q) {
+    let s = 0;
+    for (let i = 0; i < p.length; i++) s += Math.abs(p[i] - q[i]);
+    return s / 2;
+  }
+
+  function residual(p, q) {
+    const rs = p.map((pi, i) => Math.max(0, pi - q[i]));
+    const Z = rs.reduce((a, b) => a + b, 0);
+    if (Z === 0) return { dist: p.slice(), Z: 0 };
+    return { dist: rs.map(v => v / Z), Z };
+  }
+
+  function updateMetrics() {
+    const p = normalize(pRaw);
+    const q = normalize(qRaw);
+    renderDecomp(p, q);
+    const alpha = 1 - tvDist(p, q);
+    const tv = tvDist(p, q);
+    const { Z } = residual(p, q);
+    document.getElementById('m-alpha').textContent = alpha.toFixed(3);
+    document.getElementById('m-tv').textContent = tv.toFixed(3);
+    document.getElementById('m-z').textContent = Z.toFixed(3);
+
+    // gamma table
+    const gammaHdr = document.getElementById('gamma-header');
+    const gammaTok = document.getElementById('gamma-tokens');
+    const gammaSpd = document.getElementById('gamma-speedup');
+    gammaHdr.innerHTML = '<th>$\\gamma$</th>';
+    gammaTok.innerHTML = '<td><b>tokens/step</b></td>';
+    gammaSpd.innerHTML = '<td><b>speedup (c=0.05)</b></td>';
+    for (let g = 1; g <= 8; g++) {
+      let tokens;
+      if (Math.abs(alpha - 1) < 1e-9) tokens = g + 1;
+      else tokens = (1 - Math.pow(alpha, g + 1)) / (1 - alpha);
+      const speedup = tokens / (1 + 0.05 * g);
+      gammaHdr.innerHTML += `<th>${g}</th>`;
+      gammaTok.innerHTML += `<td class="num">${tokens.toFixed(2)}</td>`;
+      gammaSpd.innerHTML += `<td class="num">${speedup.toFixed(2)}×</td>`;
+    }
+
+    // multi-round table
+    const tbody = document.getElementById('multi-round-tbody');
+    tbody.innerHTML = '';
+    let pj = p.slice();
+    let cumRej = 1;
+    for (let j = 1; j <= 3; j++) {
+      const beta = 1 - tvDist(pj, q);
+      cumRej *= (1 - beta);
+      const anyAccept = 1 - cumRej;
+      const row = document.createElement('tr');
+      row.innerHTML = `<td>${j}</td><td class="num">${beta.toFixed(3)}</td><td class="num">${anyAccept.toFixed(3)}</td>`;
+      tbody.appendChild(row);
+      // update p_j to residual of p_{j-1}
+      const res = residual(pj, q);
+      pj = res.dist;
+      if (res.Z === 0) break;
+    }
+
+    drawTree(q);
+    if (window.MathJax && window.MathJax.typesetPromise) {
+      window.MathJax.typesetPromise([document.getElementById('dist-demo')]);
+    }
+  }
+
+  // --- Tree drawing ---
+  function drawTree(q) {
+    const svg = document.getElementById('treeviz');
+    svg.innerHTML = '';
+    const W = 800, H = 320;
+    const depth = 3;
+    const k = 2;
+    // Precompute layout: level d has k^d nodes, evenly spaced
+    // Each node stores its top-k edge probabilities from q's top-k tokens.
+    const sortedIdx = q.map((v, i) => [v, i]).sort((a, b) => b[0] - a[0]);
+    const topK = sortedIdx.slice(0, k);
+    // Build nodes
+    const nodes = [];
+    function addNode(depth_, path, cumProb, parentIdx) {
+      const idx = nodes.length;
+      nodes.push({ depth: depth_, path, cumProb, parent: parentIdx, children: [] });
+      if (parentIdx !== -1) nodes[parentIdx].children.push(idx);
+      if (depth_ < depth) {
+        topK.forEach(([qv, tokIdx], ci) => {
+          const newPath = path.concat(tokIdx);
+          addNode(depth_ + 1, newPath, cumProb * qv, idx);
+        });
+      }
+    }
+    addNode(0, [], 1.0, -1);
+
+    // Layout: assign x per node by in-order traversal at leaf depth.
+    // For simplicity: compute the horizontal span of each subtree.
+    function spanCount(idx) {
+      const n = nodes[idx];
+      if (n.children.length === 0) return 1;
+      return n.children.reduce((a, c) => a + spanCount(c), 0);
+    }
+    const totalLeaves = spanCount(0);
+    const leafSpacing = W / (totalLeaves + 1);
+    let leafCursor = 0;
+    function assignX(idx) {
+      const n = nodes[idx];
+      if (n.children.length === 0) {
+        leafCursor += 1;
+        n.x = leafCursor * leafSpacing;
+      } else {
+        n.children.forEach(c => assignX(c));
+        const cx = n.children.map(c => nodes[c].x);
+        n.x = (Math.min(...cx) + Math.max(...cx)) / 2;
+      }
+      n.y = 40 + n.depth * ((H - 60) / depth);
+    }
+    assignX(0);
+
+    // Draw edges
+    nodes.forEach((n, i) => {
+      if (n.parent === -1) return;
+      const parent = nodes[n.parent];
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      path.setAttribute('x1', parent.x);
+      path.setAttribute('y1', parent.y);
+      path.setAttribute('x2', n.x);
+      path.setAttribute('y2', n.y);
+      path.setAttribute('class', 'edge');
+      svg.appendChild(path);
+      // Edge label: q at this step
+      const localQ = n.cumProb / (parent.cumProb || 1);
+      const midx = (parent.x + n.x) / 2 + 6;
+      const midy = (parent.y + n.y) / 2;
+      const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      t.setAttribute('x', midx);
+      t.setAttribute('y', midy);
+      t.setAttribute('fill', '#a3b1c6');
+      t.setAttribute('font-size', '10');
+      t.textContent = localQ.toFixed(2);
+      svg.appendChild(t);
+    });
+
+    // Draw nodes
+    const maxCum = Math.max(...nodes.map(n => n.cumProb), 0.01);
+    nodes.forEach((n, i) => {
+      const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      g.setAttribute('class', 'node');
+      const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      c.setAttribute('cx', n.x);
+      c.setAttribute('cy', n.y);
+      c.setAttribute('r', 18);
+      // color intensity from cumProb
+      const intensity = n.cumProb / maxCum;
+      const shade = Math.round(30 + intensity * 180);
+      c.setAttribute('fill', `rgb(${shade}, ${Math.round(shade * 0.7)}, 40)`);
+      c.setAttribute('stroke', '#ffb86b');
+      g.appendChild(c);
+      const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      t.setAttribute('x', n.x);
+      t.setAttribute('y', n.y);
+      t.textContent = n.depth === 0 ? 'R' : TOKENS[n.path[n.path.length - 1]];
+      g.appendChild(t);
+      const t2 = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      t2.setAttribute('x', n.x);
+      t2.setAttribute('y', n.y + 30);
+      t2.setAttribute('font-size', '9');
+      t2.setAttribute('fill', '#a3b1c6');
+      t2.textContent = n.depth === 0 ? '' : `P̂=${n.cumProb.toFixed(3)}`;
+      g.appendChild(t2);
+      svg.appendChild(g);
+    });
+  }
+
+  buildSliders('p-sliders', pRaw, updateMetrics);
+  buildSliders('q-sliders', qRaw, updateMetrics);
+  updateMetrics();
+</script>
+
+</body>
+</html>

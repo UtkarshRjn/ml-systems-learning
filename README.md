@@ -20,6 +20,7 @@ material.
 | File | Topic |
 | --- | --- |
 | [`ssm_tutorial.html`](sequence-models/ssm_tutorial.html) | State-space models from scratch. RNN refresher, the four matrices (A, B, C, D), the recurrent / convolutional dual modes, SSM-vs-Transformer trade-offs, an interactive 1D SSM playground, and a deep-dive tab on where the non-linearity actually lives. |
+| [`speculative_decoding_tutorial.html`](sequence-models/speculative_decoding_tutorial.html) | Speculative decoding from scratch. Full correctness proof of modified rejection sampling, the `(1 - α^(γ+1))/(1-α)` expected-tokens formula, SpecInfer-style tree drafts with multi-round rejection, EAGLE / EAGLE-2 feature-level drafting and dynamic trees. Interactive playground for acceptance geometry and tree visualization. |
 
 ### [`video-diffusion/`](video-diffusion/) — Video diffusion & sparse attention
 | File | Topic |
