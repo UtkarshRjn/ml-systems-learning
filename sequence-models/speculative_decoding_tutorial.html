@@ -229,6 +229,22 @@
   .legend .sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 4px; vertical-align: middle; }
 
   /* Tree diagram */
+  /* Algorithm block: code-block feel, but with MathJax-rendered math */
+  .algo {
+    background: #0a0f1a;
+    border: 1px solid var(--line);
+    padding: 16px 20px;
+    border-radius: 8px;
+    margin: 14px 0;
+    color: #d6dceb;
+    font-size: 0.95em;
+    line-height: 1.7;
+  }
+  .algo p { margin: 4px 0; }
+  .algo .label { color: var(--accent2); font-weight: 600; margin-right: 6px; }
+  .algo ul { margin: 6px 0 6px 20px; padding: 0; list-style: none; }
+  .algo ul li { margin: 4px 0; }
+  .algo ul li::before { content: "• "; color: var(--muted); margin-right: 4px; }
   svg.tree { width: 100%; height: 340px; display: block; background: #0a0f1a; border-radius: 8px; }
   .node circle { stroke-width: 2; }
   .node text { fill: var(--text); font-size: 11px; text-anchor: middle; dominant-baseline: middle; font-variant-numeric: tabular-nums; }
@@ -980,16 +996,17 @@ Attention mask (rows = query, cols = key; 1 = visible):
   candidates:
 </p>
 
-<pre>Input: candidates x⁽¹⁾, ..., x⁽ᵏ⁾ &sim; q iid; target p.
-Initialize p₀ &larr; p.
-
-For j = 1 ... k:
-  Accept x⁽ʲ⁾ with probability min(1, pⱼ₋₁(x⁽ʲ⁾) / q(x⁽ʲ⁾)).
-  If accepted:  return x⁽ʲ⁾.
-  If rejected:  pⱼ(x) &larr; max(0, pⱼ₋₁(x) - q(x)) / Zⱼ
-                where Zⱼ = &sum;ₓ max(0, pⱼ₋₁(x) - q(x)).
-
-If all k rejected: return a fresh sample from pₖ.</pre>
+<div class="algo">
+  <p><span class="label">Input:</span> candidates $x^{(1)}, \ldots, x^{(k)} \sim q$ iid; target $p$.</p>
+  <p><span class="label">Initialize:</span> $p_0 \leftarrow p$.</p>
+  <p><span class="label">For</span> $j = 1, \ldots, k$:</p>
+  <ul>
+    <li>Accept $x^{(j)}$ with probability $\min\!\left(1,\ p_{j-1}(x^{(j)}) / q(x^{(j)})\right)$.</li>
+    <li>If accepted: return $x^{(j)}$.</li>
+    <li>If rejected: $p_j(x) \leftarrow \max(0,\ p_{j-1}(x) - q(x)) / Z_j$, where $Z_j = \sum_x \max(0,\ p_{j-1}(x) - q(x))$.</li>
+  </ul>
+  <p><span class="label">If all $k$ rejected:</span> return a fresh sample from $p_k$.</p>
+</div>
 
 <p>
   Every round uses the same draft distribution $q$, but tries to
