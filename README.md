@@ -36,6 +36,11 @@ material.
 | [`fast_dllm_tutorial.html`](diffusion-llms/fast_dllm_tutorial.html) | Fast-dLLM — accelerating diffusion language model inference. |
 | [`dkv_cache_tutorial.html`](diffusion-llms/dkv_cache_tutorial.html) | dKV-Cache — KV caching adapted for diffusion language models. |
 
+### [`fine-tuning/`](fine-tuning/) — Parameter-efficient fine-tuning
+| File | Topic |
+| --- | --- |
+| [`lora_tutorial.html`](fine-tuning/lora_tutorial.html) | LoRA from scratch — the original Hu et al. equation, initialization trick, rank/alpha choices, and the modern (2025–2026) consensus on which modules to target. Family tree of follow-ups: QLoRA, DoRA, LoRA+, rsLoRA, VeRA, PiSSA, LoftQ, AdaLoRA, LongLoRA. Serving section on merging vs multi-tenant (S-LoRA / vLLM multi-LoRA). Interactive parameter-count calculator across Llama models, rsLoRA vs LoRA scaling visualizer, and an 8-question quiz. |
+
 ## How to view
 
 Open any `.html` directly in your browser — they're self-contained (single
