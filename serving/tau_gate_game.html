@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="An interactive derivation of when a per-repo LoRA draft adapter pays for its own multi-tenant serving overhead.">
+<title>The &tau; gate</title>
+<style>
+:root{
+  --ground:#E9ECEA; --panel:#F6F8F7; --sunk:#DEE3E0;
+  --ink:#151C19; --ink2:#4C5651; --ink3:#7E8983;
+  --rule:#CBD2CE; --rule2:#B3BCB7;
+  --accent:#B4620A; --accent-soft:#F2E3CD; --accent-line:#D08A2E;
+  --accept:#1C6B58; --accept-soft:#D5E7E0;
+  --reject:#A63A2B; --reject-soft:#F0DAD5;
+  --face-mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,"DejaVu Sans Mono",Consolas,monospace;
+  --face-body:"Iowan Old Style",Charter,"Palatino Linotype",Palatino,Georgia,serif;
+  --face-ui:system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --ground:#0E1412; --panel:#161D1A; --sunk:#080C0B;
+    --ink:#E7EDEA; --ink2:#9EAAA4; --ink3:#6C7873;
+    --rule:#28312D; --rule2:#3A453F;
+    --accent:#E39A3C; --accent-soft:#3B2B15; --accent-line:#C9812A;
+    --accept:#54C3A0; --accept-soft:#14302A;
+    --reject:#E2735E; --reject-soft:#361C18;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0E1412; --panel:#161D1A; --sunk:#080C0B;
+  --ink:#E7EDEA; --ink2:#9EAAA4; --ink3:#6C7873;
+  --rule:#28312D; --rule2:#3A453F;
+  --accent:#E39A3C; --accent-soft:#3B2B15; --accent-line:#C9812A;
+  --accept:#54C3A0; --accept-soft:#14302A;
+  --reject:#E2735E; --reject-soft:#361C18;
+}
+:root[data-theme="light"]{
+  --ground:#E9ECEA; --panel:#F6F8F7; --sunk:#DEE3E0;
+  --ink:#151C19; --ink2:#4C5651; --ink3:#7E8983;
+  --rule:#CBD2CE; --rule2:#B3BCB7;
+  --accent:#B4620A; --accent-soft:#F2E3CD; --accent-line:#D08A2E;
+  --accept:#1C6B58; --accept-soft:#D5E7E0;
+  --reject:#A63A2B; --reject-soft:#F0DAD5;
+}
+
+*{box-sizing:border-box}
+body{background:var(--ground);color:var(--ink);font-family:var(--face-body);font-size:17px;line-height:1.65;margin:0;-webkit-font-smoothing:antialiased}
+.wrap{max-width:940px;margin:0 auto;padding:0 28px}
+.measure{max-width:64ch}
+p{margin:0 0 1rem}
+b,strong{font-weight:600}
+code{font-family:var(--face-mono);font-size:0.88em;background:var(--sunk);padding:1px 5px;border-radius:3px}
+.num{font-family:var(--face-mono);font-variant-numeric:tabular-nums}
+
+.bar{position:sticky;top:0;z-index:40;background:var(--ground);border-bottom:1px solid var(--rule);backdrop-filter:saturate(1.2)}
+.bar .wrap{display:flex;align-items:center;gap:20px;height:54px}
+.mark{font-family:var(--face-mono);font-size:13px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink2);white-space:nowrap}
+.mark em{font-style:normal;color:var(--accent);text-transform:none}
+.pips{display:flex;gap:6px;margin-left:auto}
+.pip{width:22px;height:6px;background:var(--rule2);border-radius:1px;transition:background .25s}
+.pip.on{background:var(--accent)}
+.score{font-family:var(--face-mono);font-size:13px;font-variant-numeric:tabular-nums;color:var(--ink2);white-space:nowrap}
+.score b{color:var(--ink);font-weight:500}
+
+.hero{padding:76px 0 60px;border-bottom:1px solid var(--rule)}
+.eyebrow{font-family:var(--face-mono);font-size:12px;letter-spacing:0.16em;text-transform:uppercase;color:var(--accent);margin:0 0 22px}
+h1{font-family:var(--face-mono);font-size:clamp(38px,7vw,66px);line-height:0.98;letter-spacing:-0.035em;font-weight:500;margin:0 0 22px;text-wrap:balance}
+.lede{font-size:20px;line-height:1.55;color:var(--ink2);max-width:56ch;margin:0 0 34px}
+
+.tape{background:var(--panel);border:1px solid var(--rule);border-radius:4px;padding:20px 22px}
+.tape-head{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;margin-bottom:16px}
+.tape-head h4{font-family:var(--face-mono);font-size:12px;letter-spacing:0.13em;text-transform:uppercase;color:var(--ink3);font-weight:400;margin:0}
+.slots{display:flex;gap:6px;flex-wrap:wrap;min-height:40px;align-items:center}
+.slot{width:40px;height:40px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-family:var(--face-mono);font-size:13px;border:1px solid var(--rule2);color:var(--ink3);background:transparent}
+.slot.ok{background:var(--accept-soft);border-color:var(--accept);color:var(--accept)}
+.slot.no{background:var(--reject-soft);border-color:var(--reject);color:var(--reject)}
+.slot.bonus{background:var(--accent-soft);border-color:var(--accent-line);color:var(--accent)}
+.slot.dead{opacity:0.28}
+@media (prefers-reduced-motion:no-preference){.slot{transition:background .18s,border-color .18s,color .18s}}
+
+.lv{padding:64px 0;border-bottom:1px solid var(--rule)}
+.lvhead{display:flex;gap:18px;align-items:flex-start;margin-bottom:26px}
+.lvnum{font-family:var(--face-mono);font-size:12px;letter-spacing:0.1em;color:var(--accent);border:1px solid var(--accent-line);border-radius:2px;padding:3px 8px;flex:none;margin-top:6px}
+h2{font-family:var(--face-mono);font-size:clamp(24px,3.4vw,32px);line-height:1.12;letter-spacing:-0.025em;font-weight:500;margin:0;text-wrap:balance}
+h3{font-family:var(--face-mono);font-size:13px;letter-spacing:0.13em;text-transform:uppercase;color:var(--ink3);font-weight:400;margin:0 0 14px}
+
+.panel{background:var(--panel);border:1px solid var(--rule);border-radius:4px;padding:24px;margin:26px 0}
+.ctrls{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:4px 30px;margin-bottom:22px}
+.ctl{display:flex;align-items:center;gap:12px;padding:5px 0}
+.ctl label{font-family:var(--face-ui);font-size:13px;color:var(--ink2);min-width:104px;flex:none}
+.ctl output{font-family:var(--face-mono);font-size:13px;font-variant-numeric:tabular-nums;min-width:52px;text-align:right;flex:none}
+input[type=range]{flex:1;min-width:70px;-webkit-appearance:none;appearance:none;height:20px;background:transparent;cursor:pointer}
+input[type=range]::-webkit-slider-runnable-track{height:2px;background:var(--rule2);border-radius:1px}
+input[type=range]::-moz-range-track{height:2px;background:var(--rule2);border-radius:1px}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;background:var(--accent);margin-top:-6.5px;border:none}
+input[type=range]::-moz-range-thumb{width:15px;height:15px;border-radius:50%;background:var(--accent);border:none}
+input[type=range]:focus-visible{outline:2px solid var(--accent);outline-offset:4px;border-radius:2px}
+
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:3px;overflow:hidden}
+.stat{background:var(--panel);padding:13px 15px}
+.stat .k{font-family:var(--face-ui);font-size:11px;letter-spacing:0.07em;text-transform:uppercase;color:var(--ink3);margin:0 0 5px}
+.stat .n{font-family:var(--face-mono);font-size:23px;font-variant-numeric:tabular-nums;letter-spacing:-0.02em;margin:0;line-height:1.1}
+.stat .n.hi{color:var(--accent)}
+.stat .n.good{color:var(--accept)}
+.stat .n.bad{color:var(--reject)}
+
+button{font-family:var(--face-ui);font-size:14px;color:var(--ink);background:transparent;border:1px solid var(--rule2);border-radius:3px;padding:8px 16px;cursor:pointer}
+button:hover{background:var(--sunk);border-color:var(--ink3)}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button:active{transform:translateY(1px)}
+button.solid{background:var(--accent);border-color:var(--accent);color:var(--ground)}
+button.solid:hover{background:var(--accent-line);border-color:var(--accent-line)}
+.btnrow{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:18px}
+
+.ledger{display:flex;flex-direction:column;gap:9px;margin-top:6px}
+.lrow{display:grid;grid-template-columns:130px 1fr;gap:14px;align-items:center}
+.lrow .lk{font-family:var(--face-ui);font-size:12px;color:var(--ink2);text-align:right}
+.lbar{display:flex;height:26px;border-radius:2px;overflow:hidden;background:var(--sunk)}
+.seg{display:flex;align-items:center;justify-content:center;font-family:var(--face-mono);font-size:11px;font-variant-numeric:tabular-nums;overflow:hidden;white-space:nowrap}
+@media (prefers-reduced-motion:no-preference){.seg{transition:width .3s ease}}
+.s-draft{background:var(--accent-soft);color:var(--accent)}
+.s-verify{background:var(--accept-soft);color:var(--accept)}
+.s-adapter{background:var(--reject-soft);color:var(--reject)}
+.s-plain{background:var(--rule2);color:var(--ink)}
+.key{display:flex;gap:18px;flex-wrap:wrap;font-family:var(--face-ui);font-size:12px;color:var(--ink2);margin-bottom:16px}
+.key span{display:flex;align-items:center;gap:6px}
+.dot{width:9px;height:9px;border-radius:2px;flex:none}
+
+.dis{background:var(--sunk);border-radius:3px;padding:22px 18px;margin:0 0 22px;overflow-x:auto}
+.disrow{display:flex;align-items:center;justify-content:center;gap:14px;font-family:var(--face-mono);font-size:13.5px;min-width:max-content}
+.frac{display:inline-flex;flex-direction:column;align-items:stretch;text-align:center}
+.frac .top{padding:0 12px 8px}
+.frac .bot{border-top:1px solid var(--ink3);padding:8px 12px 0}
+.arm{padding:2px 5px;border-radius:2px}
+.arm.live{background:var(--accent-soft);color:var(--accent)}
+.arm.dim{opacity:0.38}
+.disout{font-family:var(--face-mono);font-size:22px;font-variant-numeric:tabular-nums;color:var(--accent)}
+.disnote{font-family:var(--face-ui);font-size:14px;line-height:1.55;color:var(--ink2);margin:18px 0 0;text-align:left}
+.cases{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:3px;overflow:hidden;margin:26px 0}
+.case{background:var(--panel);padding:18px}
+.case.on{background:var(--accent-soft)}
+.case h6{font-family:var(--face-mono);font-size:12px;letter-spacing:0.06em;color:var(--accent);font-weight:400;margin:0 0 10px}
+.case .eq{font-family:var(--face-mono);font-size:12.5px;line-height:1.6;color:var(--ink);margin:0 0 10px}
+.case p{font-family:var(--face-ui);font-size:13px;line-height:1.5;color:var(--ink2);margin:0}
+.chartbox{position:relative;width:100%;height:250px;margin-top:8px}
+canvas{width:100%;height:100%;display:block}
+
+.quiz{border-left:2px solid var(--accent);background:var(--panel);padding:20px 22px;margin:30px 0 0;border-radius:0}
+.qq{font-family:var(--face-ui);font-size:15px;line-height:1.5;margin:0 0 16px;color:var(--ink)}
+.opts{display:flex;flex-direction:column;gap:8px}
+.opt{font-family:var(--face-ui);font-size:14px;text-align:left;line-height:1.45;padding:11px 14px;width:100%}
+.opt.right{background:var(--accept-soft);border-color:var(--accept);color:var(--accept)}
+.opt.wrong{background:var(--reject-soft);border-color:var(--reject);color:var(--reject)}
+.fb{font-family:var(--face-ui);font-size:14px;line-height:1.55;margin:16px 0 0;padding-left:14px;border-left:1px solid var(--rule2);color:var(--ink2)}
+.fb:empty{display:none}
+
+.callout{border:1px solid var(--accent-line);border-radius:3px;padding:18px 20px;margin:26px 0;background:var(--accent-soft)}
+.callout p{margin:0;font-size:16px;color:var(--ink)}
+.formula{font-family:var(--face-mono);font-size:16px;background:var(--sunk);border-radius:3px;padding:14px 16px;overflow-x:auto;margin:20px 0;color:var(--ink)}
+
+.taubars{display:flex;align-items:flex-end;gap:8px;height:150px;margin-top:10px}
+.tb{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:6px;height:100%}
+.tb .fill{width:100%;background:var(--accent-soft);border-top:2px solid var(--accent);border-radius:2px 2px 0 0}
+@media (prefers-reduced-motion:no-preference){.tb .fill{transition:height .3s ease}}
+.tb .lbl{font-family:var(--face-mono);font-size:11px;color:var(--ink3);font-variant-numeric:tabular-nums}
+
+.verdict{border-radius:3px;padding:16px 18px;font-family:var(--face-ui);font-size:15px;line-height:1.55;margin-top:20px}
+.verdict.win{background:var(--accept-soft);color:var(--accept);border:1px solid var(--accept)}
+.verdict.lose{background:var(--reject-soft);color:var(--reject);border:1px solid var(--reject)}
+
+.final{padding:70px 0 90px}
+.bigscore{font-family:var(--face-mono);font-size:clamp(52px,11vw,104px);line-height:1;letter-spacing:-0.04em;color:var(--accent);margin:0 0 8px;font-variant-numeric:tabular-nums}
+.recap{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:3px;overflow:hidden;margin-top:34px}
+.rc{background:var(--panel);padding:20px}
+.rc h5{font-family:var(--face-mono);font-size:12px;letter-spacing:0.11em;text-transform:uppercase;color:var(--accent);font-weight:400;margin:0 0 9px}
+.rc p{font-size:15px;line-height:1.55;color:var(--ink2);margin:0}
+.foot{font-family:var(--face-ui);font-size:13px;color:var(--ink3);border-top:1px solid var(--rule);padding:24px 0 50px;line-height:1.6}
+@media (max-width:620px){
+  .wrap{padding:0 20px}
+  .lrow{grid-template-columns:1fr;gap:5px}
+  .lrow .lk{text-align:left}
+  .bar .wrap{gap:12px}
+  .pips{display:none}
+}
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="wrap">
+    <div class="mark">the <em>&tau;</em> gate</div>
+    <div class="pips" id="pips"></div>
+    <div class="score"><b id="scoreNum">0</b> / 100 pts</div>
+  </div>
+</header>
+
+<main>
+<section class="hero">
+  <div class="wrap">
+    <p class="eyebrow">Week-1 go / no-go, derived from scratch</p>
+    <h1>Does a per-repo draft adapter pay for its own overhead?</h1>
+    <p class="lede">Six levels. You build the cost model one term at a time, then decide whether to ship or kill the project. The tape below is running a real speculative-decoding sampler right now.</p>
+
+    <div class="tape">
+      <div class="tape-head">
+        <h4>Live draft tape &middot; &alpha; = 0.75, K = 4</h4>
+        <span class="score num" id="heroStat">step 0 &middot; empirical &tau; 0.00</span>
+      </div>
+      <div class="slots" id="heroSlots"></div>
+    </div>
+  </div>
+</section>
+
+<section class="lv">
+  <div class="wrap">
+    <div class="lvhead"><span class="lvnum">01</span><h2>Accept, reject, bonus</h2></div>
+    <div class="measure">
+      <p>A small draft model proposes <code>K</code> tokens. The big target model checks all of them in a single forward pass. It accepts a prefix, rejects at the first mismatch, and emits its own correct token there anyway &mdash; that is the <b>bonus token</b>, and it is why a step can yield up to <code>K+1</code>.</p>
+      <p>Roll some steps. Watch how often you get a long run versus a stub.</p>
+    </div>
+
+    <div class="panel">
+      <div class="ctrls">
+        <div class="ctl"><label for="a1">Acceptance &alpha;</label><input type="range" id="a1" min="0.30" max="0.95" step="0.01" value="0.75"><output id="a1o">0.75</output></div>
+        <div class="ctl"><label for="k1">Draft length K</label><input type="range" id="k1" min="1" max="8" step="1" value="4"><output id="k1o">4</output></div>
+      </div>
+      <div class="slots" id="l1slots"></div>
+      <div class="btnrow">
+        <button class="solid" id="roll1">Roll one step</button>
+        <button id="roll100">Roll 100</button>
+        <button id="reset1">Reset</button>
+      </div>
+      <div class="stats" style="margin-top:22px">
+        <div class="stat"><p class="k">Steps run</p><p class="n" id="s1steps">0</p></div>
+        <div class="stat"><p class="k">Tokens emitted</p><p class="n" id="s1tok">0</p></div>
+        <div class="stat"><p class="k">Empirical &tau;</p><p class="n hi" id="s1emp">0.00</p></div>
+        <div class="stat"><p class="k">Predicted &tau;</p><p class="n" id="s1pred">3.05</p></div>
+      </div>
+    </div>
+
+    <div class="quiz" data-q="1" data-pts="10" data-right="1">
+      <p class="qq">You run a step with K = 4 and the target rejects the very first draft token. How many tokens did that step produce?</p>
+      <div class="opts">
+        <button class="opt" data-i="0">Zero &mdash; everything was rejected.</button>
+        <button class="opt" data-i="1">One &mdash; the bonus token the target emits at the rejection point.</button>
+        <button class="opt" data-i="2">Four &mdash; the draft tokens still count as work done.</button>
+      </div>
+      <p class="fb"></p>
+    </div>
+  </div>
+</section>
+
+<section class="lv">
+  <div class="wrap">
+    <div class="lvhead"><span class="lvnum">02</span><h2>&tau; is a geometric series, not a line</h2></div>
+    <div class="measure">
+      <p>Accepting the first token has probability &alpha;. Accepting the first two has &alpha;&sup2;. Sum the expected run and you get a closed form that saturates &mdash; every extra draft token you add is worth less than the one before it.</p>
+    </div>
+    <div class="formula">&tau; = (1 &minus; &alpha;^(K+1)) / (1 &minus; &alpha;),&nbsp;&nbsp;capped at K+1</div>
+    <div class="panel">
+      <div class="ctrls">
+        <div class="ctl"><label for="a2">Acceptance &alpha;</label><input type="range" id="a2" min="0.30" max="0.95" step="0.01" value="0.80"><output id="a2o">0.80</output></div>
+      </div>
+      <h3>&tau; as K grows</h3>
+      <div class="taubars" id="taubars"></div>
+    </div>
+    <div class="quiz" data-q="2" data-pts="15" data-right="2">
+      <p class="qq">At &alpha; = 0.8, going from K = 4 to K = 8 doubles the draft work. Roughly what does it do to &tau;?</p>
+      <div class="opts">
+        <button class="opt" data-i="0">Doubles it &mdash; &tau; scales with K.</button>
+        <button class="opt" data-i="1">Slightly more than doubles it, since longer runs compound.</button>
+        <button class="opt" data-i="2">Adds under 30% &mdash; the series is already close to its ceiling of 1/(1&minus;&alpha;) = 5.</button>
+      </div>
+      <p class="fb"></p>
+    </div>
+  </div>
+</section>
+
+<section class="lv">
+  <div class="wrap">
+    <div class="lvhead"><span class="lvnum">03</span><h2>The free lunch at small batch</h2></div>
+    <div class="measure">
+      <p>Everything is priced in one unit: <b>a single target forward pass over one token position, at the current batch size</b>. That makes vanilla decoding cost exactly 1.0 per token by construction.</p>
+      <p>At batch 1 the target is bandwidth-bound. Producing one token means streaming all 12B weights out of HBM and doing almost no arithmetic with them. Hand it K+1 positions instead and it streams those same weights <em>once</em> &mdash; so verification is very nearly free, and the only real cost is the draft model's own K passes.</p>
+    </div>
+    <div class="panel">
+      <div class="key">
+        <span><i class="dot" style="background:var(--accent)"></i>Draft passes</span>
+        <span><i class="dot" style="background:var(--accept)"></i>Verify pass</span>
+        <span><i class="dot" style="background:var(--rule2)"></i>Vanilla equivalent</span>
+      </div>
+      <div class="ctrls">
+        <div class="ctl"><label for="c3">Draft cost c</label><input type="range" id="c3" min="2" max="30" step="1" value="8"><output id="c3o">0.08</output></div>
+        <div class="ctl"><label for="k3">Draft length K</label><input type="range" id="k3" min="1" max="8" step="1" value="4"><output id="k3o">4</output></div>
+      </div>
+      <div class="ledger" id="ledger3"></div>
+      <div class="stats" style="margin-top:22px">
+        <div class="stat"><p class="k">Cost per step</p><p class="n" id="s3cost">1.32</p></div>
+        <div class="stat"><p class="k">Tokens per step</p><p class="n" id="s3tok">3.36</p></div>
+        <div class="stat"><p class="k">Speedup</p><p class="n hi" id="s3sp">2.54&times;</p></div>
+      </div>
+    </div>
+    <div class="quiz" data-q="3" data-pts="15" data-right="1">
+      <p class="qq">Why does verifying 5 positions cost about the same as verifying 1 when the batch size is small?</p>
+      <div class="opts">
+        <button class="opt" data-i="0">The target skips positions it can predict cheaply.</button>
+        <button class="opt" data-i="1">The pass is memory-bound &mdash; weight streaming dominates, and you stream once regardless of how many positions ride along.</button>
+        <button class="opt" data-i="2">The extra positions are computed on the draft model instead.</button>
+      </div>
+      <p class="fb"></p>
+    </div>
+  </div>
+</section>
+
+<section class="lv">
+  <div class="wrap">
+    <div class="lvhead"><span class="lvnum">04</span><h2>The collapse at large batch</h2></div>
+    <div class="measure">
+      <p>A GPU kernel takes as long as its slower half. Streaming weights out of HBM and doing arithmetic on them happen concurrently, so the wall-clock is whichever finishes last &mdash; that <code>max</code> is the entire roofline, and it is where the formula comes from.</p>
+      <p><b>Memory time</b> is fixed. One forward pass reads the model's weights once, no matter how many token positions are in flight. Normalize that to 1 and every other quantity is measured against it.</p>
+      <p><b>Compute time</b> scales with the total token positions in the GEMM, which is <code>B&middot;P</code> for batch B and P positions. Define <code>B*</code> as the batch where a single-position pass is exactly balanced &mdash; compute time equal to memory time. Then compute time for any pass is <code>B&middot;P / B*</code>, in the same units.</p>
+      <p>So one pass costs <code>max(1, B&middot;P/B*)</code>. We want cost <em>relative to a vanilla token at the same batch</em>, and vanilla is that same expression with P = 1. Divide one by the other:</p>
+    </div>
+    <div class="formula">ratio(P) = max(1, B&middot;P / B*)&nbsp;&nbsp;/&nbsp;&nbsp;max(1, B / B*)</div>
+    <div class="measure">
+      <p>Two independent <code>max</code> calls means three regimes, not two. Drag the batch slider and watch which arm of each one wins.</p>
+    </div>
+    <div class="panel">
+      <div class="ctrls">
+        <div class="ctl"><label for="b4">Batch size B</label><input type="range" id="b4" min="0" max="10" step="1" value="0"><output id="b4o">1</output></div>
+        <div class="ctl"><label for="k4">Draft length K</label><input type="range" id="k4" min="1" max="8" step="1" value="4"><output id="k4o">4</output></div>
+        <div class="ctl"><label for="a4">Acceptance &alpha;</label><input type="range" id="a4" min="0.30" max="0.95" step="0.01" value="0.80"><output id="a4o">0.80</output></div>
+        <div class="ctl"><label for="bs4">Critical B*</label><input type="range" id="bs4" min="32" max="512" step="16" value="192"><output id="bs4o">192</output></div>
+      </div>
+
+      <div class="dis">
+        <div class="disrow">
+          <span>ratio(K+1)&nbsp;=</span>
+          <span class="frac">
+            <span class="top">max(&nbsp;<span class="arm" id="n1">1</span>&nbsp;,&nbsp;<span class="arm" id="n2">B&middot;(K+1)/B* = <b id="n2v">0.03</b></span>&nbsp;)</span>
+            <span class="bot">max(&nbsp;<span class="arm" id="d1">1</span>&nbsp;,&nbsp;<span class="arm" id="d2">B/B* = <b id="d2v">0.01</b></span>&nbsp;)</span>
+          </span>
+          <span>=</span>
+          <span class="disout" id="disout">1.00</span>
+        </div>
+        <p class="disnote" id="disnote">n</p>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><p class="k">Regime</p><p class="n" id="s4reg" style="font-size:15px;line-height:1.5">memory-bound</p></div>
+        <div class="stat"><p class="k">Verify costs</p><p class="n" id="s4amp">1.00&times;</p></div>
+        <div class="stat"><p class="k">Speedup</p><p class="n hi" id="s4sp">2.54&times;</p></div>
+        <div class="stat"><p class="k">Crossover at B</p><p class="n" id="s4x">48</p></div>
+      </div>
+      <div class="chartbox"><canvas id="ch4" role="img" aria-label="Line chart of end-to-end speedup against batch size, falling from roughly 2.5 times at batch 1 through 1.0 times near the critical batch and below it thereafter">Speedup starts near 2.5 times at batch 1 and falls below 1.0 times as batch size passes the critical batch.</canvas></div>
+    </div>
+
+    <div class="cases">
+      <div class="case" id="caseA">
+        <h6>B &le; B*/(K+1)</h6>
+        <p class="eq">max(1, small) / max(1, small)<br>= 1 / 1 = <b>1</b></p>
+        <p>Both arms lose to the constant. Weight streaming dominates in both numerator and denominator, and it does not care how many positions ride along. Verification is free.</p>
+      </div>
+      <div class="case" id="caseB">
+        <h6>B*/(K+1) &lt; B &lt; B*</h6>
+        <p class="eq">[B&middot;(K+1)/B*] / 1<br>= <b>B&middot;(K+1)/B*</b></p>
+        <p>The sting. A single position is still memory-bound, but K+1 positions are not &mdash; speculation pushed this batch over the knee by itself. Cost ramps linearly here while vanilla stays flat.</p>
+      </div>
+      <div class="case" id="caseC">
+        <h6>B &ge; B*</h6>
+        <p class="eq">[B&middot;(K+1)/B*] / [B/B*]<br>= <b>K+1</b></p>
+        <p>Both arms win. B and B* cancel completely, leaving the position count. Every draft token now costs a full token's worth of FLOPs whether or not it survives verification.</p>
+      </div>
+    </div>
+
+    <div class="measure">
+      <p>Case B is the one people miss. Plain decoding crosses into compute-bound at <code>B*</code>, but speculation gets there at <code>B*/(K+1)</code> &mdash; with K = 4 and B* = 192, that is batch 39 rather than 192. Speculative decoding brings forward the very regime that kills it, and drafting harder brings it forward further.</p>
+    </div>
+
+    <div class="quiz" data-q="4" data-pts="20" data-right="0">
+      <p class="qq">In the compute-bound regime, K = 4 and &alpha; = 0.8 gives &tau; = 3.36 for 5 verified positions. What went wrong?</p>
+      <div class="opts">
+        <button class="opt" data-i="0">You spent 5 units of compute to advance 3.36 tokens. The 1.64 rejected positions were always wasted &mdash; at small batch that waste ran in idle compute, now you are billed for it.</button>
+        <button class="opt" data-i="1">&tau; dropped because large batches make the draft model less accurate.</button>
+        <button class="opt" data-i="2">The target model stops preserving the output distribution at high concurrency.</button>
+      </div>
+      <p class="fb"></p>
+    </div>
+  </div>
+</section>
+
+<section class="lv">
+  <div class="wrap">
+    <div class="lvhead"><span class="lvnum">05</span><h2>The adapter tax</h2></div>
+    <div class="measure">
+      <p>Now make the draft repo-specific. One LoRA per repository, all of them resident on one GPU behind one base model, served S-LoRA style: the base weights stay unmerged, and each request's low-rank term is gathered, multiplied, and scattered back &mdash; every token, every layer.</p>
+      <p>Call that overhead <b>A</b>, expressed as a fraction of the compute <b>C</b> it wraps. A/C is not a constant. It drifts upward with batch size, because C per sequence amortizes across the batch while every sequence still drags its own adapter.</p>
+    </div>
+    <div class="panel">
+      <div class="key">
+        <span><i class="dot" style="background:var(--accent)"></i>Draft passes</span>
+        <span><i class="dot" style="background:var(--accept)"></i>Verify pass</span>
+        <span><i class="dot" style="background:var(--reject)"></i>Adapter overhead</span>
+        <span><i class="dot" style="background:var(--rule2)"></i>Vanilla equivalent</span>
+      </div>
+      <div class="ctrls">
+        <div class="ctl"><label for="b5">Batch size B</label><input type="range" id="b5" min="0" max="10" step="1" value="6"><output id="b5o">64</output></div>
+        <div class="ctl"><label for="ac5">Adapter A/C</label><input type="range" id="ac5" min="0" max="40" step="1" value="8"><output id="ac5o">8%</output></div>
+      </div>
+      <div class="ledger" id="ledger5"></div>
+    </div>
+    <div class="quiz" data-q="5" data-pts="15" data-right="2">
+      <p class="qq">Adding the adapter barely moves the batch size at which speculation stops beating vanilla. Why is that not reassuring?</p>
+      <div class="opts">
+        <button class="opt" data-i="0">It is reassuring &mdash; the overhead is negligible.</button>
+        <button class="opt" data-i="1">Because the crossover point is the only number reviewers care about.</button>
+        <button class="opt" data-i="2">Because vanilla is not the baseline. The adapter has to beat a generic draft that pays no adapter cost at all, and that comparison is where A lands.</button>
+      </div>
+      <p class="fb"></p>
+    </div>
+  </div>
+</section>
+
+<section class="lv">
+  <div class="wrap">
+    <div class="lvhead"><span class="lvnum">06</span><h2>The gate</h2></div>
+    <div class="measure">
+      <p>Here is the whole project in one inequality. Compare the per-repo draft against a <em>generic</em> draft, not against vanilla. Same K, same c, same verify cost &mdash; the only two things that differ are acceptance and the adapter tax. Everything else cancels:</p>
+    </div>
+    <div class="formula">ship &#10234; &tau;_L / (C + A) &gt; &tau;_G / C&nbsp;&nbsp;&#10234;&nbsp;&nbsp;&tau;_L / &tau;_G &gt; 1 + A/C</div>
+    <div class="measure">
+      <p>The relative acceptance gain has to clear the relative overhead. That is the entire week-1 decision, and K almost completely drops out of it.</p>
+    </div>
+
+    <div class="callout">
+      <p><b>Your call.</b> Week 1 came back. On three repos at K = 4, the generic draft measures &alpha; = 0.70. The per-repo adapter measures &alpha; = 0.73 &mdash; acceptance genuinely improved. The serving harness measures A/C = 8%. Ship it, or kill it?</p>
+    </div>
+
+    <div class="panel">
+      <div class="stats">
+        <div class="stat"><p class="k">&tau; generic</p><p class="n" id="bTG">2.77</p></div>
+        <div class="stat"><p class="k">&tau; per-repo</p><p class="n" id="bTL">2.94</p></div>
+        <div class="stat"><p class="k">Ratio achieved</p><p class="n hi" id="bRatio">1.059</p></div>
+        <div class="stat"><p class="k">Ratio needed</p><p class="n" id="bNeed">1.080</p></div>
+      </div>
+      <div class="btnrow" id="bossBtns">
+        <button class="solid" data-v="ship">Ship it</button>
+        <button data-v="kill">Kill it</button>
+      </div>
+      <p class="fb" id="bossFb"></p>
+    </div>
+
+    <h3 style="margin-top:44px">Sandbox &mdash; every dial at once</h3>
+    <div class="panel">
+      <div class="ctrls">
+        <div class="ctl"><label for="sB">Batch size B</label><input type="range" id="sB" min="0" max="10" step="1" value="6"><output id="sBo">64</output></div>
+        <div class="ctl"><label for="sK">Draft length K</label><input type="range" id="sK" min="1" max="8" step="1" value="4"><output id="sKo">4</output></div>
+        <div class="ctl"><label for="sAG">&alpha; generic</label><input type="range" id="sAG" min="0.30" max="0.95" step="0.01" value="0.70"><output id="sAGo">0.70</output></div>
+        <div class="ctl"><label for="sAL">&alpha; per-repo</label><input type="range" id="sAL" min="0.30" max="0.95" step="0.01" value="0.73"><output id="sALo">0.73</output></div>
+        <div class="ctl"><label for="sAC">Adapter A/C</label><input type="range" id="sAC" min="0" max="40" step="1" value="8"><output id="sACo">8%</output></div>
+        <div class="ctl"><label for="sBS">Critical B*</label><input type="range" id="sBS" min="32" max="512" step="16" value="192"><output id="sBSo">192</output></div>
+      </div>
+      <div class="verdict lose" id="sVerdict">v</div>
+      <div class="chartbox" style="margin-top:22px"><canvas id="ch6" role="img" aria-label="Line chart comparing end-to-end speedup of the per-repo LoRA draft against a generic draft across batch sizes, with a reference line at 1.0 times for vanilla decoding">Speedup versus batch size for the per-repo draft and the generic draft, with vanilla at 1.0 times.</canvas></div>
+      <div class="key" style="margin-top:14px">
+        <span><i class="dot" style="background:var(--accent)"></i>Per-repo LoRA</span>
+        <span><i class="dot" style="background:var(--ink3)"></i>Generic draft</span>
+        <span><i class="dot" style="background:var(--reject)"></i>Vanilla = 1.0&times;</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="final">
+  <div class="wrap">
+    <p class="eyebrow">Debrief</p>
+    <p class="bigscore" id="finalScore">0</p>
+    <p class="lede" id="finalMsg" style="margin-bottom:0">Answer the six checkpoints to close out the gate.</p>
+
+    <div class="recap">
+      <div class="rc">
+        <h5>What &tau; is</h5>
+        <p>Expected accepted tokens per step. A geometric series in &alpha; that saturates at 1/(1&minus;&alpha;), which is why long drafts stop paying. Independent of batch size &mdash; what changes is what &tau; is worth.</p>
+      </div>
+      <div class="rc">
+        <h5>Why batch size decides everything</h5>
+        <p>Below B*, verification rides free on a weight stream you were paying for anyway. Above it, every draft position costs real FLOPs and rejected tokens become billed waste.</p>
+      </div>
+      <div class="rc">
+        <h5>The tension in one line</h5>
+        <p>Speculative decoding wants small batches. Multi-adapter serving only exists because of large ones. Whether those windows overlap is an empirical question, not a design choice.</p>
+      </div>
+      <div class="rc">
+        <h5>The gate itself</h5>
+        <p>&tau;_L / &tau;_G &gt; 1 + A/C. Measure both sides on two or three repos before curating a single training example. A 3-point acceptance gain against an 8% tax is a no-go, however good it looks in isolation.</p>
+      </div>
+      <div class="rc">
+        <h5>The trap</h5>
+        <p>Reporting speedup against vanilla instead of against a generic draft. Vanilla is the normalizer; the generic draft is the baseline. The headline number is the difference between those two rows.</p>
+      </div>
+      <div class="rc">
+        <h5>What this model leaves out</h5>
+        <p>An idealized roofline with no efficiency loss at the knee, and no KV-cache pressure &mdash; at high batch and high adapter count, resident adapters shrink the feasible batch. Both make the real picture worse.</p>
+      </div>
+    </div>
+
+    <p class="foot">A teaching model, not a benchmark. Every constant here is a slider precisely because the honest version of these numbers has to be measured on your own hardware, harness, and repositories.</p>
+  </div>
+</section>
+</main>
+
+<script>
+(function(){
+  var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function tau(a,K){ return (1-Math.pow(a,K+1))/(1-a); }
+  function ratio(P,B,Bs){ return Math.max(1,B*P/Bs)/Math.max(1,B/Bs); }
+  function baseCost(K,B,Bs,c){ return K*c + ratio(K+1,B,Bs); }
+  function fmt(n,d){ return n.toFixed(d===undefined?2:d); }
+  function css(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+  function $(id){ return document.getElementById(id); }
+
+  var score=0, done={}, TOTALQ=6;
+  var pips=$("pips");
+  for(var i=0;i<TOTALQ;i++){ var p=document.createElement("div"); p.className="pip"; p.dataset.p=i+1; pips.appendChild(p); }
+  function award(q,pts){
+    if(done[q]) return;
+    done[q]=true; score+=pts;
+    $("scoreNum").textContent=score;
+    var pip=pips.querySelector('[data-p="'+q+'"]');
+    if(pip) pip.classList.add("on");
+    $("finalScore").textContent=score;
+    var n=Object.keys(done).length;
+    var msg=$("finalMsg");
+    if(n<TOTALQ) msg.textContent=n+" of 6 checkpoints cleared.";
+    else if(score>=90) msg.textContent="All six cleared. You can now defend the gate criterion in a room, including the part where a real acceptance gain still fails to justify itself.";
+    else msg.textContent="All six cleared. Worth a second pass on the ones you missed \u2014 the counterintuitive results are the ones that matter in review.";
+  }
+
+  var FEEDBACK={
+    "1":["A rejected step is not an empty step.","Right. The target still emits its own correct token at the rejection point, so a fully rejected step degrades gracefully to plain autoregressive decoding rather than to nothing. That floor is what makes speculation safe.","The four draft tokens were computed, but three of them are discarded. Work done is not tokens produced \u2014 that gap is the entire cost story."],
+    "2":["\u03C4 cannot exceed 1/(1\u2212\u03B1), so it cannot keep doubling.","Longer runs do not compound; each additional token multiplies by another \u03B1, so the increments shrink.","Right. \u03C4 goes from 3.36 to 4.33 \u2014 a 29% gain for double the verification cost, and the ceiling is 5 no matter how long you draft. This is why fixed K is a blunt instrument and why adaptive draft lengths exist."],
+    "3":["The target verifies every position; nothing is skipped.","Right. Arithmetic intensity at batch 1 is dreadful \u2014 you move 12B weights to do a handful of FLOPs per weight. The extra positions ride along in compute that was sitting idle.","The draft model proposed those positions, but the target verifies all of them itself."],
+    "4":["Right. Rejected positions were always wasted; the regime only changes whether you notice. And in a serving system those FLOPs were not idle capacity, they were capacity another tenant wanted \u2014 so goodput can fall even when single-request latency still looks fine.","\u03B1 is a property of the draft-target pair and the token distribution. Batching does not change it.","Speculative decoding preserves the target distribution exactly, at any batch size. That guarantee is not regime-dependent."],
+    "5":["The overhead is small relative to vanilla precisely because vanilla is the wrong yardstick.","Crossover against vanilla is a property of speculative decoding in general, not of this idea.","Right. Against vanilla the adapter is a rounding error. Against a generic draft \u2014 same K, same models, same verify cost \u2014 it is the entire difference, and it has to be paid for out of the acceptance gain alone."]
+  };
+
+  document.querySelectorAll(".quiz").forEach(function(box){
+    var q=box.dataset.q, pts=+box.dataset.pts, right=+box.dataset.right;
+    box.querySelectorAll(".opt").forEach(function(btn){
+      btn.addEventListener("click",function(){
+        var i=+btn.dataset.i;
+        box.querySelectorAll(".opt").forEach(function(b){ b.classList.remove("right","wrong"); });
+        btn.classList.add(i===right?"right":"wrong");
+        if(i===right) box.querySelector(".opt[data-i='"+right+"']").classList.add("right");
+        box.querySelector(".fb").textContent=FEEDBACK[q][i];
+        if(i===right) award(+q,pts);
+      });
+    });
+  });
+
+  function slot(kind,label){
+    var d=document.createElement("div");
+    d.className="slot"+(kind?" "+kind:"");
+    d.textContent=label;
+    return d;
+  }
+  function runStep(a,K){
+    var acc=0;
+    for(var i=0;i<K;i++){ if(Math.random()<a) acc++; else break; }
+    return acc;
+  }
+  function paint(host,K,acc){
+    host.textContent="";
+    for(var i=0;i<K;i++){
+      if(i<acc) host.appendChild(slot("ok","\u2713"));
+      else if(i===acc) host.appendChild(slot("no","\u2715"));
+      else host.appendChild(slot("dead","\u00B7"));
+    }
+    host.appendChild(slot("bonus","+1"));
+  }
+
+  var heroSlots=$("heroSlots"), heroStat=$("heroStat"), hSteps=0, hTok=0;
+  function heroTick(){
+    var acc=runStep(0.75,4);
+    paint(heroSlots,4,acc);
+    hSteps++; hTok+=acc+1;
+    heroStat.innerHTML="step "+hSteps+" &middot; empirical \u03C4 "+fmt(hTok/hSteps);
+  }
+  heroTick();
+  if(!reduce) setInterval(heroTick,1400);
+
+  var l1={steps:0,tok:0};
+  function l1Sync(){
+    var a=+$("a1").value, K=+$("k1").value;
+    $("a1o").textContent=fmt(a);
+    $("k1o").textContent=K;
+    $("s1pred").textContent=fmt(Math.min(tau(a,K),K+1));
+  }
+  function l1Roll(n){
+    var a=+$("a1").value, K=+$("k1").value, acc=0;
+    for(var i=0;i<n;i++){ acc=runStep(a,K); l1.steps++; l1.tok+=acc+1; }
+    paint($("l1slots"),K,acc);
+    $("s1steps").textContent=l1.steps;
+    $("s1tok").textContent=l1.tok;
+    $("s1emp").textContent=l1.steps?fmt(l1.tok/l1.steps):"0.00";
+  }
+  $("a1").addEventListener("input",l1Sync);
+  $("k1").addEventListener("input",function(){ l1Sync(); paint($("l1slots"),+$("k1").value,0); });
+  $("roll1").addEventListener("click",function(){ l1Roll(1); });
+  $("roll100").addEventListener("click",function(){ l1Roll(100); });
+  $("reset1").addEventListener("click",function(){ l1={steps:0,tok:0}; l1Roll(0); $("s1emp").textContent="0.00"; });
+  l1Sync(); paint($("l1slots"),4,3);
+
+  var taubars=$("taubars");
+  function l2Sync(){
+    var a=+$("a2").value;
+    $("a2o").textContent=fmt(a);
+    var vals=[], max=0;
+    for(var K=1;K<=8;K++){ var t=Math.min(tau(a,K),K+1); vals.push(t); if(t>max) max=t; }
+    if(!taubars.children.length){
+      vals.forEach(function(_,i){
+        var w=document.createElement("div"); w.className="tb";
+        w.innerHTML='<div class="fill"></div><div class="lbl"></div>';
+        taubars.appendChild(w);
+      });
+    }
+    vals.forEach(function(t,i){
+      var w=taubars.children[i];
+      w.querySelector(".fill").style.height=(t/Math.max(max,1)*100)+"%";
+      w.querySelector(".lbl").textContent=fmt(t,1);
+    });
+  }
+  $("a2").addEventListener("input",l2Sync); l2Sync();
+
+  function ledger(host,rows,scale){
+    host.textContent="";
+    rows.forEach(function(r){
+      var row=document.createElement("div"); row.className="lrow";
+      var k=document.createElement("div"); k.className="lk"; k.textContent=r.label;
+      var bar=document.createElement("div"); bar.className="lbar";
+      r.segs.forEach(function(s){
+        if(s.v<=0) return;
+        var e=document.createElement("div");
+        e.className="seg "+s.cls;
+        e.style.width=(s.v/scale*100)+"%";
+        e.textContent = s.v/scale>0.09 ? fmt(s.v) : "";
+        bar.appendChild(e);
+      });
+      row.appendChild(k); row.appendChild(bar); host.appendChild(row);
+    });
+  }
+
+  function l3Sync(){
+    var c=+$("c3").value/100, K=+$("k3").value, a=0.8;
+    $("c3o").textContent=fmt(c);
+    $("k3o").textContent=K;
+    var t=Math.min(tau(a,K),K+1);
+    var d=K*c, v=ratio(K+1,1,192), cost=d+v;
+    var scale=Math.max(t,cost);
+    ledger($("ledger3"),[
+      {label:"Vanilla, "+fmt(t)+" tokens",segs:[{v:t,cls:"s-plain"}]},
+      {label:"Speculative",segs:[{v:d,cls:"s-draft"},{v:v,cls:"s-verify"}]}
+    ],scale);
+    $("s3cost").textContent=fmt(cost);
+    $("s3tok").textContent=fmt(t);
+    $("s3sp").textContent=fmt(t/cost)+"\u00D7";
+  }
+  $("c3").addEventListener("input",l3Sync); $("k3").addEventListener("input",l3Sync); l3Sync();
+
+  function drawChart(cv,series,yMaxHint){
+    var dpr=window.devicePixelRatio||1;
+    var W=cv.clientWidth, H=cv.clientHeight;
+    cv.width=W*dpr; cv.height=H*dpr;
+    var g=cv.getContext("2d");
+    g.setTransform(dpr,0,0,dpr,0,0);
+    g.clearRect(0,0,W,H);
+    var padL=46,padR=12,padT=14,padB=32;
+    var pw=W-padL-padR, ph=H-padT-padB;
+    var yMax=yMaxHint;
+    series.forEach(function(s){ s.data.forEach(function(v){ if(v>yMax) yMax=v; }); });
+    yMax=Math.ceil(yMax*1.12*2)/2;
+    var N=series[0].data.length-1;
+    var X=function(i){ return padL+i/N*pw; };
+    var Y=function(v){ return padT+ph-(v/yMax)*ph; };
+    var rule=css("--rule"), ink3=css("--ink3");
+    g.strokeStyle=rule; g.lineWidth=1; g.font="11px "+css("--face-mono").split(",")[0]+", monospace";
+    g.fillStyle=ink3;
+    var stepY=yMax<=2?0.5:1;
+    for(var v=0;v<=yMax+0.001;v+=stepY){
+      var y=Math.round(Y(v))+0.5;
+      g.beginPath(); g.moveTo(padL,y); g.lineTo(W-padR,y); g.stroke();
+      g.textAlign="right"; g.textBaseline="middle";
+      g.fillText(v.toFixed(stepY<1?1:0)+"\u00D7",padL-8,y);
+    }
+    g.textAlign="center"; g.textBaseline="top";
+    for(var i=0;i<=N;i+=2){
+      g.fillText(String(Math.pow(2,i)),X(i),padT+ph+9);
+    }
+    series.forEach(function(s){
+      g.strokeStyle=s.color; g.lineWidth=s.w||2;
+      g.setLineDash(s.dash||[]);
+      g.beginPath();
+      s.data.forEach(function(v,i){ i?g.lineTo(X(i),Y(v)):g.moveTo(X(i),Y(v)); });
+      g.stroke();
+      g.setLineDash([]);
+      if(s.mark!==undefined && s.mark!==null){
+        g.fillStyle=s.color;
+        g.beginPath(); g.arc(X(s.mark),Y(s.data[s.mark]),4,0,6.284); g.fill();
+      }
+    });
+  }
+
+  function crossover(K,a,Bs,c,ac){
+    var t=Math.min(tau(a,K),K+1);
+    for(var b=1;b<=4096;b++){
+      if(t/(baseCost(K,b,Bs,c)*(1+ac))<1) return b;
+    }
+    return null;
+  }
+
+  function l4Sync(){
+    var B=Math.pow(2,+$("b4").value), K=+$("k4").value, a=+$("a4").value, Bs=+$("bs4").value, c=0.08;
+    $("b4o").textContent=B; $("k4o").textContent=K; $("a4o").textContent=fmt(a); $("bs4o").textContent=Bs;
+    var t=Math.min(tau(a,K),K+1);
+    var amp=ratio(K+1,B,Bs);
+    var cost=baseCost(K,B,Bs,c);
+
+    var nRaw=B*(K+1)/Bs, dRaw=B/Bs;
+    var nWins=nRaw>1, dWins=dRaw>1;
+    $("n2v").textContent=fmt(nRaw);
+    $("d2v").textContent=fmt(dRaw);
+    $("n1").className="arm "+(nWins?"dim":"live");
+    $("n2").className="arm "+(nWins?"live":"dim");
+    $("d1").className="arm "+(dWins?"dim":"live");
+    $("d2").className="arm "+(dWins?"live":"dim");
+    $("disout").textContent=fmt(amp);
+    var knee=Math.ceil(Bs/(K+1));
+    $("caseA").className="case"+(!nWins?" on":"");
+    $("caseB").className="case"+((nWins&&!dWins)?" on":"");
+    $("caseC").className="case"+(dWins?" on":"");
+    $("disnote").innerHTML =
+      !nWins ? "Both maxima pick the constant 1. Even with all "+(K+1)+" positions in flight, this pass moves more bytes than it does arithmetic, so the extra positions ride along inside a weight stream you were already paying for. Verification is free."
+      : !dWins ? "Split regime. A single position is still memory-bound, but "+(K+1)+" positions have tipped this pass into compute-bound &mdash; speculation crossed the knee at B = "+knee+" on its own, well before B* = "+Bs+". The numerator now grows with B while the denominator stays pinned at 1, so cost ramps linearly from here."
+      : "Both maxima pick the compute arm, so B and B* cancel and the ratio is exactly K+1 = "+(K+1)+". Every draft position costs a full position of FLOPs, including the "+fmt((K+1)-Math.min(tau(a,K),K+1))+" that will be rejected and thrown away.";
+
+    $("s4amp").textContent=fmt(amp)+"\u00D7";
+    $("s4reg").textContent = amp<1.12 ? "memory-bound" : (amp>(K+1)*0.88 ? "compute-bound" : "transitional");
+    var sp=t/cost;
+    var el=$("s4sp"); el.textContent=fmt(sp)+"\u00D7";
+    el.className="n "+(sp>=1?"hi":"bad");
+    var x=crossover(K,a,Bs,c,0);
+    $("s4x").textContent=x?x:"\u2014";
+    var data=[], marks=[];
+    for(var i=0;i<=10;i++){ data.push(t/baseCost(K,Math.pow(2,i),Bs,c)); }
+    drawChart($("ch4"),[
+      {data:data,color:css("--accent"),w:2,mark:+$("b4").value},
+      {data:data.map(function(){return 1;}),color:css("--reject"),w:1.5,dash:[3,4]}
+    ],2);
+  }
+  ["b4","k4","a4","bs4"].forEach(function(id){ $(id).addEventListener("input",l4Sync); });
+
+  function l5Sync(){
+    var B=Math.pow(2,+$("b5").value), ac=+$("ac5").value/100, K=4, a=0.8, Bs=192, c=0.08;
+    $("b5o").textContent=B; $("ac5o").textContent=Math.round(ac*100)+"%";
+    var t=Math.min(tau(a,K),K+1);
+    var d=K*c, v=ratio(K+1,B,Bs), C=d+v, A=ac*C;
+    var scale=Math.max(t,C+A);
+    ledger($("ledger5"),[
+      {label:"Vanilla, "+fmt(t)+" tokens",segs:[{v:t,cls:"s-plain"}]},
+      {label:"Generic draft",segs:[{v:d,cls:"s-draft"},{v:v,cls:"s-verify"}]},
+      {label:"Per-repo LoRA draft",segs:[{v:d,cls:"s-draft"},{v:v,cls:"s-verify"},{v:A,cls:"s-adapter"}]}
+    ],scale);
+  }
+  ["b5","ac5"].forEach(function(id){ $(id).addEventListener("input",l5Sync); });
+
+  var BOSS={aG:0.70,aL:0.73,K:4,ac:0.08};
+  (function(){
+    var tG=tau(BOSS.aG,BOSS.K), tL=tau(BOSS.aL,BOSS.K);
+    $("bTG").textContent=fmt(tG); $("bTL").textContent=fmt(tL);
+    $("bRatio").textContent=fmt(tL/tG,3);
+    $("bNeed").textContent=fmt(1+BOSS.ac,3);
+  })();
+  $("bossBtns").querySelectorAll("button").forEach(function(btn){
+    btn.addEventListener("click",function(){
+      var kill = btn.dataset.v==="kill";
+      $("bossBtns").querySelectorAll("button").forEach(function(b){ b.classList.remove("solid"); });
+      var fb=$("bossFb");
+      if(kill){
+        btn.classList.add("solid");
+        fb.textContent="Correct \u2014 kill it. Acceptance rose by 5.9% relative, against an 8% tax. The adapter makes the system slower than the generic draft it replaces, even though every individual measurement improved. This is the outcome the week-1 gate exists to catch: you lose one week instead of two months.";
+        award(6,25);
+      } else {
+        fb.textContent="No. It is tempting, because \u03B1 really did improve and the quality axis probably improved too. But 2.94 / 2.77 = 1.059, and the bar is 1.080. You would be shipping a 2% end-to-end regression against the generic draft. Try again.";
+      }
+    });
+  });
+
+  function sandbox(){
+    var B=Math.pow(2,+$("sB").value), K=+$("sK").value, aG=+$("sAG").value, aL=+$("sAL").value;
+    var ac=+$("sAC").value/100, Bs=+$("sBS").value, c=0.08;
+    $("sBo").textContent=B; $("sKo").textContent=K;
+    $("sAGo").textContent=fmt(aG); $("sALo").textContent=fmt(aL);
+    $("sACo").textContent=Math.round(ac*100)+"%"; $("sBSo").textContent=Bs;
+    var tG=Math.min(tau(aG,K),K+1), tL=Math.min(tau(aL,K),K+1);
+    var got=tL/tG, need=1+ac, win=got>need;
+    var sG=tG/baseCost(K,B,Bs,c), sL=tL/(baseCost(K,B,Bs,c)*(1+ac));
+    var v=$("sVerdict");
+    v.className="verdict "+(win?"win":"lose");
+    v.innerHTML="\u03C4<sub>L</sub>/\u03C4<sub>G</sub> = <b>"+fmt(got,3)+"</b> against a bar of <b>"+fmt(need,3)+"</b> \u2014 the per-repo adapter "+(win?"beats":"loses to")+" the generic draft by <b>"+fmt(Math.abs((sL/sG-1)*100),1)+"%</b> end to end, at batch "+B+".";
+    var dG=[], dL=[], one=[];
+    for(var i=0;i<=10;i++){
+      var b=Math.pow(2,i);
+      dG.push(tG/baseCost(K,b,Bs,c));
+      dL.push(tL/(baseCost(K,b,Bs,c)*(1+ac)));
+      one.push(1);
+    }
+    drawChart($("ch6"),[
+      {data:dL,color:css("--accent"),w:2,mark:+$("sB").value},
+      {data:dG,color:css("--ink3"),w:2,dash:[7,4]},
+      {data:one,color:css("--reject"),w:1.5,dash:[3,4]}
+    ],2);
+  }
+  ["sB","sK","sAG","sAL","sAC","sBS"].forEach(function(id){ $(id).addEventListener("input",sandbox); });
+
+  function redrawAll(){ l4Sync(); l5Sync(); sandbox(); }
+  redrawAll();
+  window.addEventListener("resize",function(){ l4Sync(); sandbox(); });
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change",redrawAll);
+  new MutationObserver(redrawAll).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
+})();
+</script>
+</body>
+</html>

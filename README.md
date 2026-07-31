@@ -41,6 +41,11 @@ material.
 | --- | --- |
 | [`lora_tutorial.html`](fine-tuning/lora_tutorial.html) | LoRA from scratch — the original Hu et al. equation, initialization trick, rank/alpha choices, and the modern (2025–2026) consensus on which modules to target. Family tree of follow-ups: QLoRA, DoRA, LoRA+, rsLoRA, VeRA, PiSSA, LoftQ, AdaLoRA, LongLoRA. Serving section on merging vs multi-tenant (S-LoRA / vLLM multi-LoRA). Interactive parameter-count calculator across Llama models, rsLoRA vs LoRA scaling visualizer, and an 8-question quiz. |
 
+### [`serving/`](serving/) — Inference-serving economics
+| File | Topic |
+| --- | --- |
+| [`tau_gate_game.html`](serving/tau_gate_game.html) | Speculative decoding × multi-tenant LoRA serving, as a six-level playable derivation. Why the `(1 - α^(K+1))/(1-α)` series saturates, why a verify pass covers K+1 positions rather than K, the roofline ratio `max(1, B·P/B*) / max(1, B/B*)` dissected term by term across all three regimes — including the middle band where speculation is compute-bound but plain decoding is not — the S-LoRA adapter tax, and the break-even condition `τ_L/τ_G > 1 + A/C`. Live accept/reject sampler, cost ledgers, speedup-vs-batch charts, scored checkpoints. Sits between [`speculative_decoding_tutorial.html`](sequence-models/speculative_decoding_tutorial.html) and [`lora_tutorial.html`](fine-tuning/lora_tutorial.html): those cover the two mechanisms, this covers what they cost each other. |
+
 ## How to view
 
 Open any `.html` directly in your browser — they're self-contained (single
