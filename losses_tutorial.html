@@ -1,0 +1,1286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Loss Functions in Machine Learning, Explained Simply</title>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2030;
+    --text: #e7ecf3;
+    --muted: #a3b1c6;
+    --accent: #7cc4ff;
+    --accent2: #ffb86b;
+    --good: #6ee7b7;
+    --bad: #ff8a8a;
+    --purple: #c4a3ff;
+    --line: #2a3346;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.65;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 48px 24px 80px; }
+  h1 { font-size: 2.2rem; margin: 0 0 8px; }
+  h2 { color: var(--accent); margin-top: 2.4em; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+  h3 { color: var(--accent2); margin-top: 1.6em; }
+  .subtitle { color: var(--muted); font-size: 1.05rem; margin-bottom: 32px; }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 18px 22px;
+    margin: 18px 0;
+  }
+  .analogy {
+    border-left: 4px solid var(--accent2);
+    background: #1f2535;
+    padding: 14px 18px;
+    margin: 18px 0;
+    border-radius: 4px;
+  }
+  .analogy::before {
+    content: "Analogy";
+    display: block;
+    font-weight: 700;
+    color: var(--accent2);
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .key {
+    border-left: 4px solid var(--good);
+    background: #1c2a26;
+    padding: 14px 18px;
+    margin: 18px 0;
+    border-radius: 4px;
+  }
+  .key::before {
+    content: "Key idea";
+    display: block;
+    font-weight: 700;
+    color: var(--good);
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .warn {
+    border-left: 4px solid var(--bad);
+    background: #2a1c1c;
+    padding: 14px 18px;
+    margin: 18px 0;
+    border-radius: 4px;
+  }
+  .warn::before {
+    content: "Watch out";
+    display: block;
+    font-weight: 700;
+    color: var(--bad);
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  code {
+    background: #0a0f1a;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.92em;
+    color: #ffd29a;
+  }
+  pre {
+    background: #0a0f1a;
+    border: 1px solid var(--line);
+    padding: 14px 16px;
+    border-radius: 8px;
+    overflow-x: auto;
+    color: #d6dceb;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 14px 0;
+  }
+  th, td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; }
+  th { color: var(--accent); font-weight: 600; }
+  td code { white-space: nowrap; }
+  .demo {
+    background: #0a0f1a;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 20px;
+    margin: 20px 0;
+  }
+  .demo label { display: block; margin: 10px 0 4px; color: var(--muted); font-size: 0.92rem; }
+  .demo input[type="range"] { width: 100%; }
+  .demo button {
+    background: var(--accent);
+    color: #0a0f1a;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    margin: 4px 6px 4px 0;
+  }
+  .demo button:hover { background: #a8d6ff; }
+  .demo button.alt { background: var(--purple); }
+  .demo button.alt:hover { background: #d9c6ff; }
+  .demo button.ghost { background: #2a3346; color: var(--text); }
+  .demo button.ghost:hover { background: #384260; }
+  canvas { background: #050810; border-radius: 6px; display: block; margin-top: 12px; max-width: 100%; }
+  .pill {
+    display: inline-block;
+    background: #2a3346;
+    color: var(--muted);
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    margin-right: 4px;
+  }
+  .nav {
+    position: sticky; top: 0;
+    background: rgba(15,20,32,0.92);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line);
+    padding: 10px 24px;
+    font-size: 0.88rem;
+    z-index: 10;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  .nav a { color: var(--muted); margin-right: 16px; text-decoration: none; }
+  .nav a:hover { color: var(--accent); }
+  .footnote { color: var(--muted); font-size: 0.9rem; }
+  .quiz {
+    background: #1f2535;
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin: 18px 0;
+  }
+  .quiz .q { font-weight: 600; margin-bottom: 8px; }
+  .quiz button {
+    background: #2a3346; color: var(--text); border: 1px solid var(--line);
+    padding: 6px 12px; border-radius: 6px; margin: 4px 6px 4px 0; cursor: pointer;
+  }
+  .quiz button.right { background: #1c2a26; border-color: var(--good); color: var(--good); }
+  .quiz button.wrong { background: #2a1c1c; border-color: var(--bad); color: var(--bad); }
+  .reveal { display: none; margin-top: 8px; color: var(--muted); }
+  .reveal.show { display: block; }
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin: 0 0 28px;
+    border-bottom: 1px solid var(--line);
+    flex-wrap: wrap;
+  }
+  .tab-btn {
+    background: transparent;
+    color: var(--muted);
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 12px 18px;
+    font-size: 0.98rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+    margin-bottom: -1px;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+  .twocol {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  @media (max-width: 720px) { .twocol { grid-template-columns: 1fr; } }
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 10px; font-size: 0.85rem; color: var(--muted); }
+  .legend .sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: middle; }
+  .toggle-row { margin: 10px 0; }
+  .toggle-btn {
+    background: #2a3346; color: var(--text); border: 1px solid var(--line);
+    padding: 6px 14px; border-radius: 6px; cursor: pointer; margin-right: 8px; font-size: 0.88rem;
+  }
+  .toggle-btn.active { background: var(--accent); color: #0a0f1a; border-color: var(--accent); font-weight: 700; }
+  .statline {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.92rem;
+    color: var(--text);
+    background: #131a29;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin-top: 12px;
+    white-space: pre-wrap;
+  }
+  .statline b { color: var(--accent); }
+  .statline .g { color: var(--good); }
+  .statline .o { color: var(--accent2); }
+  .statline .p { color: var(--purple); }
+  .small-slider-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 6px; }
+  .small-slider-grid .sl { }
+  .small-slider-grid .sl label { font-size: 0.8rem; margin-bottom: 2px; }
+  .dist-title { font-weight: 700; font-size: 0.85rem; letter-spacing: 0.06em; text-transform: uppercase; margin-top: 14px; }
+  .P-title { color: var(--accent); }
+  .Q-title { color: var(--accent2); }
+</style>
+</head>
+<body>
+
+<div class="nav">
+  <a href="#intro">Intro</a>
+  <a href="#regression">Regression losses</a>
+  <a href="#entropy">Entropy</a>
+  <a href="#crossentropy">Cross-entropy</a>
+  <a href="#kl">KL divergence</a>
+  <a href="#kl-asym">Forward vs reverse KL</a>
+  <a href="#zoo">Divergence zoo</a>
+  <a href="#margin">Margin & focal loss</a>
+  <a href="#contrastive">Contrastive / InfoNCE</a>
+  <a href="#generative">GANs & VAEs</a>
+  <a href="#quiz">Quiz</a>
+</div>
+
+<div class="wrap">
+
+<h1>Loss Functions in Machine Learning, in Plain English</h1>
+<p class="subtitle">
+  A guided tour of every loss you'll actually run into — MSE to Huber, entropy to KL divergence,
+  hinge to focal loss, triplet to InfoNCE, GANs to VAEs. Interactive demos throughout so you can
+  see the numbers move, not just read the formulas.
+</p>
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab('tab1', this)">Tutorial</button>
+  <button class="tab-btn" onclick="switchTab('tab2', this)">Cheat Sheet</button>
+</div>
+
+<div id="tab1" class="tab-content active">
+
+<!-- ====================================================== -->
+<h2 id="intro">1. What is a loss function, really?</h2>
+<p>
+  A <b>loss function</b> takes what your model predicted and what was actually true, and squeezes the
+  difference into a single number: <i>"how wrong were you, and how badly?"</i> Training a model is
+  just turning the crank on gradient descent to make that number smaller.
+</p>
+
+<div class="analogy">
+  A loss function is a coach with a whistle. Every prediction gets scored. A gentle miss gets a
+  gentle correction (small gradient). A wild miss gets a loud whistle (large gradient) — but
+  <i>how</i> loud depends entirely on which coach you hired. Some coaches (MSE) yell proportionally
+  to the square of your mistake. Some (MAE) yell the same amount no matter how bad the miss was.
+  Some (hinge) don't even blow the whistle once you've cleared the bar by enough margin. Picking a
+  loss function is picking which coach you want.
+</div>
+
+<div class="key">
+  Almost every loss in this page is one of two things: a <b>distance</b> between a number and a
+  target (regression), or a <b>divergence</b> between a predicted probability distribution and a
+  true one (classification / generative modeling). Once you see that split, the whole zoo gets a
+  lot smaller.
+</div>
+
+<!-- ====================================================== -->
+<h2 id="regression">2. Regression losses: MSE, MAE, Huber</h2>
+<p>
+  These all answer "how far is my prediction <code>ŷ</code> from the true value <code>y</code>?" —
+  they just disagree on how to punish big misses vs. small ones. Let <code>e = y − ŷ</code> be the error.
+</p>
+
+<table>
+  <tr><th>Loss</th><th>Formula (per example)</th><th>Gradient w.r.t. <code>ŷ</code></th><th>Personality</th></tr>
+  <tr><td><b>MSE</b> (L2)</td><td><code>e²</code></td><td><code>−2e</code> (grows with error)</td><td>Punishes big errors <i>hard</i>. Sensitive to outliers.</td></tr>
+  <tr><td><b>MAE</b> (L1)</td><td><code>|e|</code></td><td><code>−sign(e)</code> (constant size)</td><td>Treats every miss the same size-wise. Robust to outliers, but the gradient never shrinks near zero.</td></tr>
+  <tr><td><b>Huber</b></td><td><code>0.5·e²</code> if <code>|e|≤δ</code>, else <code>δ·(|e|−0.5δ)</code></td><td>Linear in <code>e</code> near 0, then flattens to <code>±δ</code></td><td>Best of both: quadratic (smooth) near zero, linear (robust) far away.</td></tr>
+</table>
+
+<div class="analogy">
+  Imagine grading essay scores off by a few points vs. off by 50 points (a data-entry typo).
+  MSE squares the gap, so that one typo contributes as much "error signal" as dozens of normal small
+  misses — the model will twist itself to fix that one outlier. MAE shrugs: a 50-point miss and a
+  5-point miss just get proportionally different, not exponentially different, weight. Huber says:
+  "be precise for small errors (quadratic), but stop overreacting past a threshold <code>δ</code> (linear)."
+</div>
+
+<div class="demo">
+  <h3 style="margin-top:0;">Try it: MSE vs MAE vs Huber</h3>
+  <p class="footnote">Drag the error slider to simulate a prediction that's off by <code>e</code>. Watch which
+  loss reacts the most — and notice how Huber's gradient caps out once <code>|e|</code> passes <code>δ</code>.</p>
+  <label>Error <code>e = y − ŷ</code>: <span id="eVal">-2.5</span></label>
+  <input id="eSlide" type="range" min="-4" max="4" step="0.1" value="-2.5" />
+  <label>Huber threshold <code>δ</code>: <span id="deltaVal">1.0</span></label>
+  <input id="deltaSlide" type="range" min="0.2" max="3" step="0.1" value="1.0" />
+  <canvas id="regCanvas" width="780" height="280"></canvas>
+  <div class="legend">
+    <span><span class="sw" style="background:#7cc4ff"></span>MSE = e²</span>
+    <span><span class="sw" style="background:#ffb86b"></span>MAE = |e|</span>
+    <span><span class="sw" style="background:#6ee7b7"></span>Huber (δ shown as dashed band)</span>
+  </div>
+  <div class="statline" id="regStats"></div>
+</div>
+
+<!-- ====================================================== -->
+<h2 id="entropy">3. Entropy: the cost of surprise</h2>
+<p>
+  Before cross-entropy and KL divergence make sense, you need <b>entropy</b>. Entropy measures how
+  "surprising" a distribution is on average, measured in bits (if we use <code>log₂</code>).
+</p>
+<pre>H(P) = − Σ p(x) · log₂ p(x)</pre>
+<div class="analogy">
+  If a distribution always predicts the same outcome (e.g. "it's sunny 100% of the time"), there's
+  zero surprise, so entropy is 0 — you already know the answer. If a distribution is a coin flip
+  (50/50), you're maximally unsure, so entropy is at its peak (1 bit). Entropy is the average number
+  of yes/no questions you'd need to ask to pin down the outcome.
+</div>
+<div class="key">
+  Entropy is a property of <b>one</b> distribution — it doesn't compare anything yet. It's the
+  baseline "how hard is this distribution to predict, even for someone who knows it perfectly."
+  Cross-entropy (next section) is what happens when your <i>guess</i> about the distribution is wrong.
+</div>
+
+<!-- ====================================================== -->
+<h2 id="crossentropy">4. Cross-entropy: the cost of a wrong guess</h2>
+<p>
+  <b>Cross-entropy</b> <code>H(P, Q)</code> asks: if the true distribution is <code>P</code> but you
+  <i>believe</i> it's <code>Q</code>, how many bits does it cost you on average to encode outcomes
+  drawn from <code>P</code>, using a code built for <code>Q</code>?
+</p>
+<pre>H(P, Q) = − Σ p(x) · log₂ q(x)</pre>
+<p>
+  In supervised learning, <code>P</code> is the one-hot true label and <code>Q</code> is your
+  model's predicted probability. For binary classification with true label <code>y ∈ {0,1}</code>
+  and predicted probability <code>ŷ = p(y=1)</code>, this collapses to the familiar:
+</p>
+<pre>BCE(y, ŷ) = − [ y · log(ŷ) + (1 − y) · log(1 − ŷ) ]</pre>
+
+<div class="key">
+  Notice the shape: when <code>y=1</code>, only the <code>log(ŷ)</code> term survives. As
+  <code>ŷ → 0</code> (you were confidently <i>wrong</i>), <code>−log(ŷ) → ∞</code>. Cross-entropy
+  punishes <b>confident, wrong</b> predictions brutally — far more than a "meh, 50/50" guess. This is
+  exactly why it trains classifiers to be well-calibrated instead of recklessly confident.
+</div>
+
+<div class="demo">
+  <h3 style="margin-top:0;">Try it: binary cross-entropy</h3>
+  <p class="footnote">Pick the true label, then slide the model's predicted probability <code>ŷ</code>
+  and watch the loss (and its gradient) explode as the model gets confidently wrong.</p>
+  <div class="toggle-row">
+    <button id="btnY1" class="toggle-btn active" onclick="setYTrue(1)">True label y = 1</button>
+    <button id="btnY0" class="toggle-btn" onclick="setYTrue(0)">True label y = 0</button>
+  </div>
+  <label>Predicted probability <code>ŷ</code>: <span id="pVal">0.50</span></label>
+  <input id="pSlide" type="range" min="0.01" max="0.99" step="0.01" value="0.50" />
+  <canvas id="ceCanvas" width="780" height="260"></canvas>
+  <div class="legend">
+    <span><span class="sw" style="background:#7cc4ff"></span>−log(ŷ) — loss curve if y = 1</span>
+    <span><span class="sw" style="background:#ffb86b"></span>−log(1−ŷ) — loss curve if y = 0</span>
+  </div>
+  <div class="statline" id="ceStats"></div>
+</div>
+
+<!-- ====================================================== -->
+<h2 id="kl">5. KL divergence: the gap between two beliefs</h2>
+<p>
+  Cross-entropy mixes two things together: the irreducible surprise of <code>P</code> itself, plus
+  the <i>extra</i> cost from your guess <code>Q</code> being wrong. <b>KL divergence</b> isolates
+  just the extra part:
+</p>
+<pre>KL(P ‖ Q) = H(P, Q) − H(P) = Σ p(x) · log( p(x) / q(x) )</pre>
+<div class="key">
+  <code>H(P,Q) = H(P) + KL(P‖Q)</code>. Since <code>H(P)</code> is a constant (it doesn't depend on
+  your model at all), <b>minimizing cross-entropy and minimizing KL divergence are the exact same
+  optimization problem.</b> This is why "train with cross-entropy loss" and "minimize KL to the true
+  distribution" are the same sentence in disguise.
+</div>
+<ul>
+  <li><code>KL(P‖Q) ≥ 0</code> always, with equality only when <code>P = Q</code> exactly (Gibbs' inequality).</li>
+  <li><code>KL(P‖Q) ≠ KL(Q‖P)</code> in general — it's a <i>divergence</i>, not a distance. No triangle inequality, no symmetry.</li>
+</ul>
+
+<div class="demo">
+  <h3 style="margin-top:0;">Try it: entropy / cross-entropy / KL calculator</h3>
+  <p class="footnote">Set two 3-outcome distributions <code>P</code> (true) and <code>Q</code> (your model's
+  guess). Sliders auto-normalize to sum to 1. Watch how <code>H(P,Q) = H(P) + KL(P‖Q)</code> always holds,
+  and how <code>KL(P‖Q)</code> and <code>KL(Q‖P)</code> disagree.</p>
+
+  <div class="dist-title P-title">Distribution P (true)</div>
+  <div class="small-slider-grid">
+    <div class="sl"><label>p₁: <span id="p1Val"></span></label><input id="p1Slide" type="range" min="1" max="98" step="1" value="70" /></div>
+    <div class="sl"><label>p₂: <span id="p2Val"></span></label><input id="p2Slide" type="range" min="1" max="98" step="1" value="20" /></div>
+    <div class="sl"><label>p₃: <span id="p3Val"></span></label><input id="p3Slide" type="range" min="1" max="98" step="1" value="10" /></div>
+  </div>
+  <div class="dist-title Q-title">Distribution Q (predicted)</div>
+  <div class="small-slider-grid">
+    <div class="sl"><label>q₁: <span id="q1Val"></span></label><input id="q1Slide" type="range" min="1" max="98" step="1" value="33" /></div>
+    <div class="sl"><label>q₂: <span id="q2Val"></span></label><input id="q2Slide" type="range" min="1" max="98" step="1" value="33" /></div>
+    <div class="sl"><label>q₃: <span id="q3Val"></span></label><input id="q3Slide" type="range" min="1" max="98" step="1" value="34" /></div>
+  </div>
+
+  <canvas id="klBars" width="780" height="200"></canvas>
+  <div class="statline" id="klStats"></div>
+</div>
+
+<!-- ====================================================== -->
+<h2 id="kl-asym">6. Forward vs. reverse KL: mode-covering vs. mode-seeking</h2>
+<p>
+  Because KL is asymmetric, <code>KL(P‖Q)</code> and <code>KL(Q‖P)</code> produce genuinely different
+  fitted models when <code>Q</code> is too simple to represent <code>P</code> exactly (e.g. fitting a
+  single Gaussian to a bimodal target). This distinction quietly explains a lot of ML:
+</p>
+<table>
+  <tr><th></th><th>Forward KL: <code>KL(P‖Q)</code></th><th>Reverse KL: <code>KL(Q‖P)</code></th></tr>
+  <tr><td><b>Used by</b></td><td>Maximum likelihood estimation (standard supervised training)</td><td>Variational inference (VAEs' ELBO, some RL objectives)</td></tr>
+  <tr><td><b>Penalizes most</b></td><td>Q being near-zero where P has mass ("zero-avoiding")</td><td>Q having mass where P is near-zero ("zero-forcing")</td></tr>
+  <tr><td><b>Resulting fit</b></td><td><b>Mode-covering</b>: Q spreads out to cover all of P's mass, even if that means putting mass in low-density valleys</td><td><b>Mode-seeking</b>: Q collapses onto a single mode of P and ignores the rest</td></tr>
+</table>
+
+<div class="analogy">
+  You're summarizing a two-humped opinion poll (half the town loves the plan, half hates it) with one
+  average number. Forward KL is a diplomat: it reports "50% support," a number that covers the whole
+  spread but describes no actual voter well. Reverse KL is a pragmatist: it picks the loudest camp and
+  reports their opinion fully, ignoring that the other half exists.
+</div>
+
+<div class="demo">
+  <h3 style="margin-top:0;">Try it: fitting one Gaussian to a two-hump target</h3>
+  <p class="footnote">The blue curve is a fixed bimodal true distribution <code>P</code>. Move the sliders
+  to fit a single Gaussian <code>Q</code> (orange), or click a preset to jump to the optimal fit under each
+  KL direction. Watch both <code>KL(P‖Q)</code> and <code>KL(Q‖P)</code> update live.</p>
+  <label>Q mean μ: <span id="muVal">0.0</span></label>
+  <input id="muSlide" type="range" min="-6" max="6" step="0.1" value="0" />
+  <label>Q std σ: <span id="sigmaVal">1.0</span></label>
+  <input id="sigmaSlide" type="range" min="0.2" max="3" step="0.05" value="1.0" />
+  <div class="toggle-row">
+    <button class="demo button" onclick="setKlModePreset('forward')">Forward-KL optimal (mode-covering)</button>
+    <button class="demo button alt" onclick="setKlModePreset('reverse')">Reverse-KL optimal (mode-seeking)</button>
+    <button class="demo button ghost" onclick="setKlModePreset('reset')">Reset</button>
+  </div>
+  <canvas id="klModeCanvas" width="780" height="260"></canvas>
+  <div class="legend">
+    <span><span class="sw" style="background:#7cc4ff"></span>P(x) — fixed two-hump true distribution</span>
+    <span><span class="sw" style="background:#ffb86b"></span>Q(x) — your single Gaussian fit</span>
+  </div>
+  <div class="statline" id="klModeStats"></div>
+</div>
+
+<!-- ====================================================== -->
+<h2 id="zoo">7. The rest of the divergence zoo</h2>
+<p>KL isn't the only way to compare distributions. Two more come up constantly:</p>
+<table>
+  <tr><th>Divergence</th><th>Idea</th><th>Symmetric?</th><th>Where you'll see it</th></tr>
+  <tr>
+    <td><b>Jensen–Shannon (JS)</b></td>
+    <td>Average of <code>KL(P‖M)</code> and <code>KL(Q‖M)</code>, where <code>M = ½(P+Q)</code></td>
+    <td>Yes, and bounded in <code>[0, log 2]</code></td>
+    <td>The original GAN's theoretical objective (the discriminator implicitly estimates JS divergence)</td>
+  </tr>
+  <tr>
+    <td><b>Wasserstein / Earth-Mover's</b></td>
+    <td>Minimum "cost" (mass × distance) to reshape one distribution's pile of dirt into the other's</td>
+    <td>Yes</td>
+    <td>WGAN — stays meaningful (non-zero gradient) even when P and Q have no overlapping support, unlike KL/JS which blow up or flatline</td>
+  </tr>
+</table>
+<div class="warn">
+  KL and JS both go haywire when <code>P</code> and <code>Q</code> don't overlap: KL → ∞, and JS
+  saturates at <code>log 2</code> with a near-zero gradient — useless for training. This is precisely
+  the failure mode that motivated Wasserstein GANs: Earth-mover's distance still gives a useful,
+  smooth gradient even for two distributions living on completely disjoint supports.
+</div>
+
+<!-- ====================================================== -->
+<h2 id="margin">8. Margin-based & focal losses</h2>
+<p>
+  Cross-entropy isn't the only way to train a classifier. <b>Hinge loss</b> (the SVM loss) doesn't
+  care about calibrated probabilities at all — it only cares whether you're on the right side of a
+  margin. Let <code>m = y · f(x)</code> where <code>y ∈ {−1,+1}</code> and <code>f(x)</code> is the
+  raw model score:
+</p>
+<pre>Hinge(m)   = max(0, 1 − m)
+Logistic(m)= log(1 + e^(−m))     ← this is binary cross-entropy, rewritten in margin form</pre>
+<div class="key">
+  Hinge gives <b>zero</b> loss (and zero gradient) once you're correctly classified with margin ≥ 1 —
+  it stops caring entirely. Logistic/cross-entropy never fully stops caring; it keeps nudging
+  <code>ŷ</code> toward 1 forever, just with a shrinking gradient. That's why SVMs produce sparse
+  "support vectors" (only the borderline points have nonzero gradient) while logistic regression uses
+  every point a little.
+</div>
+
+<div class="demo">
+  <h3 style="margin-top:0;">Try it: hinge vs. logistic loss vs. 0-1 loss</h3>
+  <label>Margin <code>m = y·f(x)</code>: <span id="mVal">-0.5</span></label>
+  <input id="mSlide" type="range" min="-3" max="3" step="0.05" value="-0.5" />
+  <canvas id="marginCanvas" width="780" height="260"></canvas>
+  <div class="legend">
+    <span><span class="sw" style="background:#6ee7b7"></span>0-1 loss (what we actually want, but can't optimize — no gradient)</span>
+    <span><span class="sw" style="background:#7cc4ff"></span>Hinge = max(0, 1−m)</span>
+    <span><span class="sw" style="background:#ffb86b"></span>Logistic/CE = log(1+e⁻ᵐ)</span>
+  </div>
+  <div class="statline" id="marginStats"></div>
+</div>
+
+<p>
+  <b>Focal loss</b> tweaks cross-entropy for a different problem: extreme class imbalance
+  (e.g. object detection, where 99.9% of candidate boxes are "background"). It adds a
+  <code>(1−p_t)^γ</code> down-weighting factor that dampens the loss for examples the model already
+  gets easily right, so training focuses on the hard, misclassified ones.
+</p>
+<pre>FL(p_t) = − (1 − p_t)^γ · log(p_t)        (γ = 0 recovers plain cross-entropy)</pre>
+
+<div class="demo">
+  <h3 style="margin-top:0;">Try it: focal loss down-weighting</h3>
+  <p class="footnote">Increase γ and watch easy examples (<code>p_t</code> near 1) get squashed toward
+  zero loss, while hard examples (<code>p_t</code> near 0) barely change.</p>
+  <label>Focusing parameter γ: <span id="gammaVal">2.0</span></label>
+  <input id="gammaSlide" type="range" min="0" max="5" step="0.1" value="2.0" />
+  <label>Example probability for true class <code>p_t</code>: <span id="ptVal">0.50</span></label>
+  <input id="ptSlide" type="range" min="0.02" max="0.98" step="0.01" value="0.50" />
+  <canvas id="focalCanvas" width="780" height="260"></canvas>
+  <div class="legend">
+    <span><span class="sw" style="background:#7cc4ff"></span>Cross-entropy = −log(p_t)</span>
+    <span><span class="sw" style="background:#ffb86b"></span>Focal = −(1−p_t)^γ·log(p_t)</span>
+  </div>
+  <div class="statline" id="focalStats"></div>
+</div>
+
+<!-- ====================================================== -->
+<h2 id="contrastive">9. Contrastive, triplet, and InfoNCE losses</h2>
+<p>
+  These losses don't score a single prediction against a label — they score <b>relationships between
+  examples</b> in embedding space: "these two should be close, that one should be far."
+</p>
+<table>
+  <tr><th>Loss</th><th>Formula (sketch)</th><th>Idea</th></tr>
+  <tr><td><b>Contrastive</b></td><td><code>y·d² + (1−y)·max(0, margin − d)²</code></td><td>Pull same-class pairs together (<code>d</code> = embedding distance), push different-class pairs apart until they clear a margin</td></tr>
+  <tr><td><b>Triplet</b></td><td><code>max(0, d(a,p) − d(a,n) + margin)</code></td><td>Given anchor/positive/negative, the anchor should be closer to the positive than to the negative by at least <code>margin</code></td></tr>
+  <tr><td><b>InfoNCE</b></td><td><code>−log[ exp(sim(a,p)/τ) / Σ exp(sim(a,i)/τ) ]</code></td><td>Softmax cross-entropy over similarity scores — "pick the true positive out of a batch of distractors." Powers CLIP, SimCLR, contrastive pretraining.</td></tr>
+</table>
+<div class="key">
+  Look closely at InfoNCE: it's <code>−log(softmax(...))</code> — <b>literally categorical
+  cross-entropy</b>, where the "classes" are "which item in the batch is the true match." Contrastive
+  learning didn't invent a new loss family; it repurposed cross-entropy with similarity scores instead
+  of raw logits. The whole page keeps circling back to the same handful of ideas.
+</div>
+
+<div class="demo">
+  <h3 style="margin-top:0;">Try it: triplet loss</h3>
+  <p class="footnote">Set the anchor-to-positive and anchor-to-negative distances and a margin.
+  The loss is zero once the negative clears the positive by at least the margin.</p>
+  <label>d(anchor, positive): <span id="dapVal">1.20</span></label>
+  <input id="dapSlide" type="range" min="0" max="3" step="0.05" value="1.2" />
+  <label>d(anchor, negative): <span id="danVal">1.50</span></label>
+  <input id="danSlide" type="range" min="0" max="3" step="0.05" value="1.5" />
+  <label>Margin: <span id="marginTVal">0.50</span></label>
+  <input id="marginTSlide" type="range" min="0" max="2" step="0.05" value="0.5" />
+  <canvas id="tripletCanvas" width="780" height="160"></canvas>
+  <div class="statline" id="tripletStats"></div>
+</div>
+
+<!-- ====================================================== -->
+<h2 id="generative">10. GANs and VAEs: losses built out of the losses above</h2>
+<p>
+  Generative model losses look intimidating but they're assembled from exactly the pieces you've
+  already seen.
+</p>
+
+<h3>GAN loss (minimax)</h3>
+<pre>min_G max_D   E[log D(x)]  +  E[log(1 − D(G(z)))]</pre>
+<p>
+  This is <b>binary cross-entropy</b>, twice: the discriminator <code>D</code> is trained with BCE to
+  tell real from fake; the generator <code>G</code> is trained to make <code>D</code> fail that same
+  BCE. At the optimal discriminator, this objective is provably minimizing the <b>Jensen–Shannon
+  divergence</b> between the real and generated data distributions (§7) — which is also why vanilla
+  GANs suffer from the same vanishing-gradient problem JS divergence has, motivating WGAN's switch to
+  Wasserstein distance.
+</p>
+
+<h3>VAE loss (the ELBO)</h3>
+<pre>L = Reconstruction loss (cross-entropy or MSE, decoder vs. input)
+  + KL( q(z|x) ‖ p(z) )       ← reverse-KL regularizer pulling the encoded distribution toward a prior</pre>
+<div class="key">
+  The VAE loss is literally "§2/§4 + §5/§6" stapled together: a reconstruction term that's just MSE or
+  cross-entropy on pixels, plus a <b>reverse-KL</b> term (§6) that regularizes the encoder's output
+  distribution <code>q(z|x)</code> toward a simple prior <code>p(z)</code> (usually a standard
+  Gaussian). Because it's reverse KL, the encoder tends to be mode-seeking/conservative about
+  spreading probability mass — one of the reasons VAE samples often look a bit "blurry" and
+  averaged-out compared to GAN samples.
+</div>
+
+<!-- ====================================================== -->
+<h2 id="quiz">11. Quick check</h2>
+
+<div class="quiz">
+  <div class="q">Q1. Why does MSE react so much more strongly to outliers than MAE?</div>
+  <button onclick="answer(this, false)">MSE is computed differently for outliers</button>
+  <button onclick="answer(this, true)">MSE squares the error, so a large error contributes quadratically more loss/gradient than a small one</button>
+  <button onclick="answer(this, false)">MAE ignores outliers entirely</button>
+  <div class="reveal"></div>
+</div>
+
+<div class="quiz">
+  <div class="q">Q2. What's the exact relationship between cross-entropy and KL divergence?</div>
+  <button onclick="answer(this, false)">They're unrelated — different fields of math</button>
+  <button onclick="answer(this, true)">H(P,Q) = H(P) + KL(P‖Q) — minimizing one w.r.t. Q minimizes the other</button>
+  <button onclick="answer(this, false)">KL divergence is cross-entropy squared</button>
+  <div class="reveal"></div>
+</div>
+
+<div class="quiz">
+  <div class="q">Q3. Fitting a single Gaussian to a bimodal target by minimizing forward KL, <code>KL(P‖Q)</code>, tends to produce a fit that is...</div>
+  <button onclick="answer(this, true)">Mode-covering — Q spreads wide to cover both modes, even landing in the low-density valley between them</button>
+  <button onclick="answer(this, false)">Mode-seeking — Q collapses onto whichever mode has more mass</button>
+  <button onclick="answer(this, false)">Identical regardless of KL direction</button>
+  <div class="reveal"></div>
+</div>
+
+<div class="quiz">
+  <div class="q">Q4. What does hinge loss do once a point is correctly classified with margin ≥ 1, that cross-entropy never does?</div>
+  <button onclick="answer(this, false)">It increases the loss further to be safe</button>
+  <button onclick="answer(this, true)">It drops to exactly zero loss and zero gradient — it stops caring about that point completely</button>
+  <button onclick="answer(this, false)">It switches to using MSE instead</button>
+  <div class="reveal"></div>
+</div>
+
+<div class="quiz">
+  <div class="q">Q5. What problem does focal loss's <code>(1−p_t)^γ</code> term solve?</div>
+  <button onclick="answer(this, false)">It speeds up computation of the log</button>
+  <button onclick="answer(this, true)">It down-weights easy, already-correct examples so training focuses on hard/misclassified ones — useful under severe class imbalance</button>
+  <button onclick="answer(this, false)">It converts the loss from classification to regression</button>
+  <div class="reveal"></div>
+</div>
+
+<div class="quiz">
+  <div class="q">Q6. Why is InfoNCE (used in CLIP/SimCLR) really just cross-entropy in disguise?</div>
+  <button onclick="answer(this, true)">It's a softmax over similarity scores fed into −log(·) — the exact shape of categorical cross-entropy, just with "which item in the batch is the true match" as the class label</button>
+  <button onclick="answer(this, false)">It shares no structure with cross-entropy, the resemblance is coincidental</button>
+  <button onclick="answer(this, false)">It's actually a regression loss, not a classification loss</button>
+  <div class="reveal"></div>
+</div>
+
+</div>
+<!-- ===================== end tab1 ===================== -->
+
+<div id="tab2" class="tab-content">
+
+<h2 style="margin-top:0;">Cheat sheet: every loss on one page</h2>
+<p class="footnote">A quick-reference table. Skim this when you can't remember which loss to reach for.</p>
+
+<table>
+  <tr><th>Loss</th><th>Formula</th><th>Typical use</th><th>Notes</th></tr>
+  <tr><td><b>MSE (L2)</b></td><td><code>(y−ŷ)²</code></td><td>Regression</td><td>Sensitive to outliers; gradient scales with error</td></tr>
+  <tr><td><b>MAE (L1)</b></td><td><code>|y−ŷ|</code></td><td>Regression w/ outliers</td><td>Robust, but constant gradient magnitude everywhere</td></tr>
+  <tr><td><b>Huber</b></td><td>Quadratic near 0, linear past <code>δ</code></td><td>Regression w/ some outliers</td><td>Smooth + robust compromise</td></tr>
+  <tr><td><b>Log-cosh</b></td><td><code>log(cosh(y−ŷ))</code></td><td>Regression</td><td>Smooth approximation to Huber, twice differentiable everywhere</td></tr>
+  <tr><td><b>Binary cross-entropy</b></td><td><code>−[y·log ŷ + (1−y)·log(1−ŷ)]</code></td><td>Binary classification</td><td>= KL(P‖Q) + H(P); H(P)=0 since P is one-hot</td></tr>
+  <tr><td><b>Categorical cross-entropy</b></td><td><code>−Σ y_i·log ŷ_i</code></td><td>Multi-class classification</td><td>Usually paired with softmax outputs</td></tr>
+  <tr><td><b>KL divergence</b></td><td><code>Σ p·log(p/q)</code></td><td>Distribution matching, VAEs, distillation, RL policy regularization</td><td>Asymmetric — forward = mode-covering, reverse = mode-seeking</td></tr>
+  <tr><td><b>Jensen–Shannon</b></td><td>Symmetrized, smoothed KL via midpoint <code>M=½(P+Q)</code></td><td>Original GAN objective (implicitly)</td><td>Bounded, symmetric, but vanishing gradient when supports don't overlap</td></tr>
+  <tr><td><b>Wasserstein / EMD</b></td><td>Min cost to transport mass from P to Q</td><td>WGAN</td><td>Meaningful gradient even for disjoint supports</td></tr>
+  <tr><td><b>Hinge</b></td><td><code>max(0, 1−y·f(x))</code></td><td>SVMs, max-margin classifiers</td><td>Zero loss/gradient past margin 1 — sparse "support vectors"</td></tr>
+  <tr><td><b>Squared hinge</b></td><td><code>max(0, 1−y·f(x))²</code></td><td>SVMs (smoother variant)</td><td>Differentiable everywhere unlike plain hinge</td></tr>
+  <tr><td><b>Focal loss</b></td><td><code>−(1−p_t)^γ·log(p_t)</code></td><td>Object detection, extreme class imbalance</td><td>γ=0 recovers cross-entropy; higher γ focuses harder on hard examples</td></tr>
+  <tr><td><b>Contrastive</b></td><td><code>y·d² + (1−y)·max(0,margin−d)²</code></td><td>Siamese networks, metric learning</td><td>Pairwise: pull same-class close, push different-class apart</td></tr>
+  <tr><td><b>Triplet</b></td><td><code>max(0, d(a,p)−d(a,n)+margin)</code></td><td>Face/metric embeddings (FaceNet)</td><td>Needs anchor/positive/negative triplets, often hard-mined</td></tr>
+  <tr><td><b>InfoNCE</b></td><td><code>−log[exp(sim(a,p)/τ) / Σexp(sim(a,i)/τ)]</code></td><td>Contrastive pretraining (SimCLR, CLIP)</td><td>Softmax cross-entropy over similarities — bigger batch = more negatives = harder task</td></tr>
+  <tr><td><b>GAN (minimax)</b></td><td><code>E[log D(x)] + E[log(1−D(G(z)))]</code></td><td>Generative adversarial networks</td><td>BCE for D and G; optimal D makes this ≈ JS divergence</td></tr>
+  <tr><td><b>VAE ELBO</b></td><td>Reconstruction loss + <code>KL(q(z|x)‖p(z))</code></td><td>Variational autoencoders</td><td>Reconstruction = CE/MSE; regularizer = reverse KL to a prior</td></tr>
+</table>
+
+<h3>Which one should I actually use?</h3>
+<table>
+  <tr><th>Situation</th><th>Reach for</th></tr>
+  <tr><td>Predicting a continuous number, clean data</td><td>MSE</td></tr>
+  <tr><td>Predicting a continuous number, some bad outliers/labels</td><td>MAE or Huber</td></tr>
+  <tr><td>Binary classification</td><td>Binary cross-entropy</td></tr>
+  <tr><td>Multi-class classification</td><td>Categorical cross-entropy (softmax)</td></tr>
+  <tr><td>Severe class imbalance (e.g. 1000:1)</td><td>Focal loss</td></tr>
+  <tr><td>Max-margin / SVM-style classifier</td><td>Hinge loss</td></tr>
+  <tr><td>Learning embeddings where "similar" should cluster</td><td>Triplet / contrastive / InfoNCE</td></tr>
+  <tr><td>Matching a model distribution to data (generative)</td><td>Cross-entropy / KL, or adversarial (GAN) loss</td></tr>
+  <tr><td>Regularizing a learned distribution toward a simple prior</td><td>KL divergence (reverse direction, as in VAEs)</td></tr>
+  <tr><td>Comparing distributions with little/no overlap</td><td>Wasserstein distance, not KL/JS</td></tr>
+</table>
+
+</div>
+<!-- ===================== end tab2 ===================== -->
+
+</div>
+
+<script>
+  // ---------- tab switching ----------
+  function switchTab(tabId, btn) {
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(tabId).classList.add('active');
+    btn.classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  document.querySelectorAll('.nav a').forEach(a => {
+    a.addEventListener('click', () => {
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('tab1').classList.add('active');
+      document.querySelector('.tab-btn').classList.add('active');
+    });
+  });
+
+  function fmt(v, d) { return (v === Infinity) ? '∞' : v.toFixed(d === undefined ? 3 : d); }
+
+  // =====================================================
+  // Demo A: regression losses
+  // =====================================================
+  (function () {
+    const cv = document.getElementById('regCanvas');
+    const ctx = cv.getContext('2d');
+    const eSlide = document.getElementById('eSlide');
+    const deltaSlide = document.getElementById('deltaSlide');
+    const eVal = document.getElementById('eVal');
+    const deltaVal = document.getElementById('deltaVal');
+    const stats = document.getElementById('regStats');
+
+    const XMIN = -4, XMAX = 4, YMAX = 10;
+    function xToPx(e, W) { return 44 + (e - XMIN) / (XMAX - XMIN) * (W - 64); }
+    function yToPx(v, H) { const c = Math.min(v, YMAX); return (H - 34) - (c / YMAX) * (H - 54); }
+
+    function mseL(e) { return e * e; }
+    function maeL(e) { return Math.abs(e); }
+    function huberL(e, d) { const a = Math.abs(e); return a <= d ? 0.5 * e * e : d * (a - 0.5 * d); }
+    function huberG(e, d) { const a = Math.abs(e); return a <= d ? e : d * Math.sign(e); }
+
+    function draw() {
+      const e0 = parseFloat(eSlide.value);
+      const d = parseFloat(deltaSlide.value);
+      eVal.textContent = e0.toFixed(1);
+      deltaVal.textContent = d.toFixed(1);
+
+      const W = cv.width, H = cv.height;
+      ctx.clearRect(0, 0, W, H);
+
+      // huber delta band
+      ctx.fillStyle = 'rgba(110,231,183,0.08)';
+      ctx.fillRect(xToPx(-d, W), 10, xToPx(d, W) - xToPx(-d, W), H - 44);
+
+      // axes
+      ctx.strokeStyle = '#2a3346';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(44, H - 34); ctx.lineTo(W - 10, H - 34);
+      ctx.moveTo(xToPx(0, W), 10); ctx.lineTo(xToPx(0, W), H - 34);
+      ctx.stroke();
+      ctx.fillStyle = '#a3b1c6';
+      ctx.font = '12px system-ui';
+      for (let e = XMIN; e <= XMAX; e++) {
+        ctx.fillText(e.toString(), xToPx(e, W) - 4, H - 16);
+      }
+      ctx.fillText('e = y − ŷ →', W - 90, H - 16);
+
+      function plot(fn, color) {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        for (let i = 0; i <= 200; i++) {
+          const e = XMIN + (XMAX - XMIN) * i / 200;
+          const y = fn(e);
+          const px = xToPx(e, W), py = yToPx(y, H);
+          if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+      }
+      plot(mseL, '#7cc4ff');
+      plot(maeL, '#ffb86b');
+      plot((e) => huberL(e, d), '#6ee7b7');
+
+      // dot markers at e0
+      function dot(fn, color) {
+        const y = fn(e0);
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(xToPx(e0, W), yToPx(y, H), 5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      dot(mseL, '#7cc4ff');
+      dot(maeL, '#ffb86b');
+      dot((e) => huberL(e, d), '#6ee7b7');
+
+      stats.innerHTML =
+        `at e = ${e0.toFixed(1)}:\n` +
+        `  MSE   loss = <b class="p">${mseL(e0).toFixed(3)}</b>   gradient = ${(-2 * e0).toFixed(3)}\n` +
+        `  MAE   loss = <b class="o">${maeL(e0).toFixed(3)}</b>   gradient = ${(-Math.sign(e0)).toFixed(3)}\n` +
+        `  Huber loss = <b class="g">${huberL(e0, d).toFixed(3)}</b>   gradient = ${(-huberG(e0, d)).toFixed(3)}  (δ=${d.toFixed(1)})`;
+    }
+    eSlide.addEventListener('input', draw);
+    deltaSlide.addEventListener('input', draw);
+    draw();
+  })();
+
+  // =====================================================
+  // Demo B: binary cross-entropy
+  // =====================================================
+  let yTrue = 1;
+  function setYTrue(v) {
+    yTrue = v;
+    document.getElementById('btnY1').classList.toggle('active', v === 1);
+    document.getElementById('btnY0').classList.toggle('active', v === 0);
+    drawCE();
+  }
+  function drawCE() {
+    const cv = document.getElementById('ceCanvas');
+    const ctx = cv.getContext('2d');
+    const pSlide = document.getElementById('pSlide');
+    const pVal = document.getElementById('pVal');
+    const stats = document.getElementById('ceStats');
+
+    const p = parseFloat(pSlide.value);
+    pVal.textContent = p.toFixed(2);
+
+    const W = cv.width, H = cv.height;
+    const YMAX = 5;
+    function xToPx(p) { return 44 + p * (W - 64); }
+    function yToPx(v) { const c = Math.min(v, YMAX); return (H - 34) - (c / YMAX) * (H - 54); }
+
+    ctx.clearRect(0, 0, W, H);
+    ctx.strokeStyle = '#2a3346';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(44, H - 34); ctx.lineTo(W - 10, H - 34);
+    ctx.moveTo(44, 10); ctx.lineTo(44, H - 34);
+    ctx.stroke();
+    ctx.fillStyle = '#a3b1c6';
+    ctx.font = '12px system-ui';
+    [0, 0.25, 0.5, 0.75, 1].forEach(v => ctx.fillText(v.toString(), xToPx(v) - 8, H - 16));
+    ctx.fillText('predicted ŷ →', W - 100, H - 16);
+
+    function plot(fn, color, alpha) {
+      ctx.strokeStyle = color;
+      ctx.globalAlpha = alpha;
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      for (let i = 0; i <= 200; i++) {
+        const pp = 0.005 + 0.99 * i / 200;
+        const y = fn(pp);
+        const px = xToPx(pp), py = yToPx(y);
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+    const lossIf1 = (pp) => -Math.log(pp);
+    const lossIf0 = (pp) => -Math.log(1 - pp);
+    plot(lossIf1, '#7cc4ff', yTrue === 1 ? 1 : 0.35);
+    plot(lossIf0, '#ffb86b', yTrue === 0 ? 1 : 0.35);
+
+    const activeFn = yTrue === 1 ? lossIf1 : lossIf0;
+    const activeColor = yTrue === 1 ? '#7cc4ff' : '#ffb86b';
+    const loss = activeFn(p);
+    ctx.fillStyle = activeColor;
+    ctx.beginPath();
+    ctx.arc(xToPx(p), yToPx(loss), 6, 0, Math.PI * 2);
+    ctx.fill();
+
+    const grad = yTrue === 1 ? (-1 / p) : (1 / (1 - p));
+    stats.innerHTML =
+      `y = ${yTrue}, ŷ = ${p.toFixed(2)}\n` +
+      `  loss = <b class="${yTrue === 1 ? 'p' : 'o'}">${loss.toFixed(3)}</b>` +
+      `   dLoss/dŷ = ${grad.toFixed(3)}\n` +
+      (yTrue === 1 && p < 0.1 ? '  → confidently wrong: loss is exploding' :
+       yTrue === 0 && p > 0.9 ? '  → confidently wrong: loss is exploding' :
+       '  → getting this right shrinks the loss toward 0');
+  }
+  document.getElementById('pSlide').addEventListener('input', drawCE);
+  drawCE();
+
+  // =====================================================
+  // Demo C: entropy / cross-entropy / KL calculator
+  // =====================================================
+  (function () {
+    const ids = ['p1', 'p2', 'p3', 'q1', 'q2', 'q3'];
+    const sliders = {}, labels = {};
+    ids.forEach(id => {
+      sliders[id] = document.getElementById(id + 'Slide');
+      labels[id] = document.getElementById(id + 'Val');
+    });
+    const cv = document.getElementById('klBars');
+    const ctx = cv.getContext('2d');
+    const stats = document.getElementById('klStats');
+
+    function log2(x) { return Math.log(x) / Math.LN2; }
+
+    function draw() {
+      const raw = {};
+      ids.forEach(id => raw[id] = parseFloat(sliders[id].value));
+      const sumP = raw.p1 + raw.p2 + raw.p3;
+      const sumQ = raw.q1 + raw.q2 + raw.q3;
+      const P = [raw.p1 / sumP, raw.p2 / sumP, raw.p3 / sumP];
+      const Q = [raw.q1 / sumQ, raw.q2 / sumQ, raw.q3 / sumQ];
+
+      labels.p1.textContent = (P[0] * 100).toFixed(0) + '%';
+      labels.p2.textContent = (P[1] * 100).toFixed(0) + '%';
+      labels.p3.textContent = (P[2] * 100).toFixed(0) + '%';
+      labels.q1.textContent = (Q[0] * 100).toFixed(0) + '%';
+      labels.q2.textContent = (Q[1] * 100).toFixed(0) + '%';
+      labels.q3.textContent = (Q[2] * 100).toFixed(0) + '%';
+
+      let Hp = 0, Hpq = 0, KLpq = 0, KLqp = 0;
+      for (let i = 0; i < 3; i++) {
+        Hp += -P[i] * log2(P[i]);
+        Hpq += -P[i] * log2(Q[i]);
+        KLpq += P[i] * log2(P[i] / Q[i]);
+        KLqp += Q[i] * log2(Q[i] / P[i]);
+      }
+
+      // bar chart
+      const W = cv.width, H = cv.height;
+      ctx.clearRect(0, 0, W, H);
+      const groupW = (W - 80) / 3;
+      const maxBar = H - 60;
+      for (let i = 0; i < 3; i++) {
+        const gx = 60 + i * groupW;
+        const pH = P[i] * maxBar, qH = Q[i] * maxBar;
+        ctx.fillStyle = '#7cc4ff';
+        ctx.fillRect(gx, H - 34 - pH, 34, pH);
+        ctx.fillStyle = '#ffb86b';
+        ctx.fillRect(gx + 40, H - 34 - qH, 34, qH);
+        ctx.fillStyle = '#a3b1c6';
+        ctx.font = '12px system-ui';
+        ctx.fillText('outcome ' + (i + 1), gx, H - 14);
+      }
+      ctx.strokeStyle = '#2a3346';
+      ctx.beginPath();
+      ctx.moveTo(40, H - 34); ctx.lineTo(W - 20, H - 34);
+      ctx.stroke();
+
+      stats.innerHTML =
+        `H(P)      = <b class="g">${Hp.toFixed(3)}</b> bits\n` +
+        `H(P,Q)    = <b class="p">${Hpq.toFixed(3)}</b> bits   (cross-entropy)\n` +
+        `KL(P‖Q)   = <b class="o">${KLpq.toFixed(3)}</b> bits   (forward)\n` +
+        `KL(Q‖P)   = <b class="o">${KLqp.toFixed(3)}</b> bits   (reverse — notice it usually differs!)\n` +
+        `check: H(P) + KL(P‖Q) = ${(Hp + KLpq).toFixed(3)}  ≈  H(P,Q) = ${Hpq.toFixed(3)}  ✓`;
+    }
+    ids.forEach(id => sliders[id].addEventListener('input', draw));
+    draw();
+  })();
+
+  // =====================================================
+  // Demo D: forward vs reverse KL mode-seeking demo
+  // =====================================================
+  (function () {
+    const cv = document.getElementById('klModeCanvas');
+    const ctx = cv.getContext('2d');
+    const muSlide = document.getElementById('muSlide');
+    const sigmaSlide = document.getElementById('sigmaSlide');
+    const muVal = document.getElementById('muVal');
+    const sigmaVal = document.getElementById('sigmaVal');
+    const stats = document.getElementById('klModeStats');
+
+    function gauss(x, mu, sigma) {
+      return Math.exp(-0.5 * Math.pow((x - mu) / sigma, 2)) / (sigma * Math.sqrt(2 * Math.PI));
+    }
+    function pTrue(x) { return 0.5 * gauss(x, -2, 0.6) + 0.5 * gauss(x, 2, 0.6); }
+
+    const XMIN = -6, XMAX = 6, N = 480;
+    const dx = (XMAX - XMIN) / N;
+    const xs = [];
+    for (let i = 0; i <= N; i++) xs.push(XMIN + i * dx);
+
+    function klNumeric(fFrom, fTo) {
+      let s = 0;
+      for (const x of xs) {
+        const a = fFrom(x);
+        if (a > 1e-7) {
+          const b = fTo(x);
+          s += a * Math.log((a + 1e-12) / (b + 1e-12)) * dx;
+        }
+      }
+      return s;
+    }
+
+    window.setKlModePreset = function (mode) {
+      if (mode === 'forward') { muSlide.value = 0; sigmaSlide.value = 2.09; }
+      else if (mode === 'reverse') { muSlide.value = 2; sigmaSlide.value = 0.6; }
+      else { muSlide.value = 0; sigmaSlide.value = 1; }
+      draw();
+    };
+
+    function draw() {
+      const mu = parseFloat(muSlide.value);
+      const sigma = parseFloat(sigmaSlide.value);
+      muVal.textContent = mu.toFixed(1);
+      sigmaVal.textContent = sigma.toFixed(2);
+
+      const qApprox = (x) => gauss(x, mu, sigma);
+
+      const W = cv.width, H = cv.height;
+      const YMAX = 1.3;
+      function xToPx(x) { return 44 + (x - XMIN) / (XMAX - XMIN) * (W - 64); }
+      function yToPx(v) { const c = Math.min(v, YMAX); return (H - 34) - (c / YMAX) * (H - 54); }
+
+      ctx.clearRect(0, 0, W, H);
+      ctx.strokeStyle = '#2a3346';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(44, H - 34); ctx.lineTo(W - 10, H - 34);
+      ctx.stroke();
+      ctx.fillStyle = '#a3b1c6';
+      ctx.font = '12px system-ui';
+      for (let x = XMIN; x <= XMAX; x += 2) ctx.fillText(x.toString(), xToPx(x) - 4, H - 16);
+
+      function plot(fn, color) {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        for (let i = 0; i <= N; i++) {
+          const x = xs[i];
+          const px = xToPx(x), py = yToPx(fn(x));
+          if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+      }
+      plot(pTrue, '#7cc4ff');
+      plot(qApprox, '#ffb86b');
+
+      const klpq = klNumeric(pTrue, qApprox);
+      const klqp = klNumeric(qApprox, pTrue);
+      stats.innerHTML =
+        `KL(P‖Q) [forward] = <b class="p">${klpq.toFixed(3)}</b> nats\n` +
+        `KL(Q‖P) [reverse] = <b class="o">${klqp.toFixed(3)}</b> nats\n` +
+        `try: forward-KL optimum ≈ μ=0.0, σ≈2.09 (covers both humps) — reverse-KL optimum ≈ μ=±2.0, σ≈0.6 (locks onto one hump)`;
+    }
+    muSlide.addEventListener('input', draw);
+    sigmaSlide.addEventListener('input', draw);
+    draw();
+  })();
+
+  // =====================================================
+  // Demo E: margin losses (hinge / logistic / 0-1)
+  // =====================================================
+  (function () {
+    const cv = document.getElementById('marginCanvas');
+    const ctx = cv.getContext('2d');
+    const mSlide = document.getElementById('mSlide');
+    const mVal = document.getElementById('mVal');
+    const stats = document.getElementById('marginStats');
+
+    const XMIN = -3, XMAX = 3, YMAX = 4;
+    function xToPx(m, W) { return 44 + (m - XMIN) / (XMAX - XMIN) * (W - 64); }
+    function yToPx(v, H) { const c = Math.min(Math.max(v, 0), YMAX); return (H - 34) - (c / YMAX) * (H - 54); }
+
+    function hinge(m) { return Math.max(0, 1 - m); }
+    function logistic(m) { return Math.log(1 + Math.exp(-m)); }
+    function zeroOne(m) { return m < 0 ? 1 : 0; }
+
+    function draw() {
+      const m0 = parseFloat(mSlide.value);
+      mVal.textContent = m0.toFixed(2);
+      const W = cv.width, H = cv.height;
+      ctx.clearRect(0, 0, W, H);
+      ctx.strokeStyle = '#2a3346';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(44, H - 34); ctx.lineTo(W - 10, H - 34);
+      ctx.moveTo(xToPx(0, W), 10); ctx.lineTo(xToPx(0, W), H - 34);
+      ctx.stroke();
+      ctx.fillStyle = '#a3b1c6';
+      ctx.font = '12px system-ui';
+      for (let m = XMIN; m <= XMAX; m++) ctx.fillText(m.toString(), xToPx(m, W) - 4, H - 16);
+
+      function plot(fn, color, dashed) {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2.5;
+        ctx.setLineDash(dashed ? [5, 4] : []);
+        ctx.beginPath();
+        for (let i = 0; i <= 300; i++) {
+          const m = XMIN + (XMAX - XMIN) * i / 300;
+          const px = xToPx(m, W), py = yToPx(fn(m), H);
+          if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+      plot(zeroOne, '#6ee7b7', true);
+      plot(hinge, '#7cc4ff', false);
+      plot(logistic, '#ffb86b', false);
+
+      function dot(fn, color) {
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(xToPx(m0, W), yToPx(fn(m0), H), 5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      dot(hinge, '#7cc4ff');
+      dot(logistic, '#ffb86b');
+
+      stats.innerHTML =
+        `at margin m = ${m0.toFixed(2)}:\n` +
+        `  Hinge loss    = <b class="p">${hinge(m0).toFixed(3)}</b>` + (hinge(m0) === 0 ? '  (no gradient — point ignored)' : '') + '\n' +
+        `  Logistic/CE   = <b class="o">${logistic(m0).toFixed(3)}</b>  (never fully reaches 0)`;
+    }
+    mSlide.addEventListener('input', draw);
+    draw();
+  })();
+
+  // =====================================================
+  // Demo F: focal loss
+  // =====================================================
+  (function () {
+    const cv = document.getElementById('focalCanvas');
+    const ctx = cv.getContext('2d');
+    const gammaSlide = document.getElementById('gammaSlide');
+    const ptSlide = document.getElementById('ptSlide');
+    const gammaVal = document.getElementById('gammaVal');
+    const ptVal = document.getElementById('ptVal');
+    const stats = document.getElementById('focalStats');
+
+    const YMAX = 4;
+    function xToPx(p, W) { return 44 + p * (W - 64); }
+    function yToPx(v, H) { const c = Math.min(v, YMAX); return (H - 34) - (c / YMAX) * (H - 54); }
+    function ce(p) { return -Math.log(p); }
+    function focal(p, g) { return -Math.pow(1 - p, g) * Math.log(p); }
+
+    function draw() {
+      const g = parseFloat(gammaSlide.value);
+      const pt = parseFloat(ptSlide.value);
+      gammaVal.textContent = g.toFixed(1);
+      ptVal.textContent = pt.toFixed(2);
+
+      const W = cv.width, H = cv.height;
+      ctx.clearRect(0, 0, W, H);
+      ctx.strokeStyle = '#2a3346';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(44, H - 34); ctx.lineTo(W - 10, H - 34);
+      ctx.moveTo(44, 10); ctx.lineTo(44, H - 34);
+      ctx.stroke();
+      ctx.fillStyle = '#a3b1c6';
+      ctx.font = '12px system-ui';
+      [0, 0.25, 0.5, 0.75, 1].forEach(v => ctx.fillText(v.toString(), xToPx(v, W) - 8, H - 16));
+
+      function plot(fn, color) {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        for (let i = 0; i <= 200; i++) {
+          const p = 0.01 + 0.98 * i / 200;
+          const px = xToPx(p, W), py = yToPx(fn(p), H);
+          if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+      }
+      plot(ce, '#7cc4ff');
+      plot((p) => focal(p, g), '#ffb86b');
+
+      ctx.fillStyle = '#7cc4ff';
+      ctx.beginPath(); ctx.arc(xToPx(pt, W), yToPx(ce(pt), H), 5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#ffb86b';
+      ctx.beginPath(); ctx.arc(xToPx(pt, W), yToPx(focal(pt, g), H), 5, 0, Math.PI * 2); ctx.fill();
+
+      const ceVal = ce(pt), flVal = focal(pt, g);
+      const downweight = Math.pow(1 - pt, g);
+      stats.innerHTML =
+        `at p_t = ${pt.toFixed(2)}, γ = ${g.toFixed(1)}:\n` +
+        `  Cross-entropy = <b class="p">${ceVal.toFixed(3)}</b>\n` +
+        `  Focal loss    = <b class="o">${flVal.toFixed(3)}</b>   (down-weighted by (1−p_t)^γ = ${downweight.toFixed(3)}×)`;
+    }
+    gammaSlide.addEventListener('input', draw);
+    ptSlide.addEventListener('input', draw);
+    draw();
+  })();
+
+  // =====================================================
+  // Demo G: triplet loss
+  // =====================================================
+  (function () {
+    const cv = document.getElementById('tripletCanvas');
+    const ctx = cv.getContext('2d');
+    const dapSlide = document.getElementById('dapSlide');
+    const danSlide = document.getElementById('danSlide');
+    const marginTSlide = document.getElementById('marginTSlide');
+    const dapVal = document.getElementById('dapVal');
+    const danVal = document.getElementById('danVal');
+    const marginTVal = document.getElementById('marginTVal');
+    const stats = document.getElementById('tripletStats');
+
+    const XMAX = 3.5;
+    function xToPx(d, W) { return 50 + (d / XMAX) * (W - 90); }
+
+    function draw() {
+      const dap = parseFloat(dapSlide.value);
+      const dan = parseFloat(danSlide.value);
+      const margin = parseFloat(marginTSlide.value);
+      dapVal.textContent = dap.toFixed(2);
+      danVal.textContent = dan.toFixed(2);
+      marginTVal.textContent = margin.toFixed(2);
+
+      const loss = Math.max(0, dap - dan + margin);
+      const satisfied = loss === 0;
+
+      const W = cv.width, H = cv.height;
+      ctx.clearRect(0, 0, W, H);
+      const midY = H / 2 + 10;
+
+      // required-gap zone: [dap, dap+margin]
+      ctx.fillStyle = satisfied ? 'rgba(110,231,183,0.18)' : 'rgba(255,138,138,0.18)';
+      ctx.fillRect(xToPx(dap, W), midY - 24, xToPx(dap + margin, W) - xToPx(dap, W), 48);
+
+      // axis
+      ctx.strokeStyle = '#2a3346';
+      ctx.beginPath();
+      ctx.moveTo(50, midY); ctx.lineTo(W - 20, midY);
+      ctx.stroke();
+      ctx.fillStyle = '#a3b1c6';
+      ctx.font = '12px system-ui';
+      ctx.fillText('anchor (0)', 30, midY + 34);
+      ctx.fillText('distance from anchor →', W - 170, midY + 34);
+
+      // anchor
+      ctx.fillStyle = '#e7ecf3';
+      ctx.beginPath(); ctx.arc(xToPx(0, W), midY, 6, 0, Math.PI * 2); ctx.fill();
+      ctx.fillText('A', xToPx(0, W) - 4, midY - 14);
+
+      // positive
+      ctx.fillStyle = '#7cc4ff';
+      ctx.beginPath(); ctx.arc(xToPx(dap, W), midY, 6, 0, Math.PI * 2); ctx.fill();
+      ctx.fillText('P', xToPx(dap, W) - 4, midY - 14);
+
+      // negative
+      ctx.fillStyle = '#ffb86b';
+      ctx.beginPath(); ctx.arc(xToPx(dan, W), midY, 6, 0, Math.PI * 2); ctx.fill();
+      ctx.fillText('N', xToPx(dan, W) - 4, midY - 14);
+
+      stats.innerHTML =
+        `d(a,p) − d(a,n) + margin = ${dap.toFixed(2)} − ${dan.toFixed(2)} + ${margin.toFixed(2)} = ${(dap - dan + margin).toFixed(2)}\n` +
+        `Triplet loss = max(0, ...) = <b class="${satisfied ? 'g' : 'o'}">${loss.toFixed(3)}</b>` +
+        (satisfied ? '  ✓ negative is far enough — zero gradient' : '  ✗ negative too close — gradient pushes N away / P closer');
+    }
+    dapSlide.addEventListener('input', draw);
+    danSlide.addEventListener('input', draw);
+    marginTSlide.addEventListener('input', draw);
+    draw();
+  })();
+
+  // ---------- quiz ----------
+  function answer(btn, correct) {
+    const siblings = btn.parentElement.querySelectorAll('button');
+    siblings.forEach(b => b.disabled = true);
+    btn.classList.add(correct ? 'right' : 'wrong');
+    if (!correct) {
+      siblings.forEach(b => {
+        if (b.getAttribute('onclick').includes('true')) b.classList.add('right');
+      });
+    }
+  }
+</script>
+
+</body>
+</html>

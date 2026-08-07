@@ -16,6 +16,7 @@ working through the same material.
 | [`fastvideo_lesson.html`](fastvideo_lesson.html) | Notes on the FastVideo framework (Hao lab) |
 | [`vsa_varlen_simple.html`](vsa_varlen_simple.html) | Short intro to variable-length VSA (Video Sparse Attention) |
 | [`vsa_varlen_tutorial.html`](vsa_varlen_tutorial.html) | Deeper tutorial on VSA varlen kernel design |
+| [`losses_tutorial.html`](losses_tutorial.html) | Tour of ML loss functions: MSE/MAE/Huber, entropy, cross-entropy, KL divergence (forward vs. reverse), hinge/focal, contrastive/triplet/InfoNCE, GAN/VAE losses |
 
 ## How to view
 
