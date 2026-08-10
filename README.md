@@ -11,6 +11,11 @@ material.
 
 ## Contents
 
+### [`foundations/`](foundations/) — ML fundamentals
+| File | Topic |
+| --- | --- |
+| [`losses_tutorial.html`](foundations/losses_tutorial.html) | Tour of ML loss functions: MSE/MAE/Huber, entropy, cross-entropy, KL divergence (forward vs. reverse), JS/Wasserstein, hinge/focal, contrastive/triplet/InfoNCE, GAN/VAE losses. Interactive canvas demos throughout and a 6-question quiz. |
+
 ### [`gpu-programming/`](gpu-programming/) — GPU & CUDA
 | File | Topic |
 | --- | --- |
@@ -21,6 +26,7 @@ material.
 | --- | --- |
 | [`ssm_tutorial.html`](sequence-models/ssm_tutorial.html) | State-space models from scratch. RNN refresher, the four matrices (A, B, C, D), the recurrent / convolutional dual modes, SSM-vs-Transformer trade-offs, an interactive 1D SSM playground, and a deep-dive tab on where the non-linearity actually lives. |
 | [`speculative_decoding_tutorial.html`](sequence-models/speculative_decoding_tutorial.html) | Speculative decoding from scratch. Full correctness proof of modified rejection sampling, the `(1 - α^(γ+1))/(1-α)` expected-tokens formula, SpecInfer-style tree drafts with multi-round rejection, EAGLE / EAGLE-2 feature-level drafting and dynamic trees. Interactive playground for acceptance geometry and tree visualization. |
+| [`dflash_training_tutorial.html`](sequence-models/dflash_training_tutorial.html) | How DFlash's block-diffusion draft model is trained from a frozen target model (arXiv:2602.06036): self-distilled data curation, target-feature fusion, anchor sampling, packed block-diagonal attention, KV injection at every draft layer, and the position-weighted loss tied to greedy-prefix acceptance. Interactive demos for block construction, the attention mask, and the loss decay. |
 
 ### [`video-diffusion/`](video-diffusion/) — Video diffusion & sparse attention
 | File | Topic |
@@ -57,6 +63,7 @@ Material is based on research and open-source code from:
 
 - [Hao Zhang's lab](https://cseweb.ucsd.edu/~haozhang/) at UCSD — FastVideo, video sparse attention, distributed training, video diffusion systems
 - [Dan Fu's lab](https://www.danfu.org/) at UCSD — state-space models, efficient sequence modeling
+- [Z Lab (Zhijian Liu)](https://z-lab.ai/) at UCSD — DFlash, block-diffusion speculative decoding
 - The respective authors of Chipmunk, Fast-dLLM, dKV-Cache, and the wider efficient-ML community
 
 All credit for the underlying ideas goes to the original authors. Any errors
