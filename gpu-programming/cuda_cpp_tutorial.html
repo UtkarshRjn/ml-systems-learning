@@ -1,0 +1,2335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>CUDA C++ for Tensara: A Complete Background-Knowledge Tutorial</title>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2030;
+    --text: #e7ecf3;
+    --muted: #a3b1c6;
+    --accent: #7cc4ff;
+    --accent2: #ffb86b;
+    --good: #6ee7b7;
+    --warn: #ff9aa2;
+    --line: #2a3346;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.65;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 48px 24px 80px; }
+  h1 { font-size: 2.2rem; margin: 0 0 8px; }
+  h2 { color: var(--accent); margin-top: 2.4em; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+  h3 { color: var(--accent2); margin-top: 1.6em; }
+  h4 { color: var(--text); margin-top: 1.3em; margin-bottom: 0.4em; }
+  .subtitle { color: var(--muted); font-size: 1.05rem; margin-bottom: 32px; }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 18px 22px;
+    margin: 18px 0;
+  }
+  .analogy {
+    border-left: 4px solid var(--accent2);
+    background: #1f2535;
+    padding: 14px 18px;
+    margin: 18px 0;
+    border-radius: 4px;
+  }
+  .analogy::before {
+    content: "Analogy";
+    display: block;
+    font-weight: 700;
+    color: var(--accent2);
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .key {
+    border-left: 4px solid var(--good);
+    background: #1c2a26;
+    padding: 14px 18px;
+    margin: 18px 0;
+    border-radius: 4px;
+  }
+  .key::before {
+    content: "Key idea";
+    display: block;
+    font-weight: 700;
+    color: var(--good);
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .warn {
+    border-left: 4px solid var(--warn);
+    background: #2a1c1f;
+    padding: 14px 18px;
+    margin: 18px 0;
+    border-radius: 4px;
+  }
+  .warn::before {
+    content: "Watch out";
+    display: block;
+    font-weight: 700;
+    color: var(--warn);
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .maps {
+    background: #131a28;
+    border: 1px dashed #2a3346;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin: 12px 0;
+    font-size: 0.92rem;
+    color: var(--muted);
+  }
+  .maps b { color: var(--accent); }
+  code {
+    background: #0a0f1a;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.92em;
+    color: #ffd29a;
+  }
+  pre {
+    background: #0a0f1a;
+    border: 1px solid var(--line);
+    padding: 14px 16px;
+    border-radius: 8px;
+    overflow-x: auto;
+    color: #d6dceb;
+    font-size: 0.86rem;
+    line-height: 1.55;
+  }
+  pre code { background: none; padding: 0; color: inherit; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 14px 0;
+    font-size: 0.94rem;
+  }
+  th, td { padding: 9px 11px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+  th { color: var(--accent); font-weight: 600; }
+  .demo {
+    background: #0a0f1a;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 20px;
+    margin: 20px 0;
+  }
+  .demo label { display: block; margin: 10px 0 4px; color: var(--muted); font-size: 0.92rem; }
+  .demo input[type="range"] { width: 100%; }
+  .demo button {
+    background: var(--accent);
+    color: #0a0f1a;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    margin: 4px 6px 4px 0;
+  }
+  .demo button:hover { background: #a8d6ff; }
+  .demo button.alt { background: #2a3346; color: var(--text); }
+  canvas { background: #050810; border-radius: 6px; display: block; margin-top: 12px; max-width: 100%; }
+  .pill {
+    display: inline-block;
+    background: #2a3346;
+    color: var(--muted);
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    margin-right: 4px;
+  }
+  .pill.hard { background: #2a1c1f; color: var(--warn); }
+  .pill.med  { background: #2a2517; color: var(--accent2); }
+  .pill.easy { background: #1c2a26; color: var(--good); }
+  .nav {
+    position: sticky; top: 0;
+    background: rgba(15,20,32,0.94);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line);
+    padding: 10px 24px;
+    font-size: 0.83rem;
+    z-index: 10;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  .nav a { color: var(--muted); margin-right: 14px; text-decoration: none; }
+  .nav a:hover { color: var(--accent); }
+  .footnote { color: var(--muted); font-size: 0.9rem; }
+  pre.diagram { line-height: 1.25; font-size: 0.8rem; }
+  .twocol { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 720px) { .twocol { grid-template-columns: 1fr; } }
+  .toc {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 16px 22px;
+    margin: 20px 0;
+  }
+  .toc ol { margin: 6px 0 0 18px; padding: 0; }
+  .toc li { margin: 4px 0; }
+  .toc a { color: var(--accent); text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<div class="nav">
+  <a href="#intro">Intro</a>
+  <a href="#abi">ABI</a>
+  <a href="#model">GPU model</a>
+  <a href="#kernel">Kernels</a>
+  <a href="#memory">Memory</a>
+  <a href="#sync">Sync/Warps</a>
+  <a href="#elemwise">Element-wise</a>
+  <a href="#stencil">Stencils</a>
+  <a href="#reduce">Reductions</a>
+  <a href="#max-dim">Max-over-dim</a>
+  <a href="#scan">Scans</a>
+  <a href="#softmax">Softmax</a>
+  <a href="#sort">Sort</a>
+  <a href="#matmul">Matmul</a>
+  <a href="#tc">Tensor cores</a>
+  <a href="#special">Special matmul</a>
+  <a href="#quant">Quant GEMM</a>
+  <a href="#graph">Graphs</a>
+  <a href="#crypto">Finite fields</a>
+  <a href="#attn">Attention</a>
+  <a href="#hist">Histograms</a>
+  <a href="#conv1d">Conv-1d worked</a>
+  <a href="#perf">Perf</a>
+  <a href="#libs">Libraries</a>
+  <a href="#cheat">Cheat sheet</a>
+</div>
+
+<div class="wrap">
+
+<h1>CUDA C++ for Tensara</h1>
+<p class="subtitle">
+  A background-knowledge tutorial that covers every CUDA technique you need to solve the
+  <b>84-problem tensara.org catalog</b>. Built around 6 reusable patterns
+  (element-wise, stencil, reduction, scan, matmul tile, online-softmax) plus the specialty topics
+  (tensor cores, quantized GEMM, GPU graph algorithms, finite-field arithmetic, FlashAttention).
+  Uses the 1D convolution problem as the recurring worked example.
+</p>
+
+<div class="toc">
+<b>Table of contents</b>
+<ol>
+  <li><a href="#intro">What this tutorial is &amp; how to use it</a></li>
+  <li><a href="#abi">The tensara solve() ABI</a></li>
+  <li><a href="#model">The GPU mental model</a></li>
+  <li><a href="#kernel">Your first kernel</a></li>
+  <li><a href="#memory">Memory hierarchy + coalescing</a></li>
+  <li><a href="#sync">Sync, warps, atomics</a></li>
+  <li><a href="#elemwise">Pattern A &mdash; Element-wise &amp; fused epilogues</a></li>
+  <li><a href="#stencil">Pattern B &mdash; Stencils with halos</a></li>
+  <li><a href="#reduce">Pattern C &mdash; Reductions</a></li>
+  <li><a href="#scan">Pattern D &mdash; Parallel scans</a></li>
+  <li><a href="#softmax">Pattern E &mdash; Stable &amp; online softmax</a></li>
+  <li><a href="#sort">GPU sorting</a></li>
+  <li><a href="#matmul">Tiled matrix multiplication</a></li>
+  <li><a href="#tc">Tensor cores</a></li>
+  <li><a href="#special">Special-structure matmul</a></li>
+  <li><a href="#quant">Quantized GEMM: MXFP4 / MXFP8 / NVFP4</a></li>
+  <li><a href="#graph">Graph algorithms on the GPU</a></li>
+  <li><a href="#crypto">Modular arithmetic over finite fields</a></li>
+  <li><a href="#attn">Attention (FlashAttention)</a></li>
+  <li><a href="#hist">Histograms &amp; atomics</a></li>
+  <li><a href="#conv1d">Worked example: conv-1d end-to-end</a></li>
+  <li><a href="#perf">Performance &amp; profiling</a></li>
+  <li><a href="#libs">Library escape hatches (CUB / Thrust / cuBLAS)</a></li>
+  <li><a href="#cheat">Cheat sheet</a></li>
+</ol>
+</div>
+
+<!-- ====================================================== -->
+<h2 id="intro">1. What this tutorial is &amp; how to use it</h2>
+<p>
+  Tensara gives you a function signature and a correctness/perf grader, then asks you to write a CUDA C++
+  kernel. The catalog spans 84 problems across 16 categories &mdash; from a one-liner ReLU to MXFP4 GEMM
+  with block-scaled tensor cores to FlashAttention. To solve them all you need a fairly complete
+  CUDA toolkit.
+</p>
+<p>
+  Rather than a problem-by-problem walkthrough, this is organized around the <b>6 reusable patterns</b>
+  that show up across the catalog (sections 7&ndash;11), the specialty topics that don't reduce to those
+  patterns (sections 12&ndash;19), and one fully-worked example (section 21, conv-1d). After each pattern
+  section there's a <code>maps to</code> box listing which problems it solves.
+</p>
+
+<div class="key">
+  First time: read top-to-bottom. Then treat the document as a reference &mdash; jump to the pattern
+  section that matches the problem in front of you and the specialty section that matches the data type.
+</div>
+
+<!-- ====================================================== -->
+<h2 id="abi">2. The tensara solve() ABI</h2>
+<p>
+  Every tensara problem expects you to define one function with C linkage:
+</p>
+<pre>extern "C" void solve(/* problem-specific args */);</pre>
+
+<p>Universal rules across all 84 problems:</p>
+<ul>
+  <li>All pointer args are <b>device pointers</b> already allocated and populated by the harness.
+    Do not <code>cudaMalloc</code> / <code>cudaMemcpy</code> for them.</li>
+  <li>Parameter order &amp; types are emitted verbatim from each problem's <code>def.py</code>
+    <code>parameters</code> list. Read the signature character by character before you start.</li>
+  <li>Scalar args are passed by value (e.g. <code>const float scaling_factor</code>,
+    <code>int kernel_size</code>).</li>
+  <li>Shape/dim args are sometimes <code>size_t</code>, sometimes <code>int</code>. The variadic-rank
+    problems (softmax, MSE, generic dim reductions) take <code>const size_t* shape, size_t ndim</code>
+    &mdash; <i>that shape pointer is a device pointer too</i>. Copy it into shared memory once at kernel
+    entry, don't deref it from every thread.</li>
+  <li>Row-major layout is universal. No NCHW &harr; NHWC ambiguity except for grayscale (which is HWC packed
+    R,G,B,R,G,B,&hellip;).</li>
+  <li>Most problems use FP32. The exceptions are the quantization problems (packed FP4/FP8 bytes plus
+    scale bytes) and NVFP4 quantization (FP16 input). Read the signature.</li>
+</ul>
+
+<div class="warn">
+  Some tensara web URLs use long slugs (<code>scaled-dot-product-attention</code>) but the API uses short
+  ones (<code>scaled-dot-attention</code>). If you're scripting against the site, hit the
+  <code>/api/trpc/problems.getById?input=&hellip;</code> endpoint with the short slug instead of scraping
+  the SSR page.
+</div>
+
+<h3>2.1 Skeleton</h3>
+<pre>#include &lt;cuda_runtime.h&gt;
+#include &lt;cstddef&gt;
+
+__global__ void my_kernel(const float* __restrict__ in,
+                          float* __restrict__ out, int n) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i &lt; n) out[i] = in[i];  // your work here
+}
+
+extern "C" void solve(const float* in, float* out, size_t n) {
+    int block = 256;
+    int grid  = ((int)n + block - 1) / block;
+    my_kernel&lt;&lt;&lt;grid, block&gt;&gt;&gt;(in, out, (int)n);
+}</pre>
+
+<!-- ====================================================== -->
+<h2 id="model">3. The GPU mental model</h2>
+
+<h3>3.1 Why GPUs look weird if you come from CPUs</h3>
+<p>
+  A modern CPU has &lt;10 cores of out-of-order execution, deep pipelines, big private caches, and is
+  optimized to make <i>one</i> stream of instructions as fast as possible. A GPU like an H100 has 132 SMs,
+  each running up to 64 warps (a warp = 32 threads in lockstep). That's potentially ~270 000 threads
+  in flight at once, all sharing a single (huge) memory.
+</p>
+<p>Two consequences shape everything else:</p>
+<ol>
+  <li><b>Latency is hidden by parallelism, not avoided.</b> If one warp stalls on a global memory load
+    (~400&ndash;600 cycles), the SM scheduler swaps in another warp. As long as you have enough warps,
+    the SM never sits idle.</li>
+  <li><b>Throughput per byte from DRAM is precious.</b> H100 HBM3 gives ~3 TB/s of bandwidth across
+    ~67 TFLOPS of FP32 (or ~989 TFLOPS of FP16 tensor cores). The arithmetic intensity (FLOPs per byte)
+    you need to be compute-bound is huge. Almost every "simple" kernel is bandwidth-bound.</li>
+</ol>
+
+<div class="analogy">
+  CPU = a sushi chef with insanely sharp knives, working alone at one station as fast as possible.
+  GPU = a stadium kitchen with 270 000 line cooks, each slower, but a constantly-moving conveyor belt
+  bringing ingredients. If the conveyor (DRAM) is the bottleneck, no number of fast cooks helps.
+</div>
+
+<h3>3.2 The thread / block / grid hierarchy</h3>
+<p>When you launch a kernel, you specify two 3D shapes:</p>
+<ul>
+  <li><b>Block</b> &mdash; up to 1024 threads. Threads in the same block can share memory and synchronize.</li>
+  <li><b>Grid</b> &mdash; how many blocks. Blocks run independently and cannot directly synchronize.</li>
+</ul>
+
+<pre class="diagram">grid (e.g. 1024 blocks)
+ +-------+-------+-------+ ... +-------+
+ | block | block | block |     | block |   each block independent
+ |   0   |   1   |   2   |     |  1023 |
+ +-------+-------+-------+     +-------+
+   |
+   | block (e.g. 256 threads)
+   v
+ +---+---+---+ ... +---+
+ | t0| t1| t2|     |t255|   threads share __shared__ memory,
+ +---+---+---+     +---+   can call __syncthreads()
+   |
+   | warp = 32 consecutive threads
+   v
+ [ t0..t31 ]  -- execute the same instruction in lockstep (SIMT)</pre>
+
+<table>
+  <tr><th>Variable</th><th>What it gives you</th></tr>
+  <tr><td><code>threadIdx.x/y/z</code></td><td>This thread's index inside its block</td></tr>
+  <tr><td><code>blockIdx.x/y/z</code></td><td>This block's index inside the grid</td></tr>
+  <tr><td><code>blockDim.x/y/z</code></td><td>Number of threads per block (constant)</td></tr>
+  <tr><td><code>gridDim.x/y/z</code></td><td>Number of blocks (constant)</td></tr>
+  <tr><td><code>warpSize</code></td><td>Always 32</td></tr>
+</table>
+
+<h3>3.3 How this maps to hardware</h3>
+<p>
+  Blocks are handed to SMs as resources free up. Once a block lands on an SM, it stays until done. Within
+  the SM, threads are bundled into warps of 32. All threads in a warp execute the same instruction at the
+  same time &mdash; <b>SIMT</b> (Single Instruction, Multiple Threads).
+</p>
+
+<div class="key">
+  Three numbers in your head:
+  <ul>
+    <li><b>32</b> &mdash; threads per warp. Almost every performance rule is "per warp": coalescing,
+      bank conflicts, shuffles, divergence. Block sizes should be multiples of 32.</li>
+    <li><b>1024</b> &mdash; max threads per block.</li>
+    <li><b>48&ndash;228 KB</b> &mdash; shared memory per block, depending on GPU and opt-in.</li>
+  </ul>
+</div>
+
+<h3>3.4 Divergence</h3>
+<p>
+  A warp executes one instruction at a time. If an <code>if</code> goes different ways on different
+  threads in the same warp, the warp executes one branch with the other threads masked off, then the
+  other branch &mdash; both paths run sequentially.
+</p>
+<pre>// fine: all 32 threads in the warp take the same branch
+if (blockIdx.x == 0) { ... }
+
+// fine: divergence only at one warp at the edge
+if (i &lt; N) { do_work(); }
+
+// bad: half the warp does one thing, half does another
+if (i % 2 == 0) { even_work(); } else { odd_work(); }</pre>
+<p>
+  Edge-case divergence (one warp at the boundary) is normal and cheap. Per-thread divergence in the hot
+  loop is what you avoid.
+</p>
+
+<!-- ====================================================== -->
+<h2 id="kernel">4. Your first kernel</h2>
+
+<table>
+  <tr><th>Keyword</th><th>Runs on</th><th>Called from</th></tr>
+  <tr><td><code>__global__</code></td><td>Device</td><td>Host, with <code>&lt;&lt;&lt;&gt;&gt;&gt;</code></td></tr>
+  <tr><td><code>__device__</code></td><td>Device</td><td>Device</td></tr>
+  <tr><td><code>__host__</code></td><td>Host</td><td>Host (default)</td></tr>
+</table>
+<p>
+  You can stack: <code>__host__ __device__ inline float sqr(float x) { return x*x; }</code>
+  &mdash; compiles twice, callable from either side. Handy for shared math utilities.
+</p>
+
+<h3>4.1 Vector add &mdash; the hello world</h3>
+<pre>__global__ void vec_add(const float* a, const float* b, float* c, int n) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i &lt; n) c[i] = a[i] + b[i];
+}
+
+// launch
+int block = 256;
+int grid  = (n + block - 1) / block;     // ceil divide
+vec_add&lt;&lt;&lt;grid, block&gt;&gt;&gt;(d_a, d_b, d_c, n);</pre>
+
+<p>
+  The <code>&lt;&lt;&lt;grid, block, smem_bytes, stream&gt;&gt;&gt;</code> syntax is the only non-C++ piece
+  of CUDA. The 3rd argument is dynamic shared memory bytes (often 0), the 4th is the stream.
+</p>
+
+<h3>4.2 Picking block size</h3>
+<p>
+  Must be a multiple of 32. Defaults that work well:
+</p>
+<ul>
+  <li><b>256</b> for most kernels &mdash; safe starting point.</li>
+  <li><b>128</b> for register-heavy kernels (matmul tiles, attention).</li>
+  <li><b>512&ndash;1024</b> for memory-bound element-wise kernels where you want fewer blocks total.</li>
+</ul>
+<p>Profile, then tune.</p>
+
+<h3>4.3 2D launch geometry for images</h3>
+<p>
+  For 2D / 3D data, a 2D block shape makes neighborhood indexing natural and keeps coalescing tidy:
+</p>
+<pre>dim3 block(16, 16);                                   // 256 threads, 2D
+dim3 grid((W + 15) / 16, (H + 15) / 16);
+image_kernel&lt;&lt;&lt;grid, block&gt;&gt;&gt;(img, out, H, W);
+
+// inside the kernel:
+int col = blockIdx.x * blockDim.x + threadIdx.x;
+int row = blockIdx.y * blockDim.y + threadIdx.y;
+if (row &lt; H &amp;&amp; col &lt; W) {
+    int idx = row * W + col;                          // row-major
+    ...
+}</pre>
+<p>
+  Notice: <code>threadIdx.x</code> &harr; column. That makes consecutive threads access consecutive
+  memory addresses (row-major), which gives you coalescing for free.
+</p>
+
+<!-- ====================================================== -->
+<h2 id="memory">5. Memory hierarchy + coalescing</h2>
+
+<pre class="diagram">          ----- per thread -----
+          registers           ~256 KB/SM total, fastest, ~1 cycle
+                  |
+          ----- per block -----
+          shared memory       up to ~228 KB/block (H100), ~30 cycles
+                  |
+          ----- per SM -----
+          L1 cache            same physical SRAM as shared mem
+                  |
+          ----- per chip -----
+          L2 cache            ~50 MB on H100, ~200 cycles
+                  |
+          HBM (global)        80 GB on H100, ~400-600 cycles, ~3 TB/s</pre>
+
+<h3>5.1 Registers</h3>
+<p>
+  Every local variable lives in a register if it can. ~64K 32-bit registers per SM, split across all
+  resident threads. If each thread uses too many, fewer threads fit per SM (lower occupancy).
+  Check "Registers per thread" in nsight compute &mdash; under 32 is usually fine.
+</p>
+
+<h3>5.2 Shared memory</h3>
+<p>Per-block scratchpad. Two declaration styles:</p>
+<pre>__global__ void k(...) {
+    __shared__ float tile[256];      // static, size known at compile time
+    // or
+    extern __shared__ float dyn[];   // dynamic, size from launch: k&lt;&lt;&lt;g,b,BYTES&gt;&gt;&gt;(...)
+}</pre>
+<p>
+  All threads in the block see the same shared array. It's how threads cooperate: load once from global,
+  reuse many times from shared. The single most important optimization in stencil / convolution / matmul.
+</p>
+<p>
+  For more than 48 KB of shared memory per block you need to opt in:
+</p>
+<pre>cudaFuncSetAttribute(my_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, 100 * 1024);</pre>
+
+<h3>5.3 Constant memory</h3>
+<p>
+  64 KB region of device memory with a special broadcast cache. <i>Optimal</i> when every thread in a
+  warp reads the same address (1 broadcast, free for 32 threads). <i>Degenerates to global</i> when
+  threads read different addresses (serialized).
+</p>
+<pre>__constant__ float c_kernel[256];                     // file scope, fixed size
+
+// host
+cudaMemcpyToSymbol(c_kernel, h_kernel, K * sizeof(float));</pre>
+<p>
+  Great for small conv kernels (K&le;13) and the weight matrix of tiny linear layers. Useless for our
+  conv-1d at K=8191 because threads read different B[j] on each iteration.
+</p>
+
+<h3>5.4 Global memory &amp; coalescing</h3>
+<p>
+  Your <code>cudaMalloc</code> region. The single most important rule: when a warp issues a load, the
+  hardware looks at the 32 addresses and serves them with as few transactions as possible. A transaction
+  is 32 bytes (a sector) or up to 128 bytes (a cache line). If the 32 threads want 32 consecutive 4-byte
+  words, one transaction satisfies the warp. If the 32 threads want scattered addresses, each can need
+  its own transaction &mdash; up to 32&times; slower.
+</p>
+
+<div class="demo">
+  <label>Pick an access pattern:</label>
+  <div>
+    <button onclick="setPattern('coal')">Coalesced (stride 1)</button>
+    <button onclick="setPattern('s2')" class="alt">Stride 2</button>
+    <button onclick="setPattern('s8')" class="alt">Stride 8</button>
+    <button onclick="setPattern('rand')" class="alt">Random</button>
+  </div>
+  <canvas id="coalCanvas" width="820" height="220"></canvas>
+  <p class="footnote" id="coalNote">Each colored cell = a 4-byte word a thread reads. White outlines =
+    one 128-byte memory transaction. Coalesced = 1 transaction. Stride 8 = 8 transactions = 8&times;
+    slower bandwidth.</p>
+</div>
+
+<div class="key">
+  Design rule: arrange your loads so <code>threadIdx.x</code> maps to the <i>fastest-varying</i> memory
+  index. For row-major <code>A[row][col]</code>, that means <code>col = threadIdx.x + ...</code>, not
+  <code>row = threadIdx.x + ...</code>.
+</div>
+
+<h3>5.5 Vectorized loads (float2, float4, uint4)</h3>
+<pre>const float4* A4 = reinterpret_cast&lt;const float4*&gt;(A);
+float4 v = A4[i];          // loads 16 bytes in one instruction</pre>
+<p>
+  Fewer instructions, better memory-controller efficiency. Requires 16-byte alignment of the base
+  pointer (tensara's <code>cudaMalloc</code> gives 256-byte alignment, so OK at offset 0; care with
+  sub-arrays). <code>uint4</code> is the trick for vectorized loads of packed-byte data
+  (e.g. 16 bytes = 32 packed FP4 values).
+</p>
+
+<h3>5.6 Bank conflicts in shared memory</h3>
+<p>
+  Shared memory is organized as 32 banks of 4 bytes, interleaved. Within a warp, if two threads access
+  different 4-byte addresses that hit the same bank, the accesses serialize. If they hit the same
+  address, the hardware broadcasts &mdash; no conflict.
+</p>
+<p>
+  Classic trap: column access of a 32-wide tile sends all 32 threads to bank 0 (32-way conflict, 32&times;
+  slowdown). Classic fix: declare the tile one column wider
+  (<code>__shared__ float tile[32][33]</code>) so rows are offset by one bank.
+</p>
+
+<h3>5.7 Local memory (the trap)</h3>
+<p>
+  Despite the name, "local" memory lives in global memory. It's what registers spill into when you use
+  too many, or when you index a private array with a non-constant index:
+</p>
+<pre>float tmp[64];
+for (int i = 0; i &lt; 64; ++i) tmp[i] = i * 2.0f;
+out[t] = tmp[t &amp; 63];          // dynamic index → spills to local (= global!)</pre>
+<p>This silently kills perf. nsight compute shows "Local Memory Overhead" &mdash; aim for 0.</p>
+
+<h3>5.8 Read-only path / <code>__ldg</code></h3>
+<p>
+  Modern GPUs have a separate read-only cache. The compiler uses it automatically when you mark the
+  pointer <code>const __restrict__</code>. Equivalent to manual <code>__ldg(&amp;A[i])</code>. Always do
+  this for inputs unless you have a reason not to.
+</p>
+
+<!-- ====================================================== -->
+<h2 id="sync">6. Sync, warps, atomics</h2>
+
+<h3>6.1 <code>__syncthreads()</code></h3>
+<p>
+  A barrier across one block. Every thread must reach the same call before any proceed. Use it after
+  loading shared memory and before reading from it. Do not put it inside divergent code paths.
+</p>
+
+<h3>6.2 Warp-level primitives</h3>
+<p>
+  Threads in the same warp can communicate faster than going through shared memory.
+</p>
+<table>
+  <tr><th>Primitive</th><th>What it does</th></tr>
+  <tr><td><code>__shfl_sync(mask, val, src)</code></td><td>Every thread reads <code>val</code> from
+    lane <code>src</code>. Broadcast.</td></tr>
+  <tr><td><code>__shfl_up_sync(mask, val, delta)</code></td><td>Each thread reads from
+    <code>lane-delta</code>. For scans.</td></tr>
+  <tr><td><code>__shfl_down_sync(mask, val, delta)</code></td><td>Each thread reads from
+    <code>lane+delta</code>. For reductions.</td></tr>
+  <tr><td><code>__shfl_xor_sync(mask, val, lane_mask)</code></td><td>Butterfly exchange &mdash; standard
+    warp-reduction pattern.</td></tr>
+  <tr><td><code>__ballot_sync(mask, pred)</code></td><td>Each thread's bool becomes one bit of a 32-bit
+    result. Stream compaction.</td></tr>
+</table>
+
+<p>The canonical warp sum (32 floats &rarr; total in lane 0, no shared mem):</p>
+<pre>__device__ inline float warp_reduce_sum(float v) {
+    for (int offset = 16; offset &gt; 0; offset /= 2)
+        v += __shfl_down_sync(0xffffffff, v, offset);
+    return v;
+}</pre>
+
+<h3>6.3 Atomics</h3>
+<p>
+  <code>atomicAdd(&amp;c[i], v)</code> reads-adds-writes indivisibly. Works on global and shared.
+  Cheap when contention is low, expensive when many threads hit the same address.
+  <b>Float</b> atomics are supported on compute capability 6.0+ (Pascal+) which means all tensara GPUs.
+</p>
+<p>
+  Pattern: avoid global atomics in inner loops. Reduce to a per-block accumulator first, then issue
+  one global atomic per block.
+</p>
+
+<!-- ====================================================== -->
+<h2 id="elemwise">7. Pattern A &mdash; Element-wise &amp; fused epilogues</h2>
+
+<p>
+  The simplest pattern. Each thread produces one (or several) outputs, no neighbor data needed.
+  Bandwidth-bound by definition: read inputs, do some math, write output.
+</p>
+
+<h3>7.1 The grid-stride loop</h3>
+<p>
+  When you don't know N at compile time, or you want one kernel to handle any N, use a grid-stride loop:
+</p>
+<pre>__global__ void scale(float* a, int n, float s) {
+    int stride = blockDim.x * gridDim.x;
+    for (int i = blockIdx.x * blockDim.x + threadIdx.x; i &lt; n; i += stride)
+        a[i] *= s;
+}</pre>
+<p>
+  Cap grid size at something like <code>min(grid_compute, 4 * SM_count)</code> &mdash; bigger grids
+  don't help once the GPU is full.
+</p>
+
+<h3>7.2 Math intrinsics &mdash; fast vs accurate</h3>
+<table>
+<tr><th>Accurate</th><th>Fast (intrinsic)</th><th>Speedup</th><th>Use when</th></tr>
+<tr><td><code>expf(x)</code></td><td><code>__expf(x)</code></td><td>~3&times;</td><td>rtol &gt; 1e-5</td></tr>
+<tr><td><code>logf(x)</code></td><td><code>__logf(x)</code></td><td>~3&times;</td><td>rtol &gt; 1e-5</td></tr>
+<tr><td><code>tanhf(x)</code></td><td><code>__tanhf(x)</code></td><td>~2&times;</td><td>GELU, tanh, swish</td></tr>
+<tr><td><code>sinf/cosf</code></td><td><code>__sinf/__cosf</code></td><td>~5&times;</td><td>tolerable error</td></tr>
+<tr><td><code>1.0f/sqrtf(x)</code></td><td><code>rsqrtf(x)</code></td><td>~2&times;</td><td>always</td></tr>
+<tr><td><code>a*b+c</code></td><td><code>fmaf(a,b,c)</code></td><td>matches HW</td><td>always</td></tr>
+</table>
+<p>
+  Pass <code>-use_fast_math</code> to nvcc to get all of these automatically (caution: applies to whole
+  TU, can hurt precision-sensitive kernels).
+</p>
+
+<h3>7.3 Branchless writes</h3>
+<p>
+  For pixel thresholding (<code>out = (in &gt; t) ? 255.f : 0.f</code>), the branchless form lets the
+  compiler emit a predicated store with no divergence cost:
+</p>
+<pre>out[i] = (in[i] &gt; t) ? 255.f : 0.f;          // compiler may emit predicate
+// or explicit:
+out[i] = ((float)(in[i] &gt; t)) * 255.f;</pre>
+
+<h3>7.4 The fused-epilogue idea</h3>
+<p>
+  Whenever the problem says "compute X then apply Y", do both in one kernel. Compute X in registers,
+  apply Y in registers, store once. Never materialize the intermediate to global. This is what saves
+  you a full pass over the data &mdash; usually a 2&times; bandwidth win.
+</p>
+<pre>// Bad: two kernels, two passes over conv result
+__global__ void conv(...);
+__global__ void relu_hardswish(...);
+
+// Good: one kernel, conv accumulator → relu → hardswish → store
+__global__ void conv_relu_hardswish(...) {
+    float c = compute_conv_output(...);
+    float r = fmaxf(0.f, c);                              // ReLU
+    float h = r * fminf(6.f, fmaxf(0.f, r + 3.f)) / 6.f;  // HardSwish
+    out[i] = h;
+}</pre>
+
+<h3>7.5 Image indexing</h3>
+<p>
+  HWC packed RGB (the tensara grayscale problem):
+  <code>rgb[(row * W + col) * 3 + c]</code> for c &isin; {0, 1, 2}. The three channels for one pixel are
+  adjacent in memory &mdash; one thread can load them as a <code>float3</code> (12 bytes, padded to 16
+  for alignment). Grayscale formula: <code>Y = 0.299 R + 0.587 G + 0.114 B</code>.
+</p>
+
+<div class="maps">
+  <b>Maps to:</b> ReLU, Leaky-ReLU, GELU, Sigmoid, Tanh, ELU, SELU, Softplus, Swish, Hard-Sigmoid &middot;
+  Vector Addition &middot; Matrix Scalar Multiplication &middot; Huber Loss, Hinge Loss (per-element) &middot;
+  Image Thresholding, Grayscale Conversion &middot; ECC Point Negation &middot; Vector Multiplication
+  over Finite Field &middot; MXFP4 / MXFP8 / NVFP4 Dequantization &middot; the epilogues of every fused-GEMM
+  problem (GEMM+bias+ReLU, matmul-swish, matmul-swish-scaling, gemm-multiply-leakyrelu, conv2d-relu-hardswish).
+</div>
+
+<!-- ====================================================== -->
+<h2 id="stencil">8. Pattern B &mdash; Stencils with halos</h2>
+<p>
+  A stencil kernel computes each output as a function of a window of inputs around the same position
+  &mdash; convolution, pooling, edge detection, blur. The pattern: each block claims a contiguous tile
+  of output, cooperatively loads the input window (data + halo) into shared memory once, syncs, then
+  every thread reads only from shared. Bandwidth pressure drops by a factor of (reuse count).
+</p>
+
+<h3>8.1 Halos / ghost cells</h3>
+<p>
+  A block computing outputs <code>[i, i+BLOCK)</code> needs inputs <code>[i-r, i+BLOCK+r)</code> for
+  radius <code>r = (K-1)/2</code>. The <code>r</code> overhang on each side is the halo.
+</p>
+
+<div class="demo">
+  <label>Block size: <span id="blockVal">128</span></label>
+  <input id="blockSlide" type="range" min="32" max="512" step="32" value="128" />
+  <label>Kernel radius r: <span id="rVal">8</span></label>
+  <input id="rSlide" type="range" min="1" max="64" step="1" value="8" />
+  <canvas id="haloCanvas" width="820" height="180"></canvas>
+  <p class="footnote">Green = output tile this block computes. Orange = halo cells in shared memory but
+    not "owned." <span id="tileMath">Tile size = BLOCK + 2r = 144 floats.</span> Halo overhead shrinks as
+    block size grows, but too big and you exhaust shared memory.</p>
+</div>
+
+<h3>8.2 1D stencil kernel sketch</h3>
+<pre>template&lt;int BLOCK&gt;
+__global__ void stencil_1d(const float* __restrict__ A, float* __restrict__ C,
+                           int N, int r) {
+    __shared__ float tile[BLOCK + 2 * MAX_R];
+    int tile_start = blockIdx.x * BLOCK;
+
+    // 1. cooperative load (BLOCK threads cover BLOCK + 2r elements)
+    for (int t = threadIdx.x; t &lt; BLOCK + 2*r; t += BLOCK) {
+        int g = tile_start - r + t;
+        tile[t] = (g &gt;= 0 &amp;&amp; g &lt; N) ? A[g] : 0.0f;        // zero-pad
+    }
+    __syncthreads();
+
+    // 2. compute one output per thread, reading only shared memory
+    int i = tile_start + threadIdx.x;
+    if (i &lt; N) {
+        float acc = 0.0f;
+        #pragma unroll
+        for (int j = 0; j &lt; K; ++j)
+            acc += tile[threadIdx.x + j] * kernel_j;   // kernel_j from constant or shared
+        C[i] = acc;
+    }
+}</pre>
+
+<h3>8.3 2D and 3D extensions</h3>
+<p>
+  In 2D you load a <code>(BLOCK_Y + 2r) &times; (BLOCK_X + 2r)</code> shared tile. Watch shared-memory
+  budget: a 16&times;16 block with r=2 needs 20&times;20 = 1.6 KB &mdash; trivial. A 32&times;32 block with
+  r=8 needs 48&times;48 = 9 KB. In 3D it explodes: an 8&times;8&times;8 block with r=5 needs 18&sup3; = ~23 KB.
+  Move to <b>2.5D tiling</b>: tile (x,y) in shared memory, walk z with a register-window of K planes.
+</p>
+
+<h3>8.4 Boundary handling</h3>
+<table>
+<tr><th>Pattern</th><th>Padding value</th><th>Used by</th></tr>
+<tr><td>Zero-pad</td><td>0</td><td>Conv, avg-pool (denominator includes pad)</td></tr>
+<tr><td><code>-INFINITY</code> pad</td><td><code>-INFINITY</code></td><td>Max-pool (so out-of-bounds never wins)</td></tr>
+<tr><td>Clamp + renormalize</td><td>(don't read)</td><td>Box-blur (divide by count of valid cells)</td></tr>
+</table>
+<p>
+  Branch at the <i>load</i>, not in the hot inner loop &mdash; that's what the
+  <code>(g &gt;= 0 &amp;&amp; g &lt; N) ? A[g] : 0.0f</code> trick gives you. Even better for the
+  "interior vs edge" split: launch one kernel for interior blocks (no boundary checks needed) and
+  another for the few edge blocks.
+</p>
+
+<h3>8.5 Stride and dilation (pooling)</h3>
+<p>
+  Pooling adds two parameters: stride <code>S</code> (how far the window jumps per output) and
+  dilation <code>D</code> (spacing between taps inside the window). Output length:
+</p>
+<pre>H_out = floor((H + 2*P - D*(K-1) - 1) / S) + 1</pre>
+<p>
+  Effective radius for shared-mem tiling: <code>r = D * (K-1) / 2</code>. Input index for output
+  <code>o</code>, tap <code>m</code>: <code>S*o + D*m - P</code>.
+</p>
+
+<h3>8.6 Constant memory for small conv kernels</h3>
+<p>
+  If <code>K &times; K &le; 16384 floats</code> (= 64 KB), put the conv weights in <code>__constant__</code>
+  memory. Every thread in a warp reads the same B[j] on iteration j &rarr; broadcast cache &rarr; free.
+  Falls apart for the big kernels (conv-1d K=8191, conv-2d K=127) where you should use shared instead.
+</p>
+
+<h3>8.7 Separable convolution</h3>
+<p>
+  A 2D convolution is <b>separable</b> if its 2D kernel is a rank-1 outer product of two 1D kernels.
+  Cost drops from O(K&sup2;) to O(2K) per output. Box blur (all-ones kernel) is separable: do two passes
+  of width-K averaging, one horizontal then one vertical.
+</p>
+
+<h3>8.8 Large-kernel strategies</h3>
+<p>
+  At K=127 (conv-2d) or K=8191 (conv-1d, 1d-running-sum), direct stencil isn't competitive:
+</p>
+<ul>
+  <li><b>im2col + GEMM</b>: unroll the input window into a <code>(H*W) &times; (K*K)</code> matrix,
+    multiply against the kernel as a <code>(K*K) &times; 1</code> matrix using a cuBLAS GEMM.</li>
+  <li><b>FFT convolution</b>: O(N log N) via cuFFT &mdash; asymptotically optimal for very large K.</li>
+  <li><b>Prefix-sum reformulation</b>: for uniform kernels (all ones), use an integral image.
+    1D-running-sum reduces to a prefix scan + one subtraction per output &mdash; O(N) not O(N&middot;K).</li>
+</ul>
+
+<div class="maps">
+  <b>Maps to:</b> 1D Convolution, 2D Convolution, 3D Square Convolution, 2D Conv + ReLU + HardSwish (with
+  fused epilogue), Box Blur (separable), Edge Detection (3-tap stencil) &middot; 1D / 2D / 3D Average Pooling,
+  1D / 2D / 3D Max Pooling &middot; 1D Running Sum (via prefix scan, see <a href="#scan">section 10</a>).
+</div>
+
+<!-- ====================================================== -->
+<h2 id="reduce">9. Pattern C &mdash; Reductions</h2>
+
+<p>
+  Sum, max, argmax, product, dot, norm &mdash; all are <b>reductions</b>: combine N values via an
+  associative op into 1 value. Three regimes by output shape:
+</p>
+<ol>
+  <li><b>Scalar output</b> (MSE, triplet loss, MST argmin) &mdash; one number from the whole tensor.</li>
+  <li><b>Per-row output</b> (RMSNorm, L1/L2, log-softmax, cosine-similarity) &mdash;
+    one number per row of a 2D matrix.</li>
+  <li><b>Reduction-over-arbitrary-dim</b> (sum/max/mean/product/argmax over a chosen dim of an
+    arbitrary-rank tensor) &mdash; one number per "outer &times; inner" coordinate.</li>
+</ol>
+
+<h3>9.1 Warp reduction with shuffles</h3>
+<pre>__device__ inline float warp_sum(float v) {
+    for (int o = 16; o &gt; 0; o /= 2)
+        v += __shfl_down_sync(0xffffffff, v, o);
+    return v;        // lane 0 holds the result
+}</pre>
+<p>
+  Replace <code>+=</code> with <code>fmaxf</code> for max, etc. Cost: 5 shuffles. No shared memory needed.
+</p>
+
+<h3>9.2 Block reduction (warp &rarr; shared &rarr; warp)</h3>
+<pre>__device__ float block_sum(float v) {
+    __shared__ float warp_partial[32];                    // up to 32 warps per block
+    int lane = threadIdx.x &amp; 31;
+    int wid  = threadIdx.x &gt;&gt; 5;
+
+    v = warp_sum(v);                                      // one number per warp
+    if (lane == 0) warp_partial[wid] = v;
+    __syncthreads();
+
+    // first warp reduces the partials
+    v = (threadIdx.x &lt; (blockDim.x + 31) / 32) ? warp_partial[lane] : 0.0f;
+    if (wid == 0) v = warp_sum(v);
+    return v;                                             // valid in thread 0
+}</pre>
+
+<h3>9.3 Whole-tensor reduction (scalar output)</h3>
+<p>Two clean approaches:</p>
+<ul>
+  <li><b>One kernel, atomicAdd</b>: each block produces a partial via <code>block_sum</code>, then
+    thread 0 issues one <code>atomicAdd</code> into the output scalar. Non-deterministic ordering, but
+    fine for FP32 sums that pass tolerance.</li>
+  <li><b>Two kernels</b>: first writes one float per block to a workspace; second reduces the workspace.
+    Deterministic. Marginal extra cost.</li>
+</ul>
+<p>
+  Initialize the output scalar to 0 via <code>cudaMemsetAsync</code> before launching.
+</p>
+
+<h3>9.4 Key-value reduction (argmax)</h3>
+<p>
+  Shuffle both value and index, take the better pair. Strict <code>&gt;</code> gives "first occurrence"
+  tie-break:
+</p>
+<pre>__device__ void warp_argmax(float &amp;v, int &amp;idx) {
+    for (int o = 16; o &gt; 0; o /= 2) {
+        float ov = __shfl_down_sync(0xffffffff, v, o);
+        int   oi = __shfl_down_sync(0xffffffff, idx, o);
+        if (ov &gt; v) { v = ov; idx = oi; }                  // strict &gt; = first index wins
+    }
+}</pre>
+
+<h3>9.5 Generic n-D dim reduction</h3>
+<p>
+  Given <code>shape[]</code> and <code>dim</code>, decompose the tensor as
+  <code>(outer, axis, inner)</code> where
+</p>
+<pre>outer       = product of shape[0..dim-1]
+axis        = shape[dim]
+inner       = product of shape[dim+1..ndim-1]
+input[o, a, k]   = input_flat[o * (axis*inner) + a * inner + k]
+output[o, k]     = reduce over a of input[o, a, k]</pre>
+<p>Two regimes with very different kernels:</p>
+<ul>
+  <li><b>dim is innermost</b> (inner = 1) &mdash; the reduction axis is contiguous. One block per output
+    row, threads cooperate along the axis, coalesced loads. Use the block-reduction pattern from 9.2.</li>
+  <li><b>dim is outer / middle</b> &mdash; reduction is strided. Map one output to one thread (or a small
+    group). Each thread strides through <code>axis</code> values <code>inner</code> apart. Loads are
+    coalesced across threads (different <code>k</code>) but not within a thread.</li>
+</ul>
+
+<h3>9.6 Multi-reduction fusion</h3>
+<p>
+  Cosine similarity needs three sums per row: &sum;xy, &sum;xx, &sum;yy. Run all three in the same loop
+  in registers, then reduce a struct via shuffles:
+</p>
+<pre>float sxy = 0, sxx = 0, syy = 0;
+for (int k = threadIdx.x; k &lt; D; k += blockDim.x) {
+    float x = X[r*D + k], y = Y[r*D + k];
+    sxy += x*y; sxx += x*x; syy += y*y;
+}
+sxy = warp_sum(sxy);
+sxx = warp_sum(sxx);
+syy = warp_sum(syy);</pre>
+
+<h3>9.7 Welford's online variance (BatchNorm, LayerNorm)</h3>
+<p>
+  Naive mean+variance via "sum and sum-of-squares" can lose precision when values are large.
+  Welford's algorithm tracks <code>(count, mean, M2)</code> incrementally; the parallel combine rule is:
+</p>
+<pre>// merge B into A
+n  = nA + nB
+d  = meanB - meanA
+mean = meanA + d * (float)nB / (float)n
+M2   = M2A + M2B + d*d * (float)(nA * nB) / (float)n
+// variance = M2 / n   (or M2 / (n-1) for sample variance)</pre>
+<p>
+  Implement this as a warp-shuffle reduction over <code>(n, mean, M2)</code> triples. Required for
+  LayerNorm and BatchNorm under tight tolerances and large per-row reductions (up to 4M elements per row
+  for LayerNorm).
+</p>
+
+<div class="maps">
+  <b>Maps to:</b> Sum / Max / Min / Mean / Product / Argmax / Argmin Over Dimension &middot;
+  RMS / L1 / L2 / Frobenius / Layer / Batch Normalization &middot;
+  Mean-Squared-Error Loss, KL Divergence, Triplet Margin Loss, Cosine Similarity &middot;
+  Minimum Spanning Tree (argmin per round) &middot; Edge-Detection rescale-max &middot;
+  the K-reduction inside every GEMM (see section 13).
+</div>
+
+<!-- ====================================================== -->
+<h3 id="max-dim">9.8 Worked example: Max Over Dimension (tensara)</h3>
+
+<p>
+  The tensara problem <a href="https://tensara.org/problems/max-dim">Max Over Dimension</a> is the
+  cleanest worked example of the generic n-D dim reduction in 9.5. The signature is:
+</p>
+<pre>extern "C" void solve(const float* input, int dim, float* output,
+                      const size_t* shape, size_t ndim);</pre>
+<p>
+  The output keeps the reduced dim with size 1 (<code>keepdim=True</code>): for input shape
+  <code>(S<sub>1</sub>,&hellip;,S<sub>d</sub>,&hellip;,S<sub>n</sub>)</code> the output is
+  <code>(S<sub>1</sub>,&hellip;,1,&hellip;,S<sub>n</sub>)</code>.
+</p>
+
+<h4>Setup: the (outer, axis, inner) decomposition</h4>
+<p>
+  In the host wrapper from the screenshot, two scalars are precomputed by walking <code>shape[]</code>:
+</p>
+<pre>total     = product of every shape[i] with i &ne; dim     // # of outputs
+dim_right = product of shape[dim+1 .. ndim-1]            // "inner" stride</pre>
+<p>
+  Mapping back to 9.5's vocabulary: <code>outer = total / dim_right</code>,
+  <code>axis = shape[dim]</code>, <code>inner = dim_right</code>. Total output elements equal
+  <code>total</code> because the reduced dimension contributes a factor of 1 (it's kept as size 1).
+</p>
+
+<h4>The launch: one thread per output</h4>
+<pre>int idx = blockIdx.x * blockDim.x + threadIdx.x;
+if (idx &gt;= total) return;
+
+int row = idx / dim_right;     // which (outer) block am I in?
+int col = idx % dim_right;     // which (inner) offset am I at?
+
+int base = row * shape[dim] * dim_right + col;
+
+for (int i = 0; i &lt; shape[dim]; i++) {
+    output[idx] = fmaxf(output[idx], input[base + i * dim_right]);
+}</pre>
+
+<h4>Why <code>row = a*B + b</code>, not <code>(a*B + b)*C</code></h4>
+<p>
+  Make it concrete with <code>shape = (A, B, C, D)</code> and <code>dim = 2</code> (so we reduce over
+  <code>C</code>). After reduction, the output shape is <code>(A, B, 1, D)</code> and the dim-1 axis
+  drops out of the index math &mdash; the output is effectively a 3D tensor
+  <code>(A, B, D)</code> with <code>total = A*B*D</code> and <code>dim_right = D</code>.
+</p>
+<p>
+  A flat output index <code>idx</code> decomposes as
+</p>
+<pre>idx = (a * B + b) * D + d           // a in [0,A), b in [0,B), d in [0,D)</pre>
+<p>
+  Dividing by <code>D</code> kills the <code>d</code> term and leaves exactly
+  <code>row = a*B + b</code>. There is no <code>*C</code> anywhere on the output side because
+  <b>the output doesn't contain a <code>C</code> axis</b> &mdash; we reduced it away. Two coordinates
+  determine an output element, not three.
+</p>
+<div class="warn">
+  The temptation to write <code>row = (a*B + b)*C</code> comes from mixing input and output indexing.
+  <code>idx</code> is an <i>output</i> index, so its decomposition only mentions axes that survived the
+  reduction. The factor of <code>C</code> only appears later, when we ask "where does this (a,b,d)
+  slice <b>start in the input</b>?"
+</div>
+
+<h4>Where <code>*C</code> actually shows up</h4>
+<p>
+  Each <code>(a,b)</code> pair in the input owns a contiguous block of <code>C * D</code> floats.
+  To find the first element of the reduction stripe for output <code>(a, b, d)</code>:
+</p>
+<pre>base = row * (C * D) + col
+     = (a*B + b) * C * D + d</pre>
+<p>
+  That's what <code>row * shape[dim] * dim_right + col</code> evaluates to in the kernel: the
+  <code>*C</code> (i.e. <code>*shape[dim]</code>) lives in the <i>input address</i>, not in
+  <code>row</code>. Then the loop walks the C axis by adding <code>dim_right = D</code> each step:
+</p>
+<pre>input[base + 0*D]   // c = 0
+input[base + 1*D]   // c = 1
+...
+input[base + (C-1)*D]</pre>
+
+<div class="key">
+  Separate the two questions:
+  <ul>
+    <li><b>"Which output am I?"</b> &rarr; <code>row = idx / dim_right</code>,
+        <code>col = idx % dim_right</code>. Only mentions surviving axes.</li>
+    <li><b>"Where does my input stripe start?"</b> &rarr;
+        <code>base = row * shape[dim] * dim_right + col</code>. The reduced axis size shows up here.</li>
+  </ul>
+</div>
+
+<h4>Why the screenshot's submission TLE'd, and how to fix it</h4>
+<p>
+  The kernel above is correct but reads <code>output[idx]</code> on every iteration of the
+  <code>fmaxf</code> loop &mdash; that's <code>shape[dim]</code> uncached global loads per thread,
+  on top of the stripe reads. It also relies on <code>output</code> being pre-initialized to a
+  sentinel (it isn't: tensara hands you uninitialized device memory), so the first iteration's
+  <code>fmaxf(output[idx], &hellip;)</code> compares against garbage. Both bugs at once produce
+  a "passes some cases, hangs on big ones" failure profile &mdash; exactly the 60 s TLE shown.
+</p>
+<p>The minimal fix: accumulate in a register, seed from <code>-FLT_MAX</code>, write once.</p>
+<pre>float m = -FLT_MAX;
+for (int i = 0; i &lt; shape[dim]; i++) {
+    m = fmaxf(m, input[base + i * dim_right]);
+}
+output[idx] = m;</pre>
+<p>
+  That's the "dim is outer / middle" regime from 9.5: one output per thread, strided loads
+  <code>dim_right</code> apart. Coalescing is across threads (consecutive <code>col</code>s),
+  not within a thread. For the "dim is innermost" case (<code>dim_right == 1</code>), switch
+  to one block per output row with the block-reduction pattern from 9.2 &mdash; that's the regime
+  where the strided one-thread-per-output kernel would be slowest.
+</p>
+<p>
+  Also: <code>shape</code> is a device pointer (see section 2). Reading <code>shape[dim]</code> inside
+  the hot loop is a global load every iteration. Hoist it into a register (or stage <code>shape</code>
+  into shared memory at kernel entry) before looping:
+</p>
+<pre>int axis_len  = shape[dim];      // one global load, reused
+int dim_right_ = dim_right;
+for (int i = 0; i &lt; axis_len; i++) {
+    m = fmaxf(m, input[base + i * dim_right_]);
+}</pre>
+
+<!-- ====================================================== -->
+<h2 id="scan">10. Pattern D &mdash; Parallel scans</h2>
+
+<p>
+  A scan turns <code>[a, b, c, d]</code> into <code>[a, a+b, a+b+c, a+b+c+d]</code> (inclusive) or
+  <code>[0, a, a+b, a+b+c]</code> (exclusive). Sequential algorithm is O(N) work, but the dependency
+  chain looks fatal for parallelism. There are clever ways to do it in O(N) work and O(log N) depth.
+</p>
+
+<h3>10.1 Hillis&ndash;Steele (work-inefficient, conceptually easy)</h3>
+<p>
+  Each step doubles the offset. For N elements: log N steps, N log N work. Implementable in one warp
+  with <code>__shfl_up_sync</code>:
+</p>
+<pre>__device__ float warp_inclusive_scan(float v) {
+    for (int o = 1; o &lt; 32; o *= 2) {
+        float n = __shfl_up_sync(0xffffffff, v, o);
+        if ((threadIdx.x &amp; 31) &gt;= o) v += n;
+    }
+    return v;
+}</pre>
+
+<h3>10.2 Blelloch (work-efficient)</h3>
+<p>
+  Two phases on a balanced binary tree: <b>up-sweep</b> (compute partial sums going up) and
+  <b>down-sweep</b> (push prefixes back down). Total work O(N), depth O(log N). The production pattern
+  inside a block.
+</p>
+
+<h3>10.3 Multi-block scan: scan-then-fan</h3>
+<p>For N too large to fit in one block (cumsum at N=1M):</p>
+<ol>
+  <li><b>Scan each block</b> locally with Blelloch; write per-block totals to a length-<code>numBlocks</code>
+    array.</li>
+  <li><b>Scan the per-block totals</b> (small, fits in one block).</li>
+  <li><b>Fan back</b>: add the scanned block-total to every element of the corresponding block.</li>
+</ol>
+
+<h3>10.4 Decoupled lookback (CUB)</h3>
+<p>
+  Single-pass GPU scan due to Merrill &amp; Garland: each block computes its local scan and aggregate,
+  then uses atomic flags to fetch and combine predecessor aggregates without two full kernel passes.
+  This is what <code>cub::DeviceScan::InclusiveSum</code> uses under the hood &mdash; if you don't need
+  to learn it from scratch, just call CUB.
+</p>
+
+<h3>10.5 Library escape hatch</h3>
+<pre>#include &lt;cub/cub.cuh&gt;
+size_t temp_bytes = 0;
+cub::DeviceScan::InclusiveSum(nullptr, temp_bytes, in, out, N);
+void* temp;
+cudaMalloc(&amp;temp, temp_bytes);
+cub::DeviceScan::InclusiveSum(temp, temp_bytes, in, out, N);</pre>
+
+<h3>10.6 Sliding-window reformulation via prefix sum</h3>
+<p>
+  1D-running-sum (K=8191) is the canonical example: instead of a stencil, do an inclusive scan once,
+  then <code>output[i] = prefix[i + r] - prefix[i - r - 1]</code> (with boundary fixup). O(N) instead
+  of O(N&middot;K). Generalizes to 2D as the <b>summed-area table / integral image</b> trick used in
+  box-blur.
+</p>
+
+<div class="maps">
+  <b>Maps to:</b> Cumulative Sum, Cumulative Product &middot; 1D Running Sum (via prefix difference) &middot;
+  Box Blur (via integral image) &middot; Radix-sort histogram offsets (see section 11).
+</div>
+
+<!-- ====================================================== -->
+<h2 id="softmax">11. Pattern E &mdash; Numerically stable &amp; online softmax</h2>
+
+<p>
+  Naive <code>softmax(x_i) = exp(x_i) / sum_j exp(x_j)</code> overflows when any <code>x_i</code> is
+  large. The fix is to subtract the max first &mdash; mathematically identical, numerically safe.
+</p>
+
+<h3>11.1 Standard two-pass softmax</h3>
+<pre>// Per row:
+// Pass 1: m = max_j x[j]
+// Pass 2: s = sum_j exp(x[j] - m)
+// Write:  out[i] = exp(x[i] - m) / s
+__global__ void softmax_2pass(const float* X, float* Y, int M, int N) {
+    int row = blockIdx.x;
+    // -- pass 1: reduce max --
+    float m = -INFINITY;
+    for (int k = threadIdx.x; k &lt; N; k += blockDim.x) m = fmaxf(m, X[row*N + k]);
+    m = block_max(m);    // broadcast lane-0 max into shared, then to all threads
+    __shared__ float row_max; if (threadIdx.x == 0) row_max = m; __syncthreads();
+    m = row_max;
+
+    // -- pass 2: reduce sum-of-exps --
+    float s = 0;
+    for (int k = threadIdx.x; k &lt; N; k += blockDim.x) s += __expf(X[row*N + k] - m);
+    s = block_sum(s);
+    __shared__ float row_sum; if (threadIdx.x == 0) row_sum = s; __syncthreads();
+    s = row_sum;
+
+    // -- write --
+    for (int k = threadIdx.x; k &lt; N; k += blockDim.x)
+        Y[row*N + k] = __expf(X[row*N + k] - m) / s;
+}</pre>
+
+<h3>11.2 Log-softmax</h3>
+<p>
+  <code>log_softmax(x_i) = x_i - m - log(sum_j exp(x_j - m))</code>. Same two passes, last line writes
+  <code>x[k] - m - logf(s)</code>. The tensara log-softmax problem spec explicitly mandates this form.
+</p>
+
+<h3>11.3 Online (streaming) softmax</h3>
+<p>
+  The two-pass softmax reads X three times. The <b>online softmax</b> trick (Milakov &amp; Gimelshein
+  2018) does it in one pass by carrying a running (max, normalizer) pair and rescaling when the max
+  changes. It's the foundation of FlashAttention.
+</p>
+<pre>// One pass: combine (m_old, s_old) with each new chunk of x's:
+//   m_new = max(m_old, m_chunk)
+//   s_new = s_old * exp(m_old - m_new) + s_chunk * exp(m_chunk - m_new)
+//
+// Initialize: m = -inf, s = 0.
+
+float m = -INFINITY, s = 0.0f;
+for (int k = threadIdx.x; k &lt; N; k += blockDim.x) {
+    float x   = X[row*N + k];
+    float m_n = fmaxf(m, x);
+    s = s * __expf(m - m_n) + __expf(x - m_n);
+    m = m_n;
+}
+// reduce (m, s) across threads with the same combine rule, then write outputs</pre>
+
+<p>
+  The parallel combine for (m, s) across two halves A and B:
+</p>
+<pre>m_AB = max(m_A, m_B)
+s_AB = s_A * exp(m_A - m_AB) + s_B * exp(m_B - m_AB)</pre>
+
+<div class="maps">
+  <b>Maps to:</b> Softmax, Log Softmax &middot; Scaled Dot-Product Attention (see section 19) &middot;
+  the safe-exp normalization inside KL divergence and any cross-entropy-flavored loss you might write later.
+</div>
+
+<!-- ====================================================== -->
+<h2 id="sort">12. GPU sorting</h2>
+
+<p>Three algorithms worth knowing, in order of practical importance on tensara's <code>array-sort</code>:</p>
+
+<h3>12.1 Radix sort (the practical one)</h3>
+<p>
+  For fixed-width integer keys (32-bit ints in array-sort), radix is the workhorse: O(N&middot;keysize)
+  passes of (histogram &rarr; scan &rarr; scatter). The internal scan step is exactly what section 10
+  taught. Use CUB:
+</p>
+<pre>cub::DeviceRadixSort::SortKeys(temp, temp_bytes, d_in, d_out, N);</pre>
+
+<h3>12.2 Bitonic sort</h3>
+<p>
+  A sorting network with O(log&sup2; N) depth. Maps cleanly to GPU because the comparisons at each step
+  are independent. Single-block bitonic sorts up to ~2048 elements in shared memory; for larger arrays
+  you tile and merge.
+</p>
+
+<h3>12.3 Merge sort</h3>
+<p>
+  Comparison-based, stable. Less common on GPU than radix but useful when keys aren't fixed-width or
+  you need stability. <code>thrust::sort</code> uses a hybrid radix/merge.
+</p>
+
+<div class="maps">
+  <b>Maps to:</b> Array Sorting.
+</div>
+
+<!-- ====================================================== -->
+<h2 id="matmul">13. Tiled matrix multiplication</h2>
+
+<p>
+  GEMM is the most important GPU kernel because every neural network is mostly matmul, and because it's
+  the textbook example of how to be compute-bound rather than bandwidth-bound. Tensara has 14 matmul
+  variants &mdash; learn the canonical tiled GEMM once and the variants follow.
+</p>
+
+<h3>13.1 The output-stationary tile</h3>
+<p>
+  Compute <code>C = A @ B</code> with <code>A: M&times;K, B: K&times;N, C: M&times;N</code>. Each block
+  computes a <code>BM &times; BN</code> tile of C. To compute that tile we need a
+  <code>BM &times; K</code> slice of A and a <code>K &times; BN</code> slice of B. We don't load them all
+  at once; we walk the K dimension in chunks of size <code>BK</code>:
+</p>
+<pre>for (int k0 = 0; k0 &lt; K; k0 += BK) {
+    load A[BM, BK] into shared    // cooperative, coalesced
+    load B[BK, BN] into shared
+    __syncthreads();
+    for (int k = 0; k &lt; BK; ++k)
+        accumulate outer product As[:, k] x Bs[k, :] into register tile
+    __syncthreads();
+}
+write register tile to C[BM, BN]</pre>
+
+<h3>13.2 Register tiling</h3>
+<p>
+  Each thread doesn't compute one output of C &mdash; it computes a <code>TM &times; TN</code>
+  sub-tile in registers. Typical: BM=BN=128, BK=8, threads per block = (BM/TM) * (BN/TN), TM=TN=8.
+  That gives 16&times;16 = 256 threads per block, each accumulating an 8&times;8 register tile = 64
+  FMAs per K step.
+</p>
+
+<h3>13.3 Vectorized loads &amp; bank-conflict avoidance</h3>
+<p>
+  Load A and B as <code>float4</code> when possible. Pad the shared tile's leading dimension by 1
+  (<code>__shared__ float As[BK][BM + 1]</code>) to dodge 32-way bank conflicts during column reads.
+</p>
+
+<h3>13.4 Tile-quantization (non-multiple-of-tile)</h3>
+<p>
+  Tensara's <code>square-matmul</code> tests N = 6144, 7168, 9216 &mdash; not multiples of 128. Two
+  options: (a) pad with zeros in the loads and mask the store, or (b) write a separate "edge" kernel for
+  the last partial tile.
+</p>
+
+<h3>13.5 Skeleton (FP32, no tensor cores)</h3>
+<pre>template&lt;int BM, int BN, int BK, int TM, int TN&gt;
+__global__ void gemm_sm(const float* A, const float* B, float* C,
+                        int M, int N, int K) {
+    __shared__ float As[BK][BM + 1];
+    __shared__ float Bs[BK][BN + 1];
+    int block_row = blockIdx.y * BM;
+    int block_col = blockIdx.x * BN;
+    int thread_row = (threadIdx.x / (BN / TN)) * TM;
+    int thread_col = (threadIdx.x % (BN / TN)) * TN;
+    float acc[TM][TN] = {{0}};
+
+    for (int k0 = 0; k0 &lt; K; k0 += BK) {
+        // cooperative loads (omitted for brevity — vectorize)
+        load_tile_A(As, A, block_row, k0, M, K);
+        load_tile_B(Bs, B, k0, block_col, K, N);
+        __syncthreads();
+
+        #pragma unroll
+        for (int k = 0; k &lt; BK; ++k) {
+            float a_frag[TM], b_frag[TN];
+            #pragma unroll
+            for (int i = 0; i &lt; TM; ++i) a_frag[i] = As[k][thread_row + i];
+            #pragma unroll
+            for (int j = 0; j &lt; TN; ++j) b_frag[j] = Bs[k][thread_col + j];
+            #pragma unroll
+            for (int i = 0; i &lt; TM; ++i)
+                #pragma unroll
+                for (int j = 0; j &lt; TN; ++j)
+                    acc[i][j] = fmaf(a_frag[i], b_frag[j], acc[i][j]);
+        }
+        __syncthreads();
+    }
+    // write acc to C with optional fused epilogue
+    write_tile(C, acc, block_row + thread_row, block_col + thread_col, M, N);
+}</pre>
+
+<h3>13.6 Fused epilogue</h3>
+<p>
+  After the K-loop, before the store: apply bias broadcast, activation (ReLU / LeakyReLU / Swish /
+  HardSwish), scaling. Multiple tensara problems are "GEMM + something" &mdash; never write an
+  intermediate <code>M&times;N</code> tensor; do it in registers.
+</p>
+
+<div class="maps">
+  <b>Maps to:</b> Matrix Multiplication, Square Matrix Multiplication &middot; GEMM with Bias and ReLU,
+  Matrix Multiplication with Swish Activation, Matrix Multiplication with Swish and Scaling, GEMM with
+  Element-wise Multiply and LeakyReLU, Matrix Multiplication with Sigmoid and Sum (with reduction
+  epilogue from section 9).
+</div>
+
+<!-- ====================================================== -->
+<h2 id="tc">14. Tensor cores</h2>
+
+<p>
+  Tensor cores are dedicated matmul units that compute a small matrix-matrix-multiply in one instruction.
+  On H100 they give ~989 TFLOPS of FP16/BF16 vs ~67 TFLOPS of plain FP32 FMA &mdash; ~15&times; more
+  throughput. They are the only way to win on the larger matmul / quant-GEMM / attention problems.
+</p>
+
+<h3>14.1 The shape ladder</h3>
+<table>
+<tr><th>Generation</th><th>API</th><th>Shapes (m&times;n&times;k)</th><th>Types</th></tr>
+<tr><td>Volta (sm_70)</td><td>WMMA</td><td>16&times;16&times;16</td><td>FP16</td></tr>
+<tr><td>Turing (sm_75)</td><td>WMMA / mma.sync</td><td>16&times;16&times;16, 8&times;8&times;16</td><td>FP16, INT8</td></tr>
+<tr><td>Ampere (sm_80)</td><td>mma.sync</td><td>16&times;8&times;8, 16&times;8&times;16</td><td>FP16, BF16, TF32, INT8</td></tr>
+<tr><td>Hopper (sm_90)</td><td>wgmma.mma_async</td><td>64&times;n&times;16 (n up to 256)</td><td>FP16, BF16, TF32, FP8</td></tr>
+<tr><td>Blackwell (sm_100)</td><td>mma.kind::mxf4/nvf4</td><td>block-scaled</td><td>MXFP4, NVFP4</td></tr>
+</table>
+
+<h3>14.2 The WMMA API (portable, easy)</h3>
+<pre>#include &lt;mma.h&gt;
+using namespace nvcuda::wmma;
+
+__global__ void gemm_wmma(const half* A, const half* B, float* C,
+                          int M, int N, int K) {
+    fragment&lt;matrix_a, 16, 16, 16, half, row_major&gt; aFrag;
+    fragment&lt;matrix_b, 16, 16, 16, half, col_major&gt; bFrag;
+    fragment&lt;accumulator, 16, 16, 16, float&gt; cFrag;
+    fill_fragment(cFrag, 0.0f);
+
+    int warp_row = (blockIdx.y * blockDim.y + threadIdx.y) * 16;
+    int warp_col = (blockIdx.x * blockDim.x + threadIdx.x / 32) * 16;
+
+    for (int k = 0; k &lt; K; k += 16) {
+        load_matrix_sync(aFrag, A + warp_row*K + k, K);
+        load_matrix_sync(bFrag, B + k*N + warp_col, N);
+        mma_sync(cFrag, aFrag, bFrag, cFrag);
+    }
+    store_matrix_sync(C + warp_row*N + warp_col, cFrag, N, mem_row_major);
+}</pre>
+
+<h3>14.3 TF32 mode for FP32 inputs</h3>
+<p>
+  Most tensara matmul problems are FP32 but with rtol ~ 1e-3. TF32 (8-bit exponent like FP32, 10-bit
+  mantissa like FP16) rounds the inputs slightly but keeps the dynamic range &mdash; usually within
+  tolerance. To enable for cuBLAS: <code>cublasSetMathMode(handle, CUBLAS_TF32_TENSOR_OP_MATH)</code>.
+  For raw mma.sync: use the <code>tf32</code> operand type.
+</p>
+
+<h3>14.4 cp.async &amp; pipelined K-loads (Ampere+)</h3>
+<p>
+  <code>cuda::memcpy_async</code> + the pipeline API (<code>cuda/pipeline</code>) lets you issue a load
+  for the <i>next</i> K tile while the current K tile's mma is still in flight. This hides shared-memory
+  load latency completely. Hopper adds TMA (Tensor Memory Accelerator) for whole-tile async copies.
+</p>
+
+<div class="maps">
+  <b>Maps to:</b> any matmul where the precision tolerance allows (Matrix Multiplication, Square Matrix
+  Multiplication, Triangular, Symmetric, 3D / 4D Tensor-Matrix, all fused-GEMM problems) &middot; all of
+  MXFP4 / MXFP8 / NVFP4 GEMM / GEMV (via FP4/FP8 tensor-core paths) &middot; the QK&sup1; and PV multiplies
+  in Scaled Dot-Product Attention.
+</div>
+
+<!-- ====================================================== -->
+<h2 id="special">15. Special-structure matmul</h2>
+
+<h3>15.1 Triangular GEMM (upper / lower)</h3>
+<p>
+  Both inputs are triangular and so is the output. Skip tiles entirely below the diagonal (return
+  early if <code>block_row &gt; block_col</code>), and tighten the K-range per tile to
+  <code>[block_row*BM, (block_col+1)*BN]</code>. Total work drops to ~1/6 of dense. Diagonal-major tile
+  ordering load-balances better.
+</p>
+
+<h3>15.2 Symmetric GEMM</h3>
+<p>
+  If A is symmetric, you can read only the upper triangle and broadcast (halves DRAM traffic from A).
+  In practice on H100 the difference is small &mdash; a well-tuned dense GEMM often wins.
+</p>
+
+<h3>15.3 Diagonal GEMM</h3>
+<p>
+  <code>diag(a) @ B</code> is a row-wise scale, not a matmul. O(N&middot;M) not O(N&sup2;&middot;M).
+  One thread block per row: load <code>a = diag[row]</code> into a register, multiply that row of B
+  element-wise. <code>float4</code> loads on B, no shared memory needed.
+</p>
+
+<h3>15.4 GEMV</h3>
+<p>
+  Matrix-vector is memory-bound, not compute-bound. Assign one warp (or one block of warps) per output
+  row; warp-reduction of partial dot products via <code>__shfl_down_sync</code>. Cache the vector in
+  shared memory once. For very tall A, splitK with atomicAdd into <code>c[i]</code>.
+</p>
+
+<h3>15.5 Batched matmul via grid-z (3D / 4D tensor-matrix)</h3>
+<p>
+  <code>(N, M, K) @ (K, L) &rarr; (N, M, L)</code> is literally one big GEMM with row count
+  <code>N&middot;M</code>. Reshape conceptually, run the dense GEMM. For 4D <code>(B,I,J,L) @ (L,K)</code>,
+  collapse <code>(B,I,J)</code> to one dimension. Watch for <code>int32</code> overflow on
+  <code>N&middot;M</code> &mdash; use <code>size_t</code> indexing throughout.
+</p>
+
+<h3>15.6 Matrix N-th power</h3>
+<p>
+  Chain GEMMs with one scratch buffer. <b>Exponentiation by squaring</b>: 2 mults for n=2 (just A@A),
+  2 for n=4 (A&sup2; then A&sup2;@A&sup2;), 3 for n=8. Allocate one workspace via <code>cudaMalloc</code>
+  inside <code>solve()</code>, ping-pong with the output.
+</p>
+
+<h3>15.7 SplitK with atomics</h3>
+<p>
+  For tall-skinny GEMM (large K, small M) the K-direction parallelism dominates compute. Split K across
+  multiple blocks that each compute a partial output, then atomically accumulate. Loses some determinism;
+  watch tolerances.
+</p>
+
+<div class="maps">
+  <b>Maps to:</b> Symmetric / Upper-Triangular / Lower-Triangular / Diagonal Matrix Multiplication &middot;
+  Matrix-Vector Multiplication &middot; 3D / 4D Tensor-Matrix Multiplication &middot; Matrix N-th Power.
+</div>
+
+<!-- ====================================================== -->
+<h2 id="quant">16. Quantized GEMM: MXFP4, MXFP8, NVFP4</h2>
+
+<p>
+  These are the modern low-precision formats for training and inference at scale. They share three
+  ingredients: (1) a packed low-bit numeric, (2) a per-block scale, and sometimes (3) a per-tensor
+  global scale. To solve the dequantize / quantize / GEMM problems you need to unpack, apply scales
+  correctly, and ideally feed the tensor cores.
+</p>
+
+<h3>16.1 The bit layouts</h3>
+<table>
+<tr><th>Format</th><th>Bits</th><th>Layout</th><th>Range</th></tr>
+<tr><td>E2M1 (FP4)</td><td>4</td><td>1 sign, 2 exp, 1 mant</td><td>&plusmn;{0, 0.5, 1, 1.5, 2, 3, 4, 6}</td></tr>
+<tr><td>E4M3 (FP8)</td><td>8</td><td>1 sign, 4 exp, 3 mant</td><td>&plusmn;448 (no inf, NaN at 0xFF)</td></tr>
+<tr><td>E5M2 (FP8)</td><td>8</td><td>1 sign, 5 exp, 2 mant</td><td>&plusmn;57344 (IEEE inf/NaN)</td></tr>
+<tr><td>E8M0 (scale)</td><td>8</td><td>8 exp only (unsigned)</td><td>scale = 2^(byte - 127)</td></tr>
+</table>
+
+<h3>16.2 Packed access</h3>
+<p>
+  FP4 packs two values per byte: <code>lo = b &amp; 0xF</code>, <code>hi = b &gt;&gt; 4</code>. Vectorize:
+  load 16 bytes as a <code>uint4</code> = 32 packed FP4 values in one transaction.
+</p>
+<pre>__device__ inline float decode_e2m1(uint8_t nibble) {
+    int sign = (nibble &gt;&gt; 3) &amp; 1;
+    int exp  = (nibble &gt;&gt; 1) &amp; 0x3;
+    int mant = nibble &amp; 0x1;
+    float v;
+    if (exp == 0) v = 0.5f * (float)mant;                    // subnormal: 0 or 0.5
+    else          v = ldexpf(1.0f + 0.5f * (float)mant, exp - 1);
+    return sign ? -v : v;
+}</pre>
+
+<h3>16.3 Block scaling in the GEMM inner loop</h3>
+<p>
+  MX formats: per-32-element block scale, one E8M0 byte per block.
+  NV formats: per-16-element block scale, one E4M3 byte per block <i>plus</i> a global FP32 scale.
+  Per-block scale lives outside the inner accumulator: load it once per K-block, multiply the K-block's
+  partial sum by it before adding to the running total.
+</p>
+<pre>// MXFP4 GEMM K-loop sketch (one warp computing one output)
+float acc = 0;
+for (int k0 = 0; k0 &lt; K; k0 += 32) {
+    float scaleA = exp2f((float)scaleA_byte[k0/32] - 127.f);
+    float scaleB = exp2f((float)scaleB_byte[k0/32] - 127.f);
+    float partial = 0;
+    for (int k = 0; k &lt; 32; ++k)
+        partial += decode_e2m1(A[...]) * decode_e2m1(B[...]);
+    acc += scaleA * scaleB * partial;
+}</pre>
+
+<h3>16.4 Swizzled scale layouts (SWIZZLE_32_4_4)</h3>
+<p>
+  MXFP8 and NVFP4 GEMM lay out the scale array not as <code>[m, k/block]</code> linear but in a
+  32&times;4&times;4 tile that matches the tensor-core fragment layout. Kernels must understand the
+  swizzle to fetch the correct scale byte for a given (m, k) coordinate. Reference implementations live
+  in CUTLASS and flashinfer.
+</p>
+
+<h3>16.5 Tensor-core MMA with FP4 / FP8</h3>
+<p>
+  On Hopper, FP8 GEMM uses <code>wgmma.mma_async</code> with E4M3 / E5M2 operands and FP32 accumulator.
+  On Blackwell (sm_100), the new <code>mma.kind::mxf4</code> and <code>mma.kind::nvf4</code> instructions
+  take packed FP4 operands and a per-block scale fragment in one PTX op &mdash; the hardware applies
+  the scale natively.
+</p>
+
+<h3>16.6 Quantization (the forward direction)</h3>
+<p>For each block (32 for MX, 16 for NV):</p>
+<ol>
+  <li>Find <code>amax</code> over the block.</li>
+  <li>Compute the block scale: for MX, <code>scale_exp = ceil(log2(amax / FP4_max))</code>, clipped into
+    E8M0 range. For NV, the per-block scale is an FP8 E4M3 derived as
+    <code>quantize_e4m3(amax / FP4_max)</code>, with an outer per-tensor FP32 scale to fit the FP8
+    range.</li>
+  <li>Divide block values by the scale.</li>
+  <li>Round-to-nearest into the target bit format (E2M1 or E4M3).</li>
+  <li>Pack the bits (two FP4 per byte for E2M1; one byte per E4M3).</li>
+</ol>
+
+<div class="maps">
+  <b>Maps to:</b> MXFP4 / MXFP8 / NVFP4 Dequantization &amp; Quantization &middot; MXFP4 / MXFP8 / NVFP4
+  GEMM &middot; NVFP4 GEMV.
+</div>
+
+<!-- ====================================================== -->
+<h2 id="graph">17. Graph algorithms on the GPU</h2>
+
+<p>
+  All three tensara graph problems use <b>dense N&times;N adjacency matrices</b>, which makes them
+  naturally GPU-friendly &mdash; you operate on a matrix, not a worklist.
+</p>
+
+<h3>17.1 Blocked Floyd-Warshall (All-Pairs Shortest Path)</h3>
+<p>
+  The k-loop in classical Floyd-Warshall has a serial dependency, but for any fixed k the (i, j) updates
+  are independent. Blocked FW processes <code>B&times;B</code> sub-blocks of D in three phases per
+  k-block:
+</p>
+<ol>
+  <li><b>Pivot</b>: update the diagonal block <code>D[k:k+B, k:k+B]</code> internally (it depends on
+    itself).</li>
+  <li><b>Cross</b>: update the pivot row and column of blocks
+    (<code>D[k:k+B, :]</code> and <code>D[:, k:k+B]</code>) using the pivot block.</li>
+  <li><b>Independent</b>: update every other block using the just-updated row and column.</li>
+</ol>
+<p>Each block fits in shared memory. This is the canonical FW GPU pattern.</p>
+
+<h3>17.2 Parallel Bellman-Ford for Single-Source Shortest Path</h3>
+<p>
+  N-1 rounds, each round runs a parallel relaxation:
+  <code>dist[v] = min(dist[v], dist[u] + w[u, v])</code> for all (u, v).
+  Implemented as a min-plus matrix-vector product: each thread owns an output <code>v</code>, loops over
+  <code>u</code>, takes the min. An early-exit check (any relaxation actually changed something?) lets
+  you stop in O(diameter) rounds instead of O(N).
+</p>
+
+<h3>17.3 Parallel Prim for Minimum Spanning Tree</h3>
+<p>
+  Maintain <code>in_mst[N]</code> (bool) and <code>key[N]</code> (distance from MST). Each round:
+</p>
+<ol>
+  <li><b>Argmin</b> over <code>key</code> where <code>!in_mst</code> &rarr; pick the next vertex
+    <code>u</code> to add. Use a device-wide argmin (one CUB call per round, or a custom warp/block
+    argmin).</li>
+  <li><b>Add</b> <code>key[u]</code> to the running total.</li>
+  <li><b>Mark</b> <code>in_mst[u] = true</code>.</li>
+  <li><b>Relax</b>: for every <code>v</code>, <code>key[v] = min(key[v], A[u][v])</code>.</li>
+</ol>
+<p>
+  O(N) rounds &times; O(N) work each = O(N&sup2;) total &mdash; fine at the problem sizes. The output
+  is the scalar sum, one float.
+</p>
+
+<div class="maps">
+  <b>Maps to:</b> All-Pairs Shortest Path, Single Source Shortest Path, Minimum Spanning Tree.
+</div>
+
+<!-- ====================================================== -->
+<h2 id="crypto">18. Modular arithmetic over finite fields</h2>
+
+<p>
+  Three tensara problems live in F_p (finite field of prime modulus): ECC point negation, polynomial
+  multiplication, and vector multiplication. All use <b>Mersenne primes</b>
+  (<code>2&#94;31 - 1</code> or <code>2&#94;61 - 1</code>) so the modular reduction has a fast bit-trick form.
+</p>
+
+<h3>18.1 Mersenne reduction</h3>
+<p>
+  For <code>p = 2&#94;n - 1</code>:
+</p>
+<pre>// x mod (2^n - 1):
+y = (x &amp; p) + (x &gt;&gt; n);           // first fold
+if (y &gt;= p) y -= p;               // at most one extra subtract</pre>
+<p>
+  For <code>p = 2&#94;31 - 1</code> with operands &lt; <code>p</code>, the product
+  <code>a*b &le; (p-1)&sup2; &lt; 2&#94;62</code> &mdash; promote to <code>uint64_t</code> before
+  multiplying, then fold.
+</p>
+
+<h3>18.2 64&times;64&rarr;128 primitives (when you outgrow Mersenne tricks)</h3>
+<p>
+  For general primes (e.g. secp256k1's <code>p</code>), you need 256-bit modular arithmetic. The
+  building blocks on the GPU:
+</p>
+<table>
+<tr><td><code>__umulhi(a, b)</code></td><td>high 32 bits of 32&times;32 product</td></tr>
+<tr><td><code>__umul64hi(a, b)</code></td><td>high 64 bits of 64&times;64 product</td></tr>
+<tr><td><code>__byte_perm</code>, <code>__funnelshift_l</code></td><td>bitfield manipulation</td></tr>
+</table>
+<p>
+  Reduce with Barrett (precompute <code>mu = floor(2&#94;k / p)</code>) or Montgomery (operate in
+  the &times;R domain).
+</p>
+
+<h3>18.3 Polynomial multiply over F_p</h3>
+<p>
+  Naive: <code>c[i+j] = (c[i+j] + a[i] * b[j]) mod p</code>. O(N&sup2;). At tensara's test sizes
+  (N &le; 1024) one thread per output index works fine: each thread computes
+  <code>c[i+j]</code> by summing over the diagonal of the outer product, taking mod once at the end.
+</p>
+<p>
+  Asymptotically optimal: <b>NTT</b> (Number-Theoretic Transform). Same structure as FFT but over F_p,
+  using a primitive root of unity instead of <code>e&#94;{2&pi;i/N}</code>. Cooley-Tukey applies. Mersenne
+  primes have nice roots of unity, so this is a good showcase &mdash; but for N=1024 the naive O(N&sup2;)
+  beats NTT overhead on practical GPUs.
+</p>
+
+<h3>18.4 ECC point negation</h3>
+<p>
+  Trivial in affine coordinates: <code>(x, y) &rarr; (x, -y mod p)</code>. With Mersenne reduction, just
+  <code>p - y</code> (always positive since 0 &le; y &lt; p).
+</p>
+
+<div class="maps">
+  <b>Maps to:</b> ECC Point Negation (Batched), Polynomial Multiplication over Finite Field, Vector
+  Multiplication over Finite Field.
+</div>
+
+<!-- ====================================================== -->
+<h2 id="attn">19. Attention (FlashAttention)</h2>
+
+<p>
+  Scaled dot-product attention is <code>O = softmax(Q K&sup1; / sqrt(d)) V</code> per (batch, head).
+  The naive 3-step kernel:
+</p>
+<ol>
+  <li>Compute <code>S = Q K&sup1;</code> &mdash; an <code>S &times; S</code> matrix, materialized in DRAM.</li>
+  <li>Softmax over each row of S.</li>
+  <li>Compute <code>O = P V</code>.</li>
+</ol>
+<p>
+  The S matrix is the killer: for sequence length 2048, S has 2048&sup2; = 4M floats per head per batch
+  &mdash; and you read/write it 3 times. <b>FlashAttention</b> fuses all three steps into one kernel
+  using the online-softmax trick from <a href="#softmax">section 11</a>, never materializing S.
+</p>
+
+<h3>19.1 The algorithm</h3>
+<pre>// For each query row block Q_i (of Br rows):
+//   load Q_i once into shared memory
+//   initialize: O_i = 0, m_i = -inf, l_i = 0
+//   for each key/value block (K_j, V_j) (of Bc rows):
+//       compute S_ij = Q_i @ K_j^T / sqrt(d)        [Br x Bc]
+//       m_new = max(m_i, rowmax(S_ij))              [Br]
+//       P_ij  = exp(S_ij - m_new)                   [Br x Bc]
+//       l_new = exp(m_i - m_new) * l_i + rowsum(P_ij)
+//       O_i   = exp(m_i - m_new) * O_i + P_ij @ V_j  [Br x d]
+//       m_i, l_i = m_new, l_new
+//   O_i = O_i / l_i
+//   write O_i</pre>
+
+<h3>19.2 Launch geometry &amp; tile sizes</h3>
+<p>
+  Grid <code>(B * H, ceil(S / Br))</code>: one block per (batch, head, query-block). Pick Br, Bc, d so
+  <code>(Br + Bc) * d</code> floats fit in shared memory along with the running stats. Typical:
+  Br = 64, Bc = 64, d = 64 &rarr; ~64 KB shared (opt-in needed).
+</p>
+
+<h3>19.3 Mixed precision</h3>
+<p>
+  Inputs FP16/BF16 for tensor-core throughput, accumulate in FP32 (the running m, l, O are all FP32),
+  cast back to the output dtype at the end. Tensara's attention problem uses FP32 throughout, so this
+  shortcut isn't available there.
+</p>
+
+<h3>19.4 Causal masking (not on the tensara problem, but worth knowing)</h3>
+<p>
+  Skip key blocks entirely to the right of the query block; mask within the diagonal block.
+</p>
+
+<div class="maps">
+  <b>Maps to:</b> Scaled Dot-Product Attention. The same machinery extends to causal attention,
+  cross-attention, GQA / MQA, and the long-context variants you'd implement in your VSA work.
+</div>
+
+<!-- ====================================================== -->
+<h2 id="hist">20. Histograms &amp; atomics</h2>
+
+<p>
+  Image histogram is the one place atomics dominate the design. Three flavors, increasing speed:
+</p>
+
+<h3>20.1 Naive global atomics</h3>
+<pre>__global__ void hist_naive(const float* in, int* hist, int N, int bins) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i &lt; N) atomicAdd(&amp;hist[(int)in[i]], 1);
+}</pre>
+<p>Slow: every thread contends on the few "hot" bins.</p>
+
+<h3>20.2 Per-block shared-memory privatization</h3>
+<pre>__global__ void hist_shared(const float* in, int* hist, int N, int bins) {
+    extern __shared__ int s_hist[];                       // size = bins
+    for (int b = threadIdx.x; b &lt; bins; b += blockDim.x) s_hist[b] = 0;
+    __syncthreads();
+
+    for (int i = blockIdx.x*blockDim.x + threadIdx.x; i &lt; N; i += gridDim.x*blockDim.x)
+        atomicAdd(&amp;s_hist[(int)in[i]], 1);                // atomic on shared = fast
+    __syncthreads();
+
+    for (int b = threadIdx.x; b &lt; bins; b += blockDim.x)
+        atomicAdd(&amp;hist[b], s_hist[b]);                   // one atomic per bin per block
+}</pre>
+<p>
+  Contention drops from "many threads, few bins, global memory" to "many threads, few bins, shared
+  memory" + "one update per bin per block to global." Typical 10&ndash;100&times; speedup.
+</p>
+
+<h3>20.3 Float histogram (tensara's case)</h3>
+<p>
+  Tensara wants <code>float*</code> output but exact equality. <code>atomicAdd(float*, float)</code>
+  exists on Pascal+. Either: accumulate as <code>unsigned int</code> in shared, then write floats; or
+  use <code>atomicAdd(float*, 1.0f)</code> directly.
+</p>
+
+<div class="maps">
+  <b>Maps to:</b> Image Histogram. The privatization pattern also generalizes to reductions with hot
+  keys (e.g. computing per-class statistics for batched losses).
+</div>
+
+<!-- ====================================================== -->
+<h2 id="conv1d">21. Worked example: conv-1d end-to-end</h2>
+
+<p>
+  Time to put it all together. Tensara's 1D Convolution: signal A of length N, kernel B of length K
+  (odd, &lt; N), output C of length N with zero-padded centered cross-correlation. Test sizes:
+  N &isin; {32K, 65K, 131K, 524K}, all with K = 8191.
+</p>
+
+<div class="warn">
+  K = 8191 is huge. Most textbook conv tutorials assume K = 3 or 5. With K = 8191 our shared-memory
+  halo is 8190 elements and our kernel B alone is 32 KB. Standard tricks need adjustment.
+</div>
+
+<h3>21.1 The naive kernel (works, slow)</h3>
+<pre>__global__ void conv1d_naive(const float* __restrict__ A,
+                             const float* __restrict__ B,
+                             float* __restrict__ C,
+                             int N, int K, int r) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i &gt;= N) return;
+    float acc = 0.0f;
+    for (int j = 0; j &lt; K; ++j) {
+        int idx = i + j - r;
+        if (idx &gt;= 0 &amp;&amp; idx &lt; N) acc += A[idx] * B[j];
+    }
+    C[i] = acc;
+}</pre>
+<p>
+  Correct, ~15 lines, passes the easy correctness test. But does <code>N*K &asymp; 4.3 G</code> global
+  loads from A for the smallest test case. Bandwidth-bound, way below peak.
+</p>
+
+<h3>21.2 Tiled + halo kernel (the standard win)</h3>
+<p>
+  Each block computes <code>BLOCK</code> outputs. Load <code>BLOCK + 2r</code> A-values plus all
+  <code>K</code> B-values into shared. Each A is read from global once, reused by up to K threads from
+  shared.
+</p>
+<pre>template&lt;int BLOCK&gt;
+__global__ void conv1d_tiled(const float* __restrict__ A,
+                             const float* __restrict__ B,
+                             float* __restrict__ C,
+                             int N, int K, int r) {
+    extern __shared__ float smem[];
+    float* tileA = smem;                                  // size BLOCK + 2r
+    float* tileB = smem + BLOCK + 2 * r;                  // size K
+
+    int tile_start = blockIdx.x * BLOCK;
+
+    for (int t = threadIdx.x; t &lt; BLOCK + 2*r; t += BLOCK) {
+        int g = tile_start - r + t;
+        tileA[t] = (g &gt;= 0 &amp;&amp; g &lt; N) ? A[g] : 0.0f;
+    }
+    for (int t = threadIdx.x; t &lt; K; t += BLOCK)
+        tileB[t] = B[t];
+
+    __syncthreads();
+
+    int i = tile_start + threadIdx.x;
+    if (i &lt; N) {
+        float acc = 0.0f;
+        int base = threadIdx.x;
+        #pragma unroll 8
+        for (int j = 0; j &lt; K; ++j)
+            acc += tileA[base + j] * tileB[j];
+        C[i] = acc;
+    }
+}
+
+extern "C" void solve(const float* A, const float* B, float* C, size_t N, size_t K) {
+    constexpr int BLOCK = 256;
+    int r = (int)(K - 1) / 2;
+    int grid = ((int)N + BLOCK - 1) / BLOCK;
+    size_t shmem = (BLOCK + 2 * r + (int)K) * sizeof(float);
+    cudaFuncSetAttribute(conv1d_tiled&lt;BLOCK&gt;,
+        cudaFuncAttributeMaxDynamicSharedMemorySize, 100 * 1024);
+    conv1d_tiled&lt;BLOCK&gt;&lt;&lt;&lt;grid, BLOCK, shmem&gt;&gt;&gt;(A, B, C, (int)N, (int)K, r);
+}</pre>
+
+<div class="warn">
+  Shared-memory budget for K=8191, BLOCK=256: <code>(256 + 8190 + 8191) * 4 B &asymp; 65 KB</code>.
+  Over the default 48 KB limit &mdash; opt in via <code>cudaFuncSetAttribute</code>. On T4 the cap is
+  64 KB; you'd have to shrink BLOCK or read B through the read-only cache.
+</div>
+
+<h3>21.3 The sliding-window visualization</h3>
+
+<div class="demo">
+  <label>Output index i: <span id="iVal">10</span></label>
+  <input id="iSlide" type="range" min="0" max="31" value="10" />
+  <label>Kernel size K: <span id="kVal">5</span></label>
+  <input id="kSlide" type="range" min="1" max="11" step="2" value="5" />
+  <canvas id="convCanvas" width="820" height="220"></canvas>
+  <p class="footnote">Top row: input A. Bottom: output C[i]. Highlighted window: K inputs that contribute
+    to C[i], multiplied by B[0..K-1] and summed. Dashed cells: out-of-bounds positions contributing 0.</p>
+</div>
+
+<h3>21.4 Tuning levers, in order</h3>
+<ol>
+  <li><b>BLOCK</b> 128 / 256 / 512. Bigger amortizes halo (<code>2r / BLOCK</code> shrinks). Smaller fits
+    more blocks per SM.</li>
+  <li><b>Outputs per thread.</b> 2, 4, or 8 outputs per thread: same shared tile, multiple FMAs per
+    K step, lower thread overhead.</li>
+  <li><b>Vectorize tile loads</b> via <code>float4*</code>.</li>
+  <li><b>Unroll factor</b> <code>#pragma unroll 4</code> or <code>8</code>.</li>
+  <li><b>Interior / edge split</b>: branch-free inner loop for blocks not touching the boundary, separate
+    kernel for the boundary blocks.</li>
+</ol>
+
+<h3>21.5 Pre-submit sanity check</h3>
+<ul>
+  <li><code>compute-sanitizer ./a.out</code> &mdash; catches OOB shared, missing syncs, races.</li>
+  <li>Diff against a CPU reference for N=64, K=5.</li>
+  <li>Test K=1 (identity), large K hitting both boundaries.</li>
+</ul>
+
+<!-- ====================================================== -->
+<h2 id="perf">22. Performance &amp; profiling</h2>
+
+<h3>22.1 The roofline model in one paragraph</h3>
+<p>
+  Plot achieved throughput vs <b>arithmetic intensity</b> (FLOPs done per byte moved from DRAM).
+  Memory-bandwidth-bound region = sloped line: more compute per byte &rarr; more FLOP/s. Compute-bound
+  region = a flat ceiling at the GPU's peak. The "ridge point" is the AI where the two meet (for H100
+  FP32 ~20 FLOPs/byte; for FP16 tensor cores ~300).
+</p>
+<p>
+  For conv-1d: naive AI = 2K / (4K) = 0.5 (deeply memory-bound). Tiled AI &asymp; 2K / 4 = K/2
+  = ~4000 (potentially compute-bound). That's a 4000&times; improvement in arithmetic intensity from
+  one optimization &mdash; this is why tiling matters.
+</p>
+
+<h3>22.2 Occupancy</h3>
+<p>
+  Fraction of theoretical max warps an SM can run concurrently. Three things limit it: register count,
+  shared memory per block, threads per block. <code>cudaOccupancyMaxActiveBlocksPerMultiprocessor</code>
+  tells you which. Higher is not always better &mdash; 50% occupancy is often enough to hide latency,
+  and crippling per-thread registers to gain occupancy can backfire.
+</p>
+
+<h3>22.3 Compiler hints</h3>
+<table>
+<tr><th>Hint</th><th>Why</th></tr>
+<tr><td><code>__restrict__</code></td><td>No aliasing &rarr; better scheduling, can hoist loads.</td></tr>
+<tr><td><code>const</code> on a pointer param</td><td>Enables read-only cache path.</td></tr>
+<tr><td><code>#pragma unroll [N]</code></td><td>Unroll fully or N times. Helps when bound is known
+  at compile time.</td></tr>
+<tr><td><code>__forceinline__</code></td><td>Inline device function in the hot path.</td></tr>
+<tr><td><code>__launch_bounds__(maxTpb, minBlocksPerMP)</code></td><td>Lets nvcc balance registers vs
+  occupancy.</td></tr>
+</table>
+
+<h3>22.4 nsight compute metrics that matter</h3>
+<ul>
+  <li><b>Memory Throughput</b> &mdash; achieved HBM bandwidth as % of peak. Push up if memory-bound.</li>
+  <li><b>SM Throughput</b> &mdash; how busy SMs are with math. Push up if compute-bound.</li>
+  <li><b>L1 / L2 Hit Rate</b> &mdash; if low while memory-bound, add tiling.</li>
+  <li><b>Achieved Occupancy</b> &mdash; if very low (&lt;25%) and memory-bound, look for stalls.</li>
+  <li><b>Warp Stall Reasons</b> &mdash; "Long Scoreboard" = waiting on global; "Short Scoreboard" = waiting
+    on shared; "Wait" = barrier.</li>
+</ul>
+<pre>nvcc -arch=sm_90 -O3 -lineinfo k.cu -o k        # sm_90=H100, sm_80=A100, sm_75=T4
+compute-sanitizer ./k                            # memcheck
+ncu --set full -o report ./k                     # nsight compute full metric set
+ncu-ui report.ncu-rep                            # GUI</pre>
+
+<!-- ====================================================== -->
+<h2 id="libs">23. Library escape hatches</h2>
+
+<p>
+  For many tensara problems a one-line library call will solve it correctly. It won't always win on
+  perf but it's a fine baseline and worth knowing.
+</p>
+
+<h3>23.1 CUB &mdash; block-level &amp; device-level primitives</h3>
+<table>
+<tr><th>CUB call</th><th>Replaces</th></tr>
+<tr><td><code>cub::BlockReduce&lt;T,B&gt;</code></td><td>The block-reduce kernel of section 9.2</td></tr>
+<tr><td><code>cub::BlockScan&lt;T,B&gt;</code></td><td>The in-block Blelloch scan of section 10.2</td></tr>
+<tr><td><code>cub::WarpReduce&lt;T&gt;</code></td><td>The warp shuffle reduction of section 6</td></tr>
+<tr><td><code>cub::DeviceReduce::Sum / Max / ArgMax</code></td><td>Whole-tensor scalar reductions</td></tr>
+<tr><td><code>cub::DeviceScan::InclusiveSum</code></td><td>Cumsum / cumprod problems</td></tr>
+<tr><td><code>cub::DeviceRadixSort::SortKeys</code></td><td>Array-sort problem</td></tr>
+<tr><td><code>cub::DeviceHistogram::HistogramEven</code></td><td>Image-histogram problem</td></tr>
+</table>
+
+<h3>23.2 Thrust &mdash; STL-style API</h3>
+<pre>thrust::reduce(thrust::device, ptr, ptr + n);                  // sum
+thrust::inclusive_scan(thrust::device, in, in + n, out);       // cumsum
+thrust::sort(thrust::device, ptr, ptr + n);                    // sort</pre>
+
+<h3>23.3 cuBLAS, cuFFT, cuDNN, CUTLASS</h3>
+<ul>
+  <li><b>cuBLAS</b>: <code>cublasSgemm</code>, <code>cublasSgemv</code> &mdash; production-grade matmul,
+    will beat hand-written FP32 GEMM on most problems.</li>
+  <li><b>cuFFT</b>: <code>cufftExecR2C</code> + multiply + <code>cufftExecC2R</code> for very large-K
+    convolutions.</li>
+  <li><b>cuDNN</b>: <code>cudnnConvolutionForward</code> for the 2D / 3D conv problems with the
+    correct padding/stride/dilation setup.</li>
+  <li><b>CUTLASS</b>: NVIDIA's template library; the right tool for custom-tile / mixed-precision /
+    block-scaled GEMM that needs to outperform cuBLAS. Steeper learning curve.</li>
+</ul>
+
+<!-- ====================================================== -->
+<h2 id="cheat">24. Cheat sheet</h2>
+
+<h3>24.1 Boilerplate</h3>
+<pre>#include &lt;cuda_runtime.h&gt;
+#include &lt;cstddef&gt;
+#include &lt;cstdio&gt;
+
+#define CUDA_CHECK(x) do { cudaError_t e = (x); \
+    if (e != cudaSuccess) printf("CUDA: %s\n", cudaGetErrorString(e)); } while(0)
+
+__global__ void my_kernel(const float* __restrict__ in,
+                          float* __restrict__ out, int n) { /* ... */ }
+
+extern "C" void solve(const float* in, float* out, size_t n) {
+    int block = 256;
+    int grid  = ((int)n + block - 1) / block;
+    my_kernel&lt;&lt;&lt;grid, block&gt;&gt;&gt;(in, out, (int)n);
+}</pre>
+
+<h3>24.2 Qualifiers</h3>
+<table>
+<tr><td><code>__global__</code></td><td>Kernel, host-launched</td></tr>
+<tr><td><code>__device__</code></td><td>Device-callable function</td></tr>
+<tr><td><code>__host__ __device__</code></td><td>Both</td></tr>
+<tr><td><code>__forceinline__</code></td><td>Inline at call site</td></tr>
+<tr><td><code>__shared__</code></td><td>Per-block scratch</td></tr>
+<tr><td><code>__constant__</code></td><td>64 KB broadcast-cached</td></tr>
+<tr><td><code>const ... __restrict__</code></td><td>Read-only path, no aliasing</td></tr>
+</table>
+
+<h3>24.3 Built-ins inside a kernel</h3>
+<pre>threadIdx.x  threadIdx.y  threadIdx.z      // my index in block
+blockIdx.x   blockIdx.y   blockIdx.z       // my block in grid
+blockDim.x   blockDim.y   blockDim.z       // block shape
+gridDim.x    gridDim.y    gridDim.z        // grid shape
+warpSize                                    // always 32
+
+__syncthreads()                            // block barrier
+__syncwarp(mask)                           // warp barrier
+__shfl_sync(mask, val, src)                // warp broadcast
+__shfl_up_sync, __shfl_down_sync           // shifted reads (scan / reduce)
+__ballot_sync(mask, pred)                  // 32-bit predicate vote
+atomicAdd, atomicMax, atomicCAS            // atomic ops</pre>
+
+<h3>24.4 Types</h3>
+<pre>float, float2, float4                       // 32-bit and vectorized
+__half, __half2                             // FP16, paired FP16
+__nv_bfloat16, __nv_bfloat162               // BF16
+__nv_fp8_e4m3, __nv_fp8_e5m2                // FP8 (Hopper+)
+uint8_t, uchar4, uint4                      // packed-byte loads</pre>
+
+<h3>24.5 Math intrinsics (fast / accurate pairs)</h3>
+<pre>__expf       expf
+__logf       logf
+__tanhf      tanhf
+__sinf       sinf
+__cosf       cosf
+rsqrtf       1.0f / sqrtf      // rsqrtf is always strictly better
+fmaf(a,b,c)  a*b + c           // matches HW FMA, single rounding</pre>
+
+<h3>24.6 Compile &amp; debug</h3>
+<pre>nvcc -arch=sm_90 -O3 -lineinfo k.cu -o k    # sm_90=H100, sm_80=A100, sm_75=T4
+nvcc -arch=sm_80 -Xptxas -v k.cu             # print register/smem usage per kernel
+compute-sanitizer ./k                        # memcheck / racecheck / synccheck
+ncu --set full -o r ./k &amp;&amp; ncu-ui r.ncu-rep  # nsight compute</pre>
+
+<h3>24.7 Latency &amp; bandwidth numbers worth remembering</h3>
+<table>
+<tr><td>Register read</td><td>~1 cycle</td></tr>
+<tr><td>Shared memory load</td><td>~30 cycles</td></tr>
+<tr><td>L2 hit</td><td>~200 cycles</td></tr>
+<tr><td>HBM load (DRAM)</td><td>~400&ndash;600 cycles</td></tr>
+<tr><td>H100 peak HBM BW</td><td>~3 TB/s</td></tr>
+<tr><td>H100 peak FP32 (no tensor cores)</td><td>~67 TFLOPS</td></tr>
+<tr><td>H100 peak FP16/BF16 tensor</td><td>~989 TFLOPS</td></tr>
+<tr><td>H100 peak FP8 tensor</td><td>~1979 TFLOPS</td></tr>
+<tr><td>Warp size</td><td>32 (always)</td></tr>
+<tr><td>Shared mem per block</td><td>48 KB default, up to 228 KB with opt-in</td></tr>
+</table>
+
+<h3>24.8 Tensara catalog &rarr; technique map</h3>
+<table>
+<tr><th>Category</th><th>Sections to read</th></tr>
+<tr><td>Element-wise (activations, vector add, scalar matmul, dequant, thresholding, grayscale)</td>
+    <td>5, 6, 7</td></tr>
+<tr><td>Loss (per-element: Huber, Hinge, KL)</td><td>7</td></tr>
+<tr><td>Loss (scalar: MSE, Triplet, Cosine)</td><td>7, 9</td></tr>
+<tr><td>Normalization (RMS, L1, L2, Frobenius, Layer, Batch)</td><td>9</td></tr>
+<tr><td>Reductions over dim, Argmax / Argmin</td><td>9</td></tr>
+<tr><td>Softmax, Log-Softmax</td><td>9, 11</td></tr>
+<tr><td>Cumsum, Cumprod</td><td>10</td></tr>
+<tr><td>1D Running Sum</td><td>8 or 10 (prefix)</td></tr>
+<tr><td>Array Sorting</td><td>10, 12</td></tr>
+<tr><td>1D / 2D / 3D Convolution, Box Blur, Edge Detect</td><td>8 (+ 13 for large-K)</td></tr>
+<tr><td>1D / 2D / 3D Pooling</td><td>8, 9</td></tr>
+<tr><td>Conv-1d (worked)</td><td>21</td></tr>
+<tr><td>Conv + activation (fused)</td><td>7, 8</td></tr>
+<tr><td>Matrix multiplication (dense)</td><td>13, 14</td></tr>
+<tr><td>Triangular / symmetric / diagonal / GEMV / 3D / 4D matmul</td><td>13, 14, 15</td></tr>
+<tr><td>GEMM + activation / scaling / sum (fused)</td><td>13, 7, 9</td></tr>
+<tr><td>Matrix N-th Power</td><td>13, 15</td></tr>
+<tr><td>MXFP4 / MXFP8 / NVFP4 (dequant, quant, GEMM, GEMV)</td><td>16</td></tr>
+<tr><td>Image Histogram</td><td>20</td></tr>
+<tr><td>All-Pairs Shortest Path, SSSP, MST</td><td>17</td></tr>
+<tr><td>ECC Point Negation, Polynomial / Vector Multiply over Finite Field</td><td>18</td></tr>
+<tr><td>Scaled Dot-Product Attention</td><td>11, 19</td></tr>
+</table>
+
+<h2>25. Where to go next</h2>
+<ul>
+  <li>Read the CUDA C++ Programming Guide chapters "Memory Hierarchy" and "Performance Guidelines" &mdash;
+    the rest is reference.</li>
+  <li>Walk through <code>cuda-samples</code>: <code>0_Simple/matrixMul</code>,
+    <code>2_Concepts_and_Techniques/convolutionSeparable</code>,
+    <code>3_CUDA_Features/cudaTensorCoreGemm</code>.</li>
+  <li>For tensor cores at production quality: skim CUTLASS' README, then the
+    <code>cute::</code> layout-algebra docs.</li>
+  <li>For attention: the original FlashAttention paper + FlashAttention-2 / -3 papers; then
+    <code>flash-attn</code> source.</li>
+  <li>For MXFP4 / NVFP4 GEMM: NVIDIA's Transformer Engine source, and the Blackwell PTX ISA section on
+    block-scaled MMA instructions.</li>
+  <li>Profile every kernel with nsight compute. The metric to chase first is "Memory Throughput" %.
+    Once it's &gt;70%, switch to "SM Throughput" &mdash; you're now compute-bound.</li>
+</ul>
+
+<p class="footnote" style="margin-top: 40px;">
+  Built as a personal study reference from a survey of all 84 tensara.org problems. Signatures and test
+  sizes verified against each problem's <code>def.py</code> in the tensara/problems GitHub. Hardware
+  numbers from the H100 datasheet and CUDA 12.x programming guide. Errors are mine.
+</p>
+
+</div>
+
+<script>
+// ---------- Coalescing demo ----------
+const coalCv = document.getElementById('coalCanvas');
+const coalCtx = coalCv.getContext('2d');
+const coalNote = document.getElementById('coalNote');
+let coalPattern = 'coal';
+
+function drawCoal() {
+  const W = coalCv.width, H = coalCv.height;
+  coalCtx.clearRect(0, 0, W, H);
+  const wordsShown = 64;
+  const cellW = (W - 40) / wordsShown;
+  const memY = 30, memH = 28;
+  coalCtx.fillStyle = '#1a2030';
+  for (let i = 0; i < wordsShown; i++) coalCtx.fillRect(20 + i * cellW, memY, cellW - 1, memH);
+  coalCtx.strokeStyle = '#3a4660';
+  coalCtx.setLineDash([4, 4]);
+  for (let i = 0; i <= wordsShown; i += 32) {
+    coalCtx.beginPath();
+    coalCtx.moveTo(20 + i * cellW, memY - 4);
+    coalCtx.lineTo(20 + i * cellW, memY + memH + 4);
+    coalCtx.stroke();
+  }
+  coalCtx.setLineDash([]);
+  coalCtx.fillStyle = '#a3b1c6';
+  coalCtx.font = '11px monospace';
+  coalCtx.fillText('global memory (words)', 20, 20);
+
+  const addrs = [];
+  for (let t = 0; t < 32; t++) {
+    let a;
+    if (coalPattern === 'coal') a = t;
+    else if (coalPattern === 's2') a = t * 2;
+    else if (coalPattern === 's8') a = t * 8;
+    else a = ((t * 2654435761) >>> 0) % wordsShown;
+    addrs.push(Math.min(a, wordsShown - 1));
+  }
+  const lines = new Set();
+  for (const a of addrs) lines.add(Math.floor(a / 32));
+  const txn = lines.size;
+
+  coalCtx.fillStyle = '#7cc4ff';
+  for (const a of addrs) coalCtx.fillRect(20 + a * cellW, memY, cellW - 1, memH);
+  coalCtx.strokeStyle = '#fff';
+  coalCtx.lineWidth = 1.5;
+  for (const line of lines) coalCtx.strokeRect(20 + line * 32 * cellW, memY - 2, 32 * cellW, memH + 4);
+  coalCtx.lineWidth = 1;
+
+  const warpY = 120;
+  coalCtx.fillStyle = '#a3b1c6';
+  coalCtx.fillText('warp (32 threads), each requests one word:', 20, warpY - 12);
+  const tW = (W - 40) / 32;
+  for (let t = 0; t < 32; t++) {
+    const cx = 20 + t * tW + tW / 2;
+    coalCtx.fillStyle = '#ffb86b';
+    coalCtx.fillRect(20 + t * tW, warpY, tW - 1, 20);
+    const a = addrs[t];
+    const ax = 20 + a * cellW + cellW / 2;
+    coalCtx.strokeStyle = 'rgba(255,184,107,0.35)';
+    coalCtx.beginPath();
+    coalCtx.moveTo(cx, warpY);
+    coalCtx.lineTo(ax, memY + memH);
+    coalCtx.stroke();
+  }
+  coalCtx.fillStyle = '#e7ecf3';
+  coalCtx.font = '14px sans-serif';
+  coalCtx.fillText('Transactions: ' + txn + (txn === 1 ? ' (optimal!)' : '   (' + txn + 'x slower than coalesced)'), 20, 175);
+
+  const notes = {
+    'coal': 'Coalesced: 32 threads read 32 consecutive words = 1 transaction. Peak bandwidth.',
+    's2':   'Stride 2: warp spans 2 cache lines, half the bandwidth wasted on unused words.',
+    's8':   'Stride 8: each thread in a different cache line. 8 transactions, ~8x slower.',
+    'rand': 'Random: worst case. Up to 32 transactions.'
+  };
+  coalNote.textContent = notes[coalPattern];
+}
+function setPattern(p) { coalPattern = p; drawCoal(); }
+drawCoal();
+
+// ---------- Halo demo ----------
+const haloCv = document.getElementById('haloCanvas');
+const haloCtx = haloCv.getContext('2d');
+const blockSlide = document.getElementById('blockSlide');
+const rSlide = document.getElementById('rSlide');
+const blockVal = document.getElementById('blockVal');
+const rVal = document.getElementById('rVal');
+const tileMath = document.getElementById('tileMath');
+
+function drawHalo() {
+  const W = haloCv.width, H = haloCv.height;
+  haloCtx.clearRect(0, 0, W, H);
+  const block = parseInt(blockSlide.value, 10);
+  const r = parseInt(rSlide.value, 10);
+  const total = block + 2 * r;
+  blockVal.textContent = block;
+  rVal.textContent = r;
+  tileMath.textContent = 'Tile size = BLOCK + 2r = ' + block + ' + ' + (2*r) + ' = ' + total + ' floats.';
+
+  const cellW = (W - 40) / total;
+  const y = 60, h = 50;
+  haloCtx.fillStyle = '#ffb86b';
+  haloCtx.fillRect(20, y, r * cellW, h);
+  haloCtx.fillStyle = '#6ee7b7';
+  haloCtx.fillRect(20 + r * cellW, y, block * cellW, h);
+  haloCtx.fillStyle = '#ffb86b';
+  haloCtx.fillRect(20 + (r + block) * cellW, y, r * cellW, h);
+
+  haloCtx.fillStyle = '#e7ecf3';
+  haloCtx.font = '13px sans-serif';
+  haloCtx.fillText('shared memory tile for one block', 20, 25);
+  haloCtx.fillStyle = '#ffb86b';
+  haloCtx.fillText('halo (r=' + r + ')', 24, y - 8);
+  haloCtx.fillStyle = '#6ee7b7';
+  haloCtx.fillText('owned outputs (BLOCK=' + block + ')', 25 + r * cellW, y - 8);
+  haloCtx.fillStyle = '#ffb86b';
+  haloCtx.fillText('halo (r=' + r + ')', 20 + (r + block) * cellW + 4, y - 8);
+
+  const overhead = (2 * r) / (block + 2 * r);
+  haloCtx.fillStyle = '#a3b1c6';
+  haloCtx.font = '13px sans-serif';
+  haloCtx.fillText('Halo overhead = ' + (overhead * 100).toFixed(1) + '% of loaded tile is just halo.',
+    20, y + h + 25);
+  haloCtx.fillText('Bigger blocks → less overhead. Tile uses ' + (total * 4) + ' bytes of shared mem.',
+    20, y + h + 45);
+}
+blockSlide.addEventListener('input', drawHalo);
+rSlide.addEventListener('input', drawHalo);
+drawHalo();
+
+// ---------- Conv-1d sliding window demo ----------
+const convCv = document.getElementById('convCanvas');
+const convCtx = convCv.getContext('2d');
+const iSlide = document.getElementById('iSlide');
+const kSlide = document.getElementById('kSlide');
+const iVal = document.getElementById('iVal');
+const kVal = document.getElementById('kVal');
+
+function drawConv() {
+  const W = convCv.width, H = convCv.height;
+  convCtx.clearRect(0, 0, W, H);
+  const N = 32;
+  const i = parseInt(iSlide.value, 10);
+  const K = parseInt(kSlide.value, 10);
+  iVal.textContent = i;
+  kVal.textContent = K;
+  const r = (K - 1) / 2;
+
+  const cellW = (W - 40) / N;
+  const yIn = 40, yOut = 150, h = 36;
+
+  convCtx.fillStyle = '#a3b1c6';
+  convCtx.font = '13px sans-serif';
+  convCtx.fillText('input A[0..' + (N-1) + ']', 20, 25);
+  for (let k = 0; k < N; k++) {
+    convCtx.fillStyle = '#1a2030';
+    convCtx.fillRect(20 + k * cellW, yIn, cellW - 1, h);
+    convCtx.fillStyle = '#a3b1c6';
+    convCtx.font = '10px monospace';
+    convCtx.fillText(k, 22 + k * cellW, yIn + h + 12);
+  }
+
+  for (let j = 0; j < K; j++) {
+    const idx = i + j - r;
+    const x = 20 + idx * cellW;
+    if (idx >= 0 && idx < N) {
+      convCtx.fillStyle = '#7cc4ff';
+      convCtx.fillRect(x, yIn, cellW - 1, h);
+      convCtx.fillStyle = '#0a0f1a';
+      convCtx.font = 'bold 11px monospace';
+      convCtx.fillText('B' + j, x + 2, yIn + h/2 + 4);
+    } else {
+      convCtx.setLineDash([3, 3]);
+      convCtx.strokeStyle = '#ff9aa2';
+      convCtx.strokeRect(x + 0.5, yIn + 0.5, cellW - 1, h);
+      convCtx.setLineDash([]);
+      convCtx.fillStyle = '#ff9aa2';
+      convCtx.font = 'bold 11px monospace';
+      convCtx.fillText('0', x + cellW/2 - 4, yIn + h/2 + 4);
+    }
+  }
+
+  convCtx.fillStyle = '#a3b1c6';
+  convCtx.font = '13px sans-serif';
+  convCtx.fillText('output C[i]', 20, yOut - 10);
+  for (let k = 0; k < N; k++) {
+    convCtx.fillStyle = (k === i) ? '#6ee7b7' : '#1a2030';
+    convCtx.fillRect(20 + k * cellW, yOut, cellW - 1, h);
+  }
+  convCtx.fillStyle = '#0a0f1a';
+  convCtx.font = 'bold 11px monospace';
+  convCtx.fillText('i=' + i, 22 + i * cellW, yOut + h/2 + 4);
+
+  convCtx.strokeStyle = 'rgba(110,231,183,0.4)';
+  const outX = 20 + i * cellW + cellW / 2;
+  for (let j = 0; j < K; j++) {
+    const idx = i + j - r;
+    if (idx < 0 || idx >= N) continue;
+    const fromX = 20 + idx * cellW + cellW / 2;
+    convCtx.beginPath();
+    convCtx.moveTo(fromX, yIn + h);
+    convCtx.bezierCurveTo(fromX, yIn + h + 30, outX, yOut - 30, outX, yOut);
+    convCtx.stroke();
+  }
+
+  iSlide.max = N - 1;
+}
+iSlide.addEventListener('input', drawConv);
+kSlide.addEventListener('input', drawConv);
+drawConv();
+</script>
+
+</body>
+</html>

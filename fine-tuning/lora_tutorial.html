@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>LoRA, Explained Simply — with Follow-ups</title>
+<script>
+  MathJax = {
+    tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
+    svg: { fontCache: 'global' }
+  };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2030;
+    --text: #e7ecf3;
+    --muted: #a3b1c6;
+    --accent: #7cc4ff;
+    --accent2: #ffb86b;
+    --good: #6ee7b7;
+    --bad: #ff8a8a;
+    --line: #2a3346;
+    --purple: #c4a2ff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.65;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 32px 24px 80px; }
+  h1 { font-size: 2.2rem; margin: 0 0 8px; }
+  h2 { color: var(--accent); margin-top: 2.4em; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+  h3 { color: var(--accent2); margin-top: 1.6em; }
+  h4 { color: var(--purple); margin-top: 1.3em; margin-bottom: 6px; }
+  .subtitle { color: var(--muted); font-size: 1.05rem; margin-bottom: 32px; }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 18px 22px;
+    margin: 18px 0;
+  }
+  .analogy {
+    border-left: 4px solid var(--accent2);
+    background: #1f2535;
+    padding: 14px 18px;
+    margin: 18px 0;
+    border-radius: 4px;
+  }
+  .analogy::before {
+    content: "Analogy";
+    display: block;
+    font-weight: 700;
+    color: var(--accent2);
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .key {
+    border-left: 4px solid var(--good);
+    background: #1c2a26;
+    padding: 14px 18px;
+    margin: 18px 0;
+    border-radius: 4px;
+  }
+  .key::before {
+    content: "Key idea";
+    display: block;
+    font-weight: 700;
+    color: var(--good);
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .warn {
+    border-left: 4px solid var(--bad);
+    background: #2a1c1c;
+    padding: 14px 18px;
+    margin: 18px 0;
+    border-radius: 4px;
+  }
+  .warn::before {
+    content: "Gotcha";
+    display: block;
+    font-weight: 700;
+    color: var(--bad);
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .surprise {
+    border-left: 4px solid var(--purple);
+    background: #241f35;
+    padding: 14px 18px;
+    margin: 18px 0;
+    border-radius: 4px;
+  }
+  .surprise::before {
+    content: "Surprising";
+    display: block;
+    font-weight: 700;
+    color: var(--purple);
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  code {
+    background: #0a0f1a;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.92em;
+    color: #ffd29a;
+  }
+  pre {
+    background: #0a0f1a;
+    border: 1px solid var(--line);
+    padding: 14px 16px;
+    border-radius: 8px;
+    overflow-x: auto;
+    color: #d6dceb;
+    font-size: 0.9rem;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 14px 0;
+    font-size: 0.95rem;
+  }
+  th, td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+  th { color: var(--accent); font-weight: 600; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .demo {
+    background: #0a0f1a;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 20px;
+    margin: 20px 0;
+  }
+  .demo label { display: block; margin: 10px 0 4px; color: var(--muted); font-size: 0.92rem; }
+  .demo input[type="range"] { width: 100%; }
+  .demo select, .demo input[type="number"] {
+    background: #0f1420; color: var(--text); border: 1px solid var(--line);
+    padding: 6px 10px; border-radius: 6px; font-size: 0.95rem;
+  }
+  .demo button {
+    background: var(--accent);
+    color: #0a0f1a;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    margin: 4px 6px 4px 0;
+  }
+  .demo button:hover { background: #a8d6ff; }
+  canvas { background: #050810; border-radius: 6px; display: block; margin-top: 12px; max-width: 100%; }
+  .pill {
+    display: inline-block;
+    background: #2a3346;
+    color: var(--muted);
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    margin-right: 4px;
+  }
+  .pill.good { background: #1c2a26; color: var(--good); }
+  .pill.warn { background: #2a1c1c; color: var(--bad); }
+  .nav {
+    position: sticky; top: 0;
+    background: rgba(15,20,32,0.94);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line);
+    padding: 10px 24px;
+    font-size: 0.9rem;
+    z-index: 10;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  .nav a { color: var(--muted); margin-right: 18px; text-decoration: none; }
+  .nav a:hover { color: var(--accent); }
+  .footnote { color: var(--muted); font-size: 0.88rem; }
+  .quiz {
+    background: #1f2535;
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin: 18px 0;
+  }
+  .quiz .q { font-weight: 600; margin-bottom: 8px; }
+  .quiz button {
+    background: #2a3346; color: var(--text); border: 1px solid var(--line);
+    padding: 6px 12px; border-radius: 6px; margin: 4px 6px 4px 0; cursor: pointer;
+    text-align: left;
+  }
+  .quiz button.right { background: #1c2a26; border-color: var(--good); color: var(--good); }
+  .quiz button.wrong { background: #2a1c1c; border-color: var(--bad); color: var(--bad); }
+  .reveal { display: none; margin-top: 8px; color: var(--muted); font-size: 0.95rem; }
+  .reveal.show { display: block; }
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin: 0 0 28px;
+    border-bottom: 1px solid var(--line);
+    flex-wrap: wrap;
+  }
+  .tab-btn {
+    background: transparent;
+    color: var(--muted);
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 12px 18px;
+    font-size: 0.98rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+    margin-bottom: -1px;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+  .twocol {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  .threecol {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+  }
+  @media (max-width: 720px) {
+    .twocol { grid-template-columns: 1fr; }
+    .threecol { grid-template-columns: 1fr; }
+  }
+  .stat {
+    background: #0a0f1a;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 12px 14px;
+    text-align: center;
+  }
+  .stat .label { color: var(--muted); font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.06em; }
+  .stat .value { font-size: 1.4rem; font-weight: 700; color: var(--accent); margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .stat .value.good { color: var(--good); }
+  .stat .value.warn { color: var(--accent2); }
+  .paper {
+    background: #0a0f1a;
+    border-left: 3px solid var(--accent);
+    padding: 12px 16px;
+    margin: 14px 0;
+    border-radius: 4px;
+  }
+  .paper .title { font-weight: 600; color: var(--text); }
+  .paper .meta { color: var(--muted); font-size: 0.85rem; margin: 2px 0 6px; }
+  .paper a { color: var(--accent); text-decoration: none; }
+  .paper a:hover { text-decoration: underline; }
+  svg.diagram { display: block; margin: 16px auto; max-width: 100%; height: auto; }
+  .kbd {
+    background: #0a0f1a;
+    border: 1px solid var(--line);
+    border-bottom-width: 2px;
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 0.85em;
+    color: var(--accent);
+    font-family: monospace;
+  }
+  ul.compact li { margin: 4px 0; }
+</style>
+</head>
+<body>
+
+<div class="nav">
+  <a href="#intro">Intro</a>
+  <a href="#problem">The problem</a>
+  <a href="#core">Core idea</a>
+  <a href="#demo">Try it</a>
+  <a href="#rank">Rank</a>
+  <a href="#alpha">Alpha</a>
+  <a href="#modules">Modules</a>
+  <a href="#hp">Hyperparams</a>
+  <a href="#qlora">QLoRA</a>
+  <a href="#family">Family</a>
+  <a href="#serving">Serving</a>
+  <a href="#limits">Limits</a>
+  <a href="#quiz">Quiz</a>
+  <a href="#refs">References</a>
+</div>
+
+<div class="wrap">
+
+<h1>LoRA — Low-Rank Adaptation, Explained</h1>
+<p class="subtitle">
+  An interactive tutorial covering the original 2021 paper, the QLoRA/DoRA/PiSSA/rsLoRA/LoRA+/VeRA/LoftQ/AdaLoRA/LongLoRA/S-LoRA follow-ups,
+  and the empirical consensus every ML engineer should know in 2025–2026.
+</p>
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab('tab1', this)">1. Tutorial</button>
+  <button class="tab-btn" onclick="switchTab('tab2', this)">2. Family Tree</button>
+  <button class="tab-btn" onclick="switchTab('tab3', this)">3. Serving & Systems</button>
+  <button class="tab-btn" onclick="switchTab('tab4', this)">4. Quiz &amp; References</button>
+</div>
+
+<!-- ================================================================== -->
+<!-- TAB 1: TUTORIAL                                                    -->
+<!-- ================================================================== -->
+<div id="tab1" class="tab-content active">
+
+<h2 id="intro">1. The one-sentence pitch</h2>
+<p>
+  <b>LoRA</b> lets you fine-tune a giant frozen model by training a tiny <i>additive patch</i>
+  on top of it — the patch is stored as two skinny matrices that multiply to something the
+  size of a real weight matrix, but has orders of magnitude fewer parameters.
+</p>
+
+<div class="analogy">
+  Imagine a 500-page technical book you didn't write. You want to adapt it for a new audience,
+  but you're not allowed to reprint it. So you tape a stack of thin <b>errata slips</b> to the cover.
+  Each slip says "on page X, replace paragraph Y with this." The book (frozen base model) is unchanged;
+  your slips (LoRA adapters) are small, cheap to store, easy to swap, and can be
+  "merged" into a reprint when you're ready to ship.
+</div>
+
+<h2 id="problem">2. Why not just full fine-tuning?</h2>
+<p>
+  Full fine-tuning updates every parameter of a pretrained model. That's straightforward but comes with three growing pains as models scale up:
+</p>
+
+<div class="threecol">
+  <div class="stat"><div class="label">Storage per task</div><div class="value warn">Full model</div></div>
+  <div class="stat"><div class="label">Optimizer state (Adam)</div><div class="value warn">2× params in fp32</div></div>
+  <div class="stat"><div class="label">Serving many adapters</div><div class="value warn">One model per user</div></div>
+</div>
+
+<p>
+  For a 65B model, full FT with Adam in bf16 needs roughly:
+</p>
+<ul class="compact">
+  <li>Weights: 130 GB (bf16)</li>
+  <li>Gradients: 130 GB</li>
+  <li>Adam momentum + variance: 520 GB (fp32, two copies)</li>
+  <li>Activations: tens of GB (checkpointed)</li>
+</ul>
+<p>Total: <b>&gt; 800 GB</b> just for training state. That's an 8×A100-80GB node minimum, and you get one fine-tune, one model. LoRA collapses this to a single 48 GB GPU. QLoRA takes it further.</p>
+
+<div class="key">
+  Full FT is fine when compute is unconstrained and you're building <i>one</i> model. LoRA
+  shines when you're (a) memory-constrained, (b) building many task-specific variants of the
+  same base, or (c) want to preserve out-of-domain behavior.
+</div>
+
+<h2 id="core">3. The core idea in one equation</h2>
+
+<p>Take a pretrained weight matrix $W_0 \in \mathbb{R}^{d \times k}$. LoRA freezes $W_0$ and adds a low-rank update:</p>
+
+$$
+W \;=\; W_0 \;+\; \Delta W \;=\; W_0 \;+\; \frac{\alpha}{r}\, B A
+$$
+
+<p>
+  where $B \in \mathbb{R}^{d \times r}$, $A \in \mathbb{R}^{r \times k}$, and the rank
+  $r \ll \min(d, k)$ (typically 8, 16, 32, or 64). Only $A$ and $B$ are trained; $W_0$ never moves.
+</p>
+
+<svg class="diagram" viewBox="0 0 700 260" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="froz" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2a3346"/>
+      <stop offset="1" stop-color="#1a2030"/>
+    </linearGradient>
+    <linearGradient id="train" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffb86b"/>
+      <stop offset="1" stop-color="#c4a2ff"/>
+    </linearGradient>
+  </defs>
+  <!-- W0 -->
+  <rect x="20" y="30" width="200" height="200" fill="url(#froz)" stroke="#2a3346"/>
+  <text x="120" y="140" text-anchor="middle" fill="#e7ecf3" font-size="28" font-weight="bold">W₀</text>
+  <text x="120" y="170" text-anchor="middle" fill="#a3b1c6" font-size="12">frozen · d × k</text>
+  <text x="120" y="248" text-anchor="middle" fill="#a3b1c6" font-size="12">e.g. 4096 × 4096 = 16.8M params</text>
+  <!-- plus sign -->
+  <text x="255" y="145" text-anchor="middle" fill="#7cc4ff" font-size="36">+</text>
+  <!-- B -->
+  <rect x="290" y="30" width="40" height="200" fill="url(#train)" stroke="#ffb86b"/>
+  <text x="310" y="140" text-anchor="middle" fill="#0a0f1a" font-size="18" font-weight="bold">B</text>
+  <text x="310" y="248" text-anchor="middle" fill="#a3b1c6" font-size="11">d × r</text>
+  <!-- times -->
+  <text x="350" y="145" text-anchor="middle" fill="#7cc4ff" font-size="24">·</text>
+  <!-- A -->
+  <rect x="370" y="110" width="200" height="40" fill="url(#train)" stroke="#ffb86b"/>
+  <text x="470" y="138" text-anchor="middle" fill="#0a0f1a" font-size="18" font-weight="bold">A</text>
+  <text x="470" y="165" text-anchor="middle" fill="#a3b1c6" font-size="11">r × k</text>
+  <!-- equals BA -->
+  <text x="600" y="145" text-anchor="middle" fill="#7cc4ff" font-size="20">= ΔW</text>
+  <text x="600" y="170" text-anchor="middle" fill="#a3b1c6" font-size="11">d × k (low rank!)</text>
+  <!-- caption -->
+  <text x="290" y="20" fill="#6ee7b7" font-size="12" font-weight="bold">TRAINABLE (r=8: 65K params)</text>
+</svg>
+
+<p>The forward pass becomes:</p>
+
+$$
+h \;=\; W_0\, x \;+\; \tfrac{\alpha}{r}\, B (A x)
+$$
+
+<p>
+  Two matrix products instead of one. The extra path costs $O(dr + rk)$ instead of
+  $O(dk)$ — trivial when $r \ll d$.
+</p>
+
+<h3>Initialization: the trick that makes it start from the base model</h3>
+
+<ul class="compact">
+  <li><b>$A$</b>: initialized to small random values (Kaiming-uniform in PEFT, Gaussian in the paper).</li>
+  <li><b>$B$</b>: initialized to <b>zero</b>.</li>
+</ul>
+
+<p>So at step 0, $\Delta W = B A = 0$, meaning the model behaves exactly like the pretrained base. This is critical — it lets you plug LoRA in without breaking anything, and the adapter smoothly ramps up from an identity map.</p>
+
+<div class="warn">
+  Common student misconception: "$A$ is the zero one, right?" No — $B$ is zero, $A$ is random.
+  If <i>both</i> were zero, the gradient of $BA$ w.r.t. either would be zero and neither would ever move.
+  If <i>both</i> were random, the model would immediately diverge from the base.
+</div>
+
+<h3>Where the $\alpha/r$ scaling comes from</h3>
+<p>
+  $\alpha$ is a fixed hyperparameter (not learned) that plays the role of a per-adapter
+  learning rate multiplier. The reason for dividing by $r$: when you increase rank, the
+  raw output of $BA$ tends to grow, so scaling by $1/r$ (roughly) keeps the perturbation
+  magnitude comparable across ranks. Whether $1/r$ is the <i>right</i> normalization is
+  a subtle question — <a href="#alpha">Section 6</a> shows it isn't, and rsLoRA fixes it.
+</p>
+
+<h2 id="demo">4. Interactive: parameter-count calculator</h2>
+
+<p>
+  Pick a real model and see how much LoRA saves versus full fine-tuning.
+  Toggle which module families to adapt and change the rank.
+</p>
+
+<div class="demo">
+  <div class="twocol">
+    <div>
+      <label>Model</label>
+      <select id="modelSel">
+        <option value="7b">Llama-3 8B (d=4096, layers=32)</option>
+        <option value="13b">Llama-3 13B (d=5120, layers=40)</option>
+        <option value="70b" selected>Llama-3 70B (d=8192, layers=80, GQA)</option>
+        <option value="mistral">Mistral-7B (d=4096, layers=32, GQA)</option>
+      </select>
+      <label>Rank r: <span id="rankVal">16</span></label>
+      <input id="rankSlide" type="range" min="1" max="256" step="1" value="16" />
+    </div>
+    <div>
+      <label><input type="checkbox" id="tAttn" checked/> Attention (q, k, v, o)</label>
+      <label><input type="checkbox" id="tMlp" checked/> MLP (gate, up, down)</label>
+      <label>&alpha; (scaling): <span id="alphaVal">32</span></label>
+      <input id="alphaSlide" type="range" min="1" max="256" step="1" value="32" />
+    </div>
+  </div>
+
+  <div class="threecol" style="margin-top: 18px;">
+    <div class="stat"><div class="label">Full FT params</div><div class="value warn" id="fullParams">—</div></div>
+    <div class="stat"><div class="label">LoRA params</div><div class="value good" id="loraParams">—</div></div>
+    <div class="stat"><div class="label">% of full FT</div><div class="value" id="pctParams">—</div></div>
+  </div>
+  <p class="footnote" id="calcNote">Full FT counts all parameters in the model; LoRA counts only $r(d_\text{in} + d_\text{out})$ per targeted matrix. Optimizer states (Adam m + v) roughly 2× the trainable count in fp32. This ignores embeddings & LN.</p>
+</div>
+
+<div class="key">
+  For Llama-3 70B with r=16 on all-linear layers, LoRA typically trains around <b>0.1% of the parameters</b>.
+  Together with 4-bit quantization (QLoRA), the whole training run fits on a single 48GB A6000 or
+  even 2× consumer 3090s with FSDP+QLoRA.
+</div>
+
+<h2 id="rank">5. Rank — the most-discussed hyperparameter</h2>
+
+<p>
+  The rank $r$ controls how expressive the adapter can be. In the original LoRA paper,
+  the rank ablation on GPT-3 175B (WikiSQL) is striking:
+</p>
+
+<table>
+  <tr><th>Rank r</th><th>WikiSQL accuracy</th><th>MNLI accuracy</th></tr>
+  <tr><td class="num">1</td><td class="num">73.4</td><td class="num">91.3</td></tr>
+  <tr><td class="num">4</td><td class="num">73.7</td><td class="num">91.3</td></tr>
+  <tr><td class="num">8</td><td class="num">73.8</td><td class="num">91.6</td></tr>
+  <tr><td class="num">64</td><td class="num">73.5</td><td class="num">91.4</td></tr>
+</table>
+
+<div class="surprise">
+  <b>Rank 1 is competitive with rank 64.</b> This is the empirical basis for the "adaptation lives in
+  a low-dimensional subspace" hypothesis. Note: this is on <i>fine-tuning</i> — Biderman et al. (2024) show
+  that full-FT trajectories have effective rank 10–100× larger than typical LoRA r=16, so the
+  low-rank story is task-relative, not universal.
+</div>
+
+<h3>Practical rank choices (2025–2026 consensus)</h3>
+
+<table>
+  <tr><th>Setting</th><th>Typical r</th><th>Notes</th></tr>
+  <tr><td>Instruction fine-tuning (SFT)</td><td class="num">16</td><td>PEFT / Unsloth / Biderman default. Rarely worth exceeding 32.</td></tr>
+  <tr><td>Code / math / reasoning</td><td class="num">32–64</td><td>Harder skills; more rank helps.</td></tr>
+  <tr><td>Continued pretraining</td><td class="num">128–256+</td><td>Full FT still meaningfully better if you can afford it.</td></tr>
+  <tr><td>RL fine-tuning (DPO / GRPO)</td><td class="num">1–16</td><td>Even r=1 matches full FT in Thinking Machines' 2025 study.</td></tr>
+</table>
+
+<div class="key">
+  Biderman et al. 2024: <i>"The improvement from targeting more modules is more substantial
+  than from increasing the rank by 16×."</i> Translation: if you have compute for one knob, pick
+  <b>which modules to target</b> before you pick a bigger rank.
+</div>
+
+<h2 id="alpha">6. Alpha, and the rsLoRA fix</h2>
+
+<p>
+  $\alpha$ is a scalar that multiplies the adapter output: $h = W_0 x + \tfrac{\alpha}{r} BA x$.
+  Two conventions coexist in the wild:
+</p>
+
+<ul class="compact">
+  <li><b>$\alpha = r$</b> → effective scaling of 1. QLoRA convention.</li>
+  <li><b>$\alpha = 2r$</b> → effective scaling of 2. "Raschka rule", Unsloth default.</li>
+</ul>
+
+<h3>Why the $1/r$ divisor is wrong at large rank</h3>
+
+<p>
+  Kalajdzievski (2023) showed the $\alpha/r$ scaling causes gradients through $A$ and $B$
+  to shrink as $r$ grows — so LoRA doesn't actually benefit from a larger rank when it should.
+  The fix (<b>rsLoRA</b>, rank-stabilized LoRA) is one character:
+</p>
+
+$$
+\text{LoRA:}\quad \frac{\alpha}{r}\,BA \qquad\qquad \text{rsLoRA:}\quad \frac{\alpha}{\sqrt{r}}\,BA
+$$
+
+<div class="demo">
+  <p style="margin-top:0;"><b>Effective scaling multiplier at inference</b></p>
+  <label>Rank r: <span id="rsRank">64</span></label>
+  <input id="rsSlide" type="range" min="1" max="512" step="1" value="64" />
+  <label>α (fixed): <span id="rsAlpha">32</span></label>
+  <input id="rsAlphaSlide" type="range" min="1" max="128" step="1" value="32" />
+  <div class="twocol" style="margin-top:14px;">
+    <div class="stat"><div class="label">α / r  (LoRA)</div><div class="value warn" id="rsScaleLoRA">—</div></div>
+    <div class="stat"><div class="label">α / √r  (rsLoRA)</div><div class="value good" id="rsScaleRs">—</div></div>
+  </div>
+  <p class="footnote">Slide r up and watch the LoRA scale collapse toward zero while rsLoRA decays gently — that's why high-rank vanilla LoRA underdelivers.</p>
+</div>
+
+<h2 id="modules">7. Which modules to target</h2>
+
+<p>
+  The original paper adapted only <code>W_q</code> and <code>W_v</code>. The modern consensus has moved:
+</p>
+
+<table>
+  <tr><th>Era</th><th>Recommendation</th><th>Reason</th></tr>
+  <tr><td>2021 (Hu et al.)</td><td>Q, V only</td><td>Parameter budget tight; that combo won their ablation.</td></tr>
+  <tr><td>2023 (QLoRA)</td><td>All linear layers</td><td>Enabled by 4-bit quantization; consistently better.</td></tr>
+  <tr><td>2024 (Biderman)</td><td>All linear layers ≫ attention-only</td><td>"Target modules matters more than rank."</td></tr>
+  <tr><td>2025 (Thinking Machines)</td><td><b>MLP &gt; attention</b> if you must choose</td><td>Attention-only LoRA <i>underperforms</i> MLP-only.</td></tr>
+</table>
+
+<div class="surprise">
+  If you show one plot from the modern LoRA literature, show that <b>MLP-only LoRA beats
+  attention-only LoRA</b> at matched parameter budget. This flips a decade of "attention is where
+  the interesting stuff happens" intuition. The practical takeaway is even simpler: just target
+  all linear layers (in PEFT: <code>target_modules="all-linear"</code>).
+</div>
+
+<h2 id="hp">8. Learning rate, batch size, dropout</h2>
+
+<h3>Learning rate</h3>
+<p>
+  LoRA is <b>very</b> LR-sensitive. Biderman et al.: <i>"we cannot find alternative learning rates
+  achieving even 90% of the best LR's performance."</i> Sweep it.
+</p>
+
+<table>
+  <tr><th>Regime</th><th>Typical LR</th></tr>
+  <tr><td>LoRA / QLoRA SFT</td><td>2e-4 (range 1e-4 to 3e-4)</td></tr>
+  <tr><td>LoRA for RL (DPO / GRPO)</td><td>5e-6</td></tr>
+  <tr><td>Rule of thumb</td><td>LoRA LR ≈ 10 × full-FT LR</td></tr>
+</table>
+
+<p>The 10× rule (Thinking Machines 2025) is roughly rank-independent — the $\alpha/r$ scaling absorbs the rank dependence, so you don't have to re-tune per rank.</p>
+
+<h3>LoRA+ — different LRs for A and B</h3>
+<p>
+  Hayou et al. (2024) argue $A$ and $B$ play asymmetric roles at large embedding width, so they
+  should use different learning rates: $\text{lr}_B = \lambda \cdot \text{lr}_A$, with $\lambda \approx 16$.
+  Reports 1–2% accuracy gains and up to ~2× speedup. In PEFT: <code>LoraPlusConfig(loraplus_lr_ratio=16)</code>.
+</p>
+
+<h3>Batch size</h3>
+<p>LoRA tolerates smaller batches than full FT (a quirk of the product parameterization). Very large batches actually <i>hurt</i> LoRA more than full FT (Thinking Machines).</p>
+
+<h3>Dropout</h3>
+<div class="warn">
+  LoRA dropout is an "unreliable regularizer" for short runs (Unsloth). Default <code>dropout=0</code>
+  is fine — contradicts many older tutorials that mechanically copy dropout=0.1.
+</div>
+
+<h2 id="qlora">9. QLoRA — 4-bit + LoRA = training a 65B model on one GPU</h2>
+
+<p>
+  QLoRA (Dettmers et al., 2023) is what most people mean when they say "LoRA fine-tuning" today.
+  The pretrained weights are quantized to 4 bits and <i>never dequantized to storage</i>; only
+  small LoRA adapters are trained in bf16.
+</p>
+
+<h3>Three ingredients</h3>
+<ol>
+  <li><b>NF4</b> ("4-bit NormalFloat") — a 4-bit datatype whose 16 quantization levels are the quantiles of a standard Normal, information-theoretically optimal for Gaussian-distributed weights.</li>
+  <li><b>Double quantization</b> — quantize the quantization <i>constants</i> too. Saves ~0.37 bits per parameter.</li>
+  <li><b>Paged optimizers</b> — use NVIDIA unified memory to swap Adam optimizer state to CPU when a gradient-checkpointing spike would OOM the GPU.</li>
+</ol>
+
+<div class="surprise">
+  The unsung hero of QLoRA is <b>paged optimizers</b>, not NF4. NF4 gets the headlines, but
+  the reason single-GPU 65B training is <i>reliable</i> (doesn't crash mid-run) is paged Adam.
+</div>
+
+<h3>Numbers to remember</h3>
+
+<div class="threecol">
+  <div class="stat"><div class="label">Llama-65B (bf16)</div><div class="value warn">130 GB</div></div>
+  <div class="stat"><div class="label">Llama-65B (NF4 + DQ)</div><div class="value good">≈ 35–40 GB</div></div>
+  <div class="stat"><div class="label">Wall-clock cost</div><div class="value warn">≈ +39% vs bf16 LoRA</div></div>
+</div>
+
+<p>Follow-on: <b>FSDP + QLoRA</b> (Answer.AI / Dettmers / HF, March 2024) runs <b>Llama-70B on 2× RTX 3090s</b> (48 GB total). Consumer 70B fine-tuning is a real thing.</p>
+
+<h3>Choose your init: PiSSA and LoftQ</h3>
+
+<p>Two clean drop-in improvements to QLoRA's random adapter init:</p>
+
+<ul class="compact">
+  <li><b>PiSSA</b> (Meng et al. 2024): initialize $A, B$ from the top-$r$ <b>SVD of $W_0$</b> so the "important" subspace is trained from the start. On Mistral-7B GSM8K: 72.9% vs LoRA 67.7% (+5.2pp). In PEFT: <code>init_lora_weights="pissa"</code>.</li>
+  <li><b>LoftQ</b> (Li et al. 2023): jointly optimize the 4-bit quantization of $W_0$ and the LoRA init so that $Q(W_0) + BA \approx W_0$, closing QLoRA's quantization gap. Especially useful at 2-bit. In PEFT: <code>init_lora_weights="loftq"</code>.</li>
+</ul>
+
+</div><!-- /tab1 -->
+
+<!-- ================================================================== -->
+<!-- TAB 2: FAMILY TREE                                                 -->
+<!-- ================================================================== -->
+<div id="tab2" class="tab-content">
+
+<h2 id="family">The LoRA family tree</h2>
+
+<p class="subtitle">
+  LoRA is a launchpad, not a destination. Here are the follow-ups an ML engineer should recognize,
+  each with the key equation and the headline result.
+</p>
+
+<div class="paper">
+  <div class="title">LoRA — Hu et al. 2021 <span class="pill">the original</span></div>
+  <div class="meta">Microsoft · <a href="https://arxiv.org/abs/2106.09685">arXiv:2106.09685</a> · <a href="https://github.com/microsoft/LoRA">code</a></div>
+  <p style="margin:6px 0;">$W = W_0 + \tfrac{\alpha}{r}BA$. Adapts $W_q, W_v$ in the original experiments. GPT-3 175B fine-tuned with <b>4.7M trainable params (0.01%)</b>, matching full FT.</p>
+</div>
+
+<div class="paper">
+  <div class="title">QLoRA — Dettmers, Pagnoni, Holtzman, Zettlemoyer 2023 <span class="pill good">essential</span></div>
+  <div class="meta">Univ. Washington · <a href="https://arxiv.org/abs/2305.14314">arXiv:2305.14314</a></div>
+  <p style="margin:6px 0;">NF4 + double-quant + paged optimizers. <b>65B model on a single 48GB GPU</b>. 99.3% of ChatGPT quality on Vicuna benchmark (Guanaco). Applies LoRA to all linear layers.</p>
+</div>
+
+<div class="paper">
+  <div class="title">DoRA — Liu et al. 2024 <span class="pill good">high ROI</span></div>
+  <div class="meta">NVIDIA · <a href="https://arxiv.org/abs/2402.09353">arXiv:2402.09353</a></div>
+  <p style="margin:6px 0;">Decomposes each weight into <b>magnitude</b> (trainable per-column vector) and <b>direction</b>, applies LoRA only to direction:</p>
+  <p style="margin:6px 0;">$W' = \mathbf{m} \odot \dfrac{W_0 + BA}{\|W_0 + BA\|_c}$</p>
+  <p style="margin:6px 0;">Adds ~0.01% params over LoRA. On LLaMA-7B commonsense: <b>+3.7pp vs LoRA</b>. In PEFT: <code>use_dora=True</code>.</p>
+</div>
+
+<div class="paper">
+  <div class="title">LoRA+ — Hayou, Ghosh, Yu 2024</div>
+  <div class="meta">Simons Institute · <a href="https://arxiv.org/abs/2402.12354">arXiv:2402.12354</a></div>
+  <p style="margin:6px 0;">Uses different LRs for $A$ and $B$: $\text{lr}_B = \lambda \cdot \text{lr}_A$ with $\lambda \approx 16$. <b>1–2% acc gain, up to 2× speedup</b>. In PEFT: <code>LoraPlusConfig</code>.</p>
+</div>
+
+<div class="paper">
+  <div class="title">rsLoRA — Kalajdzievski 2023</div>
+  <div class="meta">Cohere · <a href="https://arxiv.org/abs/2312.03732">arXiv:2312.03732</a></div>
+  <p style="margin:6px 0;">Replaces $\alpha/r$ with $\alpha/\sqrt{r}$. Makes high-rank LoRA actually benefit from more rank. In PEFT: <code>use_rslora=True</code>.</p>
+</div>
+
+<div class="paper">
+  <div class="title">VeRA — Kopiczko, Blankevoort, Asano 2024</div>
+  <div class="meta">Qualcomm AI · <a href="https://arxiv.org/abs/2310.11454">arXiv:2310.11454</a></div>
+  <p style="margin:6px 0;">One <b>frozen random</b> $A, B$ pair shared across all layers; only two per-layer scaling vectors $\mathbf{d}, \mathbf{b}$ are trained:</p>
+  <p style="margin:6px 0;">$h = W_0 x + \Lambda_b B \Lambda_d A x$</p>
+  <p style="margin:6px 0;"><b>~10× fewer params than LoRA</b> at similar quality. Useful when per-user adapter storage dominates.</p>
+</div>
+
+<div class="paper">
+  <div class="title">PiSSA — Meng, Wang, Zhang 2024 <span class="pill good">drop-in</span></div>
+  <div class="meta">Peking Univ. · <a href="https://arxiv.org/abs/2404.02948">arXiv:2404.02948</a></div>
+  <p style="margin:6px 0;">Init $A, B$ from the <b>top-r SVD of $W_0$</b>. Trains the principal subspace from the start. On Mistral-7B GSM8K: <b>72.9% vs LoRA 67.7%</b>. QPiSSA + 4-bit LLaMA-3-70B: 86.05% vs QLoRA 81.73%. In PEFT: <code>init_lora_weights="pissa"</code>.</p>
+</div>
+
+<div class="paper">
+  <div class="title">LoftQ — Li et al. 2023 (ICLR 2024)</div>
+  <div class="meta">Microsoft · <a href="https://arxiv.org/abs/2310.08659">arXiv:2310.08659</a></div>
+  <p style="margin:6px 0;">Jointly optimizes 4-bit quantization of $W_0$ and LoRA init so $Q(W_0) + BA \approx W_0$. Especially strong at aggressive 2-bit quantization where QLoRA breaks. In PEFT: <code>init_lora_weights="loftq"</code>.</p>
+</div>
+
+<div class="paper">
+  <div class="title">AdaLoRA — Zhang et al. 2023</div>
+  <div class="meta">Georgia Tech · <a href="https://arxiv.org/abs/2303.10512">arXiv:2303.10512</a></div>
+  <p style="margin:6px 0;">Parameterizes $\Delta W = P \Lambda Q$ (SVD form) and <b>adaptively prunes small singular values</b> during training, moving budget to layers that need it. Wins especially at tight parameter budgets.</p>
+</div>
+
+<div class="paper">
+  <div class="title">LongLoRA — Chen et al. 2024 (ICLR Oral)</div>
+  <div class="meta">CUHK / MIT · <a href="https://arxiv.org/abs/2309.12307">arXiv:2309.12307</a></div>
+  <p style="margin:6px 0;">Combines LoRA on attention + trainable norm/embedding + <b>shifted sparse attention</b> (S²-Attn) during training. Extends LLaMA2-7B to <b>100k context</b>; 70B to 32k on one 8×A100 node. S²-Attn is a two-line trick that reverts to dense attention at inference.</p>
+</div>
+
+<h3>Also worth knowing (shorter mentions)</h3>
+<ul class="compact">
+  <li><b>Biderman et al. 2024</b> — "LoRA Learns Less and Forgets Less" (TMLR). The rigorous critical study. <a href="https://arxiv.org/abs/2405.09673">arXiv:2405.09673</a></li>
+  <li><b>Thinking Machines Lab, "LoRA Without Regret" (Sept 2025)</b> — the definitive modern hyperparameter study, source of the "MLP &gt; attention", "10× LR" and "rank-1 for RL" claims. <a href="https://thinkingmachines.ai/blog/lora/">thinkingmachines.ai/blog/lora</a></li>
+  <li><b>"An Illusion of Equivalence" (2024)</b> — argues LoRA and full-FT solutions differ structurally even when scores match. <a href="https://arxiv.org/abs/2410.21228">arXiv:2410.21228</a></li>
+  <li><b>BeamLoRA, NLoRA, QuAILoRA, PLoRA</b> — 2025 initializations and concurrent-training variants worth grep-ing.</li>
+</ul>
+
+</div><!-- /tab2 -->
+
+<!-- ================================================================== -->
+<!-- TAB 3: SERVING & SYSTEMS                                           -->
+<!-- ================================================================== -->
+<div id="tab3" class="tab-content">
+
+<h2 id="serving">Serving LoRA adapters</h2>
+
+<p>Two very different deployment scenarios, two different answers.</p>
+
+<h3>Case 1: single-tenant (one adapter, one base model)</h3>
+
+<p>
+  Just <b>merge and unload</b>. Because $\Delta W = \tfrac{\alpha}{r} BA$ is the same shape as $W_0$,
+  you compute $W_\text{merged} = W_0 + \tfrac{\alpha}{r} BA$ once and store the result as
+  a normal model. <b>Zero inference overhead</b> — this is LoRA's canonical advantage over
+  Houlsby-style adapters which insert extra layers.
+</p>
+
+<pre>from peft import PeftModel
+merged_model = peft_model.merge_and_unload()
+merged_model.save_pretrained("./merged")   # ship this like any HF model</pre>
+
+<h3>Case 2: multi-tenant (thousands of adapters, one base)</h3>
+
+<div class="warn">
+  Merging <b>destroys</b> multi-tenancy. Once merged, you can't serve a different user's adapter
+  from the same base weights. If you're running an "many custom fine-tunes on one endpoint" product,
+  you need to keep adapters separate.
+</div>
+
+<h4>S-LoRA (MLSys 2024)</h4>
+<p>
+  Sheng et al. (<a href="https://arxiv.org/abs/2311.03285">arXiv:2311.03285</a>) built the reference research system for serving <b>thousands of concurrent LoRA adapters</b> on one GPU. Key ideas:
+</p>
+<ul class="compact">
+  <li><b>Unified Paging</b> — one memory pool for KV cache <i>and</i> adapter weights, paged like vLLM's PagedAttention. Different adapter ranks coexist without fragmentation.</li>
+  <li>Custom heterogeneous-batch CUDA kernels: <b>MBGMM</b> (multi-batch grouped GEMM for prefill) and <b>MBGMV</b> (for decode).</li>
+  <li>Tensor-parallel strategy tolerant of ranks differing between adapters in the same batch.</li>
+</ul>
+<p>Reported <b>up to 4× throughput vs vLLM + HF PEFT</b>, orders of magnitude more concurrent adapters.</p>
+
+<h4>Punica</h4>
+<p>Parallel work (<a href="https://arxiv.org/abs/2310.18547">arXiv:2310.18547</a>) with 12× throughput claims via similar fused batched-GEMM ideas.</p>
+
+<h4>vLLM multi-LoRA</h4>
+<p>
+  vLLM has native LoRA-adapter support since 2024 — production-grade path for most teams. Group
+  adapters by rank for kernel efficiency; adapters are hot-swappable per request.
+</p>
+
+<h2>What ML infra teams actually care about</h2>
+
+<table>
+  <tr><th>Concern</th><th>Answer</th></tr>
+  <tr><td>Adapter storage per task</td><td>Typically 20–200 MB (vs 15–140 GB base model).</td></tr>
+  <tr><td>Cold-start when swapping adapters</td><td>ms if adapters live in CPU RAM; μs if on-GPU. S-LoRA keeps a hot cache on GPU.</td></tr>
+  <tr><td>Batch requests across users?</td><td>Yes, if using S-LoRA / vLLM multi-LoRA. Otherwise batches are constrained to one adapter.</td></tr>
+  <tr><td>Rank uniformity across adapters</td><td>Group by rank for best kernel efficiency; S-LoRA relaxes this at some cost.</td></tr>
+  <tr><td>KV cache is shared?</td><td>Yes — it lives with the base model, unaffected by adapter identity.</td></tr>
+</table>
+
+<h2 id="limits">When LoRA falls short</h2>
+
+<p>
+  Biderman et al. 2024 ("LoRA Learns Less and Forgets Less", <a href="https://arxiv.org/abs/2405.09673">arXiv:2405.09673</a>) is required reading:
+</p>
+
+<div class="twocol">
+  <div class="stat"><div class="label">Continued pretraining (20B tokens code/math)</div><div class="value warn">LoRA lags full FT</div></div>
+  <div class="stat"><div class="label">Out-of-domain forgetting</div><div class="value good">LoRA preserves better</div></div>
+</div>
+
+<p>Their four practical recommendations, verbatim:</p>
+<ol>
+  <li>Use LoRA for <b>IFT</b> and <b>not</b> CPT.</li>
+  <li>Identify the highest LR that enables stable training.</li>
+  <li>Target <b>all</b> modules.</li>
+  <li>Choose rank per memory constraints, with 16 being a good choice.</li>
+</ol>
+
+<div class="key">
+  The "learns less AND forgets less" trade-off is a feature. When you want out-of-domain
+  behavior preserved (e.g., a customer-support LoRA that shouldn't destroy the base model's
+  general reasoning), LoRA can be the <i>right</i> answer even when full FT is available.
+</div>
+
+<h2>Everything an ML engineer should know — cheatsheet</h2>
+
+<table>
+  <tr><th>Question</th><th>Answer</th></tr>
+  <tr><td>What's the equation?</td><td>$W = W_0 + \tfrac{\alpha}{r}BA$, $B$ zero-init, $A$ random-init.</td></tr>
+  <tr><td>What's the smallest rank that "just works"?</td><td>r=8 or 16 for SFT. r=1 for RL.</td></tr>
+  <tr><td>Which modules?</td><td>All linear (<code>target_modules="all-linear"</code>). MLP &gt; attention if forced to pick.</td></tr>
+  <tr><td>What's α?</td><td>Fixed scaling, not learned. α=r or 2r conventions. Use rsLoRA at high r.</td></tr>
+  <tr><td>Learning rate?</td><td>~2e-4 for SFT, ~5e-6 for RL. 10× the full-FT LR. Very sensitive — sweep it.</td></tr>
+  <tr><td>Dropout?</td><td>Usually 0. Don't blindly copy 0.1.</td></tr>
+  <tr><td>Memory savings?</td><td>65B: 130 GB → 35 GB with QLoRA. Optimizer state trained: fraction of a percent.</td></tr>
+  <tr><td>Inference overhead?</td><td>Zero if merged. ~5–20% unmerged (extra matmul). Multi-tenant: S-LoRA / vLLM.</td></tr>
+  <tr><td>When to prefer full FT?</td><td>Continued pretraining, large-data code/math, or when you have compute and want peak in-domain quality.</td></tr>
+  <tr><td>Best init upgrade?</td><td>PiSSA (drop-in). LoftQ if you're doing aggressive quantization.</td></tr>
+  <tr><td>Best variant beyond vanilla LoRA?</td><td>DoRA — cheap and consistently better.</td></tr>
+</table>
+
+</div><!-- /tab3 -->
+
+<!-- ================================================================== -->
+<!-- TAB 4: QUIZ & REFERENCES                                           -->
+<!-- ================================================================== -->
+<div id="tab4" class="tab-content">
+
+<h2 id="quiz">Quick quiz</h2>
+<p>Test your intuition. Click your answer to reveal the explanation.</p>
+
+<div class="quiz">
+  <div class="q">1. In LoRA's $W = W_0 + \tfrac{\alpha}{r}BA$, which matrix is initialized to zero?</div>
+  <button onclick="qa(this, false)">A</button>
+  <button onclick="qa(this, true)">B</button>
+  <button onclick="qa(this, false)">Both</button>
+  <button onclick="qa(this, false)">Neither</button>
+  <div class="reveal">
+    $B$ is zero, $A$ is random. This makes $\Delta W = BA = 0$ at step 0 (so the model
+    starts identical to the base) while ensuring gradients still flow — if both were zero,
+    neither would ever update.
+  </div>
+</div>
+
+<div class="quiz">
+  <div class="q">2. Your team runs a service with 5,000 LoRA adapters (one per customer) on one Llama-70B base. Should you merge each adapter into the base model?</div>
+  <button onclick="qa(this, false)">Yes — always merge for zero inference overhead.</button>
+  <button onclick="qa(this, true)">No — merging breaks multi-tenancy; use S-LoRA / vLLM multi-LoRA.</button>
+  <button onclick="qa(this, false)">Yes — merge and store 5,000 copies of the base model.</button>
+  <div class="reveal">
+    Merging is single-tenant only. Once you fold an adapter into $W_0$, you can't
+    serve any other adapter from that instance. S-LoRA and vLLM's multi-LoRA path
+    batch requests across many adapters on one shared base.
+  </div>
+</div>
+
+<div class="quiz">
+  <div class="q">3. You're doing continued pretraining on 20B tokens of code. Should you use LoRA or full FT?</div>
+  <button onclick="qa(this, false)">LoRA r=16, all-linear.</button>
+  <button onclick="qa(this, true)">Full FT if compute allows — LoRA meaningfully lags on CPT.</button>
+  <button onclick="qa(this, false)">LoRA r=256 on Q/V only.</button>
+  <div class="reveal">
+    Biderman et al. 2024 showed LoRA substantially underperforms full FT on continued
+    pretraining for hard skills (code/math). Their explicit recommendation: "Use LoRA
+    for IFT and <i>not</i> CPT."
+  </div>
+</div>
+
+<div class="quiz">
+  <div class="q">4. If you have to pick between adapting attention-only or MLP-only at the same parameter budget, which wins?</div>
+  <button onclick="qa(this, false)">Attention-only — attention is where reasoning lives.</button>
+  <button onclick="qa(this, true)">MLP-only — surprisingly better.</button>
+  <button onclick="qa(this, false)">Exactly equal.</button>
+  <div class="reveal">
+    Thinking Machines' 2025 "LoRA Without Regret" showed MLP-only LoRA beats attention-only
+    at matched budget. The practical takeaway is simpler: just do all-linear, but if forced
+    to choose, MLP.
+  </div>
+</div>
+
+<div class="quiz">
+  <div class="q">5. You push rank from 16 to 256 with standard $\alpha/r$ LoRA and quality doesn't improve. Why?</div>
+  <button onclick="qa(this, false)">You need more training steps.</button>
+  <button onclick="qa(this, true)">The $\alpha/r$ scaling shrinks gradients through A and B at high r — use rsLoRA ($\alpha/\sqrt{r}$).</button>
+  <button onclick="qa(this, false)">Rank &gt; 64 always overfits.</button>
+  <div class="reveal">
+    Kalajdzievski (2023) formalized this: vanilla LoRA's $1/r$ divisor causes gradient
+    magnitudes to collapse as $r$ grows, so higher rank contributes nothing. rsLoRA's
+    $1/\sqrt{r}$ scaling fixes it. In PEFT: <code>use_rslora=True</code>.
+  </div>
+</div>
+
+<div class="quiz">
+  <div class="q">6. What's the biggest memory savings from QLoRA on a 65B model, roughly?</div>
+  <button onclick="qa(this, false)">2× (130 GB → 65 GB)</button>
+  <button onclick="qa(this, true)">~4× (130 GB → 35–40 GB), plus tiny optimizer state.</button>
+  <button onclick="qa(this, false)">10×</button>
+  <div class="reveal">
+    NF4 quantization compresses weights ~4× vs bf16 (16-bit → 4-bit), double quantization
+    saves another ~0.37 bits/param, and optimizer state becomes tiny because you're
+    training LoRA (millions of params), not the base (billions).
+  </div>
+</div>
+
+<div class="quiz">
+  <div class="q">7. What's the "LoRA learns less and forgets less" trade-off in one sentence?</div>
+  <button onclick="qa(this, false)">LoRA is always worse than full FT.</button>
+  <button onclick="qa(this, true)">LoRA is worse in-domain but preserves out-of-domain behavior better — sometimes worth it.</button>
+  <button onclick="qa(this, false)">LoRA is always better than full FT.</button>
+  <div class="reveal">
+    Biderman et al. 2024. LoRA does not fully absorb the task (learns less), but for the
+    same reason it doesn't overwrite unrelated capabilities either (forgets less).
+    Useful when you need to add a skill without regressing others.
+  </div>
+</div>
+
+<div class="quiz">
+  <div class="q">8. What's the fastest one-line change that consistently improves QLoRA?</div>
+  <button onclick="qa(this, false)">Increase rank to 128.</button>
+  <button onclick="qa(this, true)">Change init to PiSSA (<code>init_lora_weights="pissa"</code>).</button>
+  <button onclick="qa(this, false)">Add dropout=0.3.</button>
+  <div class="reveal">
+    PiSSA initializes $A, B$ from the top-r SVD of $W_0$, so the "important" singular
+    subspace is trained from step 0. Reports several points of GSM8K improvement on
+    Mistral-7B and 4-bit LLaMA-3-70B for a one-line change.
+  </div>
+</div>
+
+<h2 id="refs">References</h2>
+
+<h3>Primary papers</h3>
+<ul class="compact">
+  <li><a href="https://arxiv.org/abs/2106.09685">LoRA — Hu et al. 2021</a></li>
+  <li><a href="https://arxiv.org/abs/2305.14314">QLoRA — Dettmers et al. 2023</a></li>
+  <li><a href="https://arxiv.org/abs/2402.09353">DoRA — Liu et al. 2024</a></li>
+  <li><a href="https://arxiv.org/abs/2402.12354">LoRA+ — Hayou et al. 2024</a></li>
+  <li><a href="https://arxiv.org/abs/2312.03732">rsLoRA — Kalajdzievski 2023</a></li>
+  <li><a href="https://arxiv.org/abs/2310.11454">VeRA — Kopiczko et al. 2024</a></li>
+  <li><a href="https://arxiv.org/abs/2404.02948">PiSSA — Meng et al. 2024</a></li>
+  <li><a href="https://arxiv.org/abs/2310.08659">LoftQ — Li et al. 2023</a></li>
+  <li><a href="https://arxiv.org/abs/2303.10512">AdaLoRA — Zhang et al. 2023</a></li>
+  <li><a href="https://arxiv.org/abs/2309.12307">LongLoRA — Chen et al. 2024</a></li>
+  <li><a href="https://arxiv.org/abs/2311.03285">S-LoRA — Sheng et al. 2023 (MLSys 2024)</a></li>
+  <li><a href="https://arxiv.org/abs/2310.18547">Punica — Chen et al. 2023</a></li>
+  <li><a href="https://arxiv.org/abs/2405.09673">LoRA Learns Less and Forgets Less — Biderman et al. 2024</a></li>
+  <li><a href="https://arxiv.org/abs/2410.21228">LoRA vs Full FT: An Illusion of Equivalence — 2024</a></li>
+</ul>
+
+<h3>Canonical online references</h3>
+<ul class="compact">
+  <li><a href="https://huggingface.co/docs/peft/main/en/conceptual_guides/lora">HuggingFace PEFT — LoRA guide</a></li>
+  <li><a href="https://github.com/huggingface/peft">HuggingFace PEFT (repo)</a></li>
+  <li><a href="https://github.com/microsoft/LoRA">Microsoft LoRA reference implementation</a></li>
+  <li><a href="https://magazine.sebastianraschka.com/p/practical-tips-for-finetuning-llms">Sebastian Raschka — Practical Tips for Finetuning LLMs Using LoRA</a></li>
+  <li><a href="https://thinkingmachines.ai/blog/lora/">Thinking Machines Lab — LoRA Without Regret (Sept 2025)</a></li>
+  <li><a href="https://www.answer.ai/posts/2024-03-06-fsdp-qlora.html">Answer.AI / Dettmers / HF — 70B fine-tuning at home with FSDP+QLoRA</a></li>
+  <li><a href="https://unsloth.ai/docs/get-started/fine-tuning-llms-guide/lora-hyperparameters-guide">Unsloth — LoRA Hyperparameters Guide</a></li>
+</ul>
+
+<h3>How to run LoRA today (2026)</h3>
+<pre>from peft import LoraConfig, get_peft_model
+
+config = LoraConfig(
+    r=16,
+    lora_alpha=32,           # α = 2r convention
+    target_modules="all-linear",   # not just Q, V
+    lora_dropout=0.0,        # keep at 0 unless you have a reason
+    bias="none",
+    task_type="CAUSAL_LM",
+    use_rslora=True,         # α/√r; use if r > 32
+    # init_lora_weights="pissa",   # ← the one-line quality upgrade
+    # use_dora=True,               # ← another one-line quality upgrade
+)
+model = get_peft_model(base_model, config)
+
+# ... train ...
+
+# single-tenant: merge for zero inference overhead
+merged = model.merge_and_unload()
+merged.save_pretrained("./ready-to-serve")</pre>
+
+<p class="footnote" style="margin-top:32px;">
+  Built as a study note. Every equation and number is traceable to a paper cited above; any
+  errors in transcription are mine. If a number seems off, trust the linked paper over this page.
+</p>
+
+</div><!-- /tab4 -->
+
+</div><!-- /wrap -->
+
+<script>
+// ---------- tab switching ----------
+function switchTab(id, btn) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+  // Re-typeset math in the newly-shown tab
+  if (window.MathJax && MathJax.typesetPromise) {
+    MathJax.typesetPromise([document.getElementById(id)]).catch(() => {});
+  }
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ---------- quiz feedback ----------
+function qa(btn, correct) {
+  const parent = btn.parentElement;
+  parent.querySelectorAll('button').forEach(b => { b.classList.remove('right'); b.classList.remove('wrong'); });
+  btn.classList.add(correct ? 'right' : 'wrong');
+  parent.querySelector('.reveal').classList.add('show');
+}
+
+// ---------- parameter-count calculator ----------
+// Per-layer target-matrix sizes for popular Llama-family models.
+// For GQA models, k/v projections have output dim = d * n_kv / n_heads.
+const MODELS = {
+  '7b':     { d: 4096, layers: 32, ffn: 14336, nHeads: 32, nKV: 32, total: 8.0e9 },
+  '13b':    { d: 5120, layers: 40, ffn: 13824, nHeads: 40, nKV: 40, total: 13.0e9 },
+  '70b':    { d: 8192, layers: 80, ffn: 28672, nHeads: 64, nKV: 8,  total: 70e9  },
+  'mistral':{ d: 4096, layers: 32, ffn: 14336, nHeads: 32, nKV: 8,  total: 7.2e9 },
+};
+
+function updateCalc() {
+  const m = MODELS[document.getElementById('modelSel').value];
+  const r = +document.getElementById('rankSlide').value;
+  const alpha = +document.getElementById('alphaSlide').value;
+  const wantAttn = document.getElementById('tAttn').checked;
+  const wantMlp  = document.getElementById('tMlp').checked;
+  document.getElementById('rankVal').textContent = r;
+  document.getElementById('alphaVal').textContent = alpha;
+
+  // Per-layer LoRA params for each targeted matrix = r * (d_in + d_out).
+  let perLayer = 0;
+  if (wantAttn) {
+    const dKV = m.d * m.nKV / m.nHeads;
+    // q: d -> d,  k: d -> dKV,  v: d -> dKV,  o: d -> d
+    perLayer += r * (m.d + m.d);       // q_proj
+    perLayer += r * (m.d + dKV);       // k_proj
+    perLayer += r * (m.d + dKV);       // v_proj
+    perLayer += r * (m.d + m.d);       // o_proj
+  }
+  if (wantMlp) {
+    // gate: d -> ffn,  up: d -> ffn,  down: ffn -> d
+    perLayer += r * (m.d + m.ffn);
+    perLayer += r * (m.d + m.ffn);
+    perLayer += r * (m.ffn + m.d);
+  }
+  const loraTotal = perLayer * m.layers;
+  const pct = 100 * loraTotal / m.total;
+
+  document.getElementById('fullParams').textContent = fmt(m.total);
+  document.getElementById('loraParams').textContent = fmt(loraTotal);
+  document.getElementById('pctParams').textContent = pct.toFixed(3) + '%';
+}
+function fmt(n) {
+  if (n >= 1e9) return (n/1e9).toFixed(2) + 'B';
+  if (n >= 1e6) return (n/1e6).toFixed(2) + 'M';
+  if (n >= 1e3) return (n/1e3).toFixed(1) + 'K';
+  return n.toString();
+}
+['modelSel','rankSlide','alphaSlide','tAttn','tMlp'].forEach(id => {
+  document.getElementById(id).addEventListener('input', updateCalc);
+  document.getElementById(id).addEventListener('change', updateCalc);
+});
+updateCalc();
+
+// ---------- rsLoRA vs LoRA scaling ----------
+function updateRs() {
+  const r = +document.getElementById('rsSlide').value;
+  const a = +document.getElementById('rsAlphaSlide').value;
+  document.getElementById('rsRank').textContent = r;
+  document.getElementById('rsAlpha').textContent = a;
+  document.getElementById('rsScaleLoRA').textContent = (a/r).toFixed(3);
+  document.getElementById('rsScaleRs').textContent   = (a/Math.sqrt(r)).toFixed(3);
+}
+['rsSlide','rsAlphaSlide'].forEach(id => {
+  document.getElementById(id).addEventListener('input', updateRs);
+});
+updateRs();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1098 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Chipmunk, Explained Simply</title>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2030;
+    --text: #e7ecf3;
+    --muted: #a3b1c6;
+    --accent: #7cc4ff;
+    --accent2: #ffb86b;
+    --good: #6ee7b7;
+    --warn: #ff9f9f;
+    --line: #2a3346;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.65;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 48px 24px 80px; }
+  h1 { font-size: 2.2rem; margin: 0 0 8px; }
+  h2 { color: var(--accent); margin-top: 2.4em; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+  h3 { color: var(--accent2); margin-top: 1.6em; }
+  .subtitle { color: var(--muted); font-size: 1.05rem; margin-bottom: 32px; }
+  .pill-row { margin: 8px 0 24px; }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 18px 22px;
+    margin: 18px 0;
+  }
+  .analogy {
+    border-left: 4px solid var(--accent2);
+    background: #1f2535;
+    padding: 14px 18px;
+    margin: 18px 0;
+    border-radius: 4px;
+  }
+  .analogy::before {
+    content: "Analogy";
+    display: block;
+    font-weight: 700;
+    color: var(--accent2);
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .key {
+    border-left: 4px solid var(--good);
+    background: #1c2a26;
+    padding: 14px 18px;
+    margin: 18px 0;
+    border-radius: 4px;
+  }
+  .key::before {
+    content: "Key idea";
+    display: block;
+    font-weight: 700;
+    color: var(--good);
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .gotcha {
+    border-left: 4px solid var(--warn);
+    background: #2a1c1c;
+    padding: 14px 18px;
+    margin: 18px 0;
+    border-radius: 4px;
+  }
+  .gotcha::before {
+    content: "Critique angle";
+    display: block;
+    font-weight: 700;
+    color: var(--warn);
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  code {
+    background: #0a0f1a;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.92em;
+    color: #ffd29a;
+  }
+  pre {
+    background: #0a0f1a;
+    border: 1px solid var(--line);
+    padding: 14px 16px;
+    border-radius: 8px;
+    overflow-x: auto;
+    color: #d6dceb;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 14px 0;
+    font-size: 0.95rem;
+  }
+  th, td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; }
+  th { color: var(--accent); font-weight: 600; }
+  .demo {
+    background: #0a0f1a;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 20px;
+    margin: 20px 0;
+  }
+  .demo label { display: block; margin: 10px 0 4px; color: var(--muted); font-size: 0.92rem; }
+  .demo input[type="range"] { width: 100%; }
+  .demo button {
+    background: var(--accent);
+    color: #0a0f1a;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    margin: 4px 6px 4px 0;
+  }
+  .demo button:hover { background: #a8d6ff; }
+  .demo button.alt { background: var(--accent2); }
+  .demo button.alt:hover { background: #ffcf95; }
+  canvas { background: #050810; border-radius: 6px; display: block; margin-top: 12px; max-width: 100%; }
+  .pill {
+    display: inline-block;
+    background: #2a3346;
+    color: var(--muted);
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    margin-right: 4px;
+  }
+  .nav {
+    position: sticky; top: 0;
+    background: rgba(15,20,32,0.92);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line);
+    padding: 10px 24px;
+    font-size: 0.9rem;
+    z-index: 10;
+  }
+  .nav a { color: var(--muted); margin-right: 18px; text-decoration: none; }
+  .nav a:hover { color: var(--accent); }
+  .footnote { color: var(--muted); font-size: 0.9rem; }
+  .quiz {
+    background: #1f2535;
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin: 18px 0;
+  }
+  .quiz .q { font-weight: 600; margin-bottom: 8px; }
+  .quiz button {
+    background: #2a3346; color: var(--text); border: 1px solid var(--line);
+    padding: 6px 12px; border-radius: 6px; margin: 4px 6px 4px 0; cursor: pointer;
+  }
+  .quiz button.right { background: #1c2a26; border-color: var(--good); color: var(--good); }
+  .quiz button.wrong { background: #2a1c1c; border-color: #ff8a8a; color: #ff8a8a; }
+  .reveal { display: none; margin-top: 8px; color: var(--muted); }
+  .reveal.show { display: block; }
+  .twocol {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  @media (max-width: 720px) { .twocol { grid-template-columns: 1fr; } }
+  .meta-row {
+    display: flex; gap: 18px; flex-wrap: wrap; align-items: center;
+    margin: 14px 0 4px;
+    color: var(--muted); font-size: 0.92rem;
+  }
+  .meta-row b { color: var(--text); }
+  .legend {
+    display: flex; gap: 16px; flex-wrap: wrap; margin-top: 10px;
+    color: var(--muted); font-size: 0.88rem;
+  }
+  .swatch {
+    display: inline-block; width: 12px; height: 12px; border-radius: 2px;
+    vertical-align: middle; margin-right: 6px;
+  }
+  ul.tight, ol.tight { margin: 8px 0; padding-left: 22px; }
+  ul.tight li, ol.tight li { margin: 4px 0; }
+</style>
+</head>
+<body>
+
+<div class="nav">
+  <a href="#intro">Intro</a>
+  <a href="#facts">2 Facts</a>
+  <a href="#delta">Delta</a>
+  <a href="#hardware">Hardware Tension</a>
+  <a href="#packing">Column Packing</a>
+  <a href="#voxel">Voxel Order</a>
+  <a href="#walkthrough">One Step</a>
+  <a href="#numbers">Numbers</a>
+  <a href="#quiz">Quiz</a>
+  <a href="#glossary">Glossary</a>
+</div>
+
+<div class="wrap">
+
+<h1 id="intro">Chipmunk, Explained Simply</h1>
+<div class="subtitle">A scaffolded walkthrough of <a href="https://sandyresearch.github.io/chipmunk-part-I/" style="color:var(--accent)">Sandy Research's Chipmunk Part I</a> — built so you can read it cold.</div>
+
+<div class="pill-row">
+  <span class="pill">~12 min read</span>
+  <span class="pill">no diffusion background needed</span>
+  <span class="pill">2 interactive demos</span>
+  <span class="pill">5-question quiz</span>
+</div>
+
+<div class="panel">
+  <b>The 30-second pitch.</b> Diffusion image/video models run the same neural network <b>50 times</b> to make one output. Chipmunk's bet: between step <i>n−1</i> and step <i>n</i>, <b>most activations barely change</b> — so cache last step's outputs and only recompute the small fraction that meaningfully shifted. Result: 2–3.7× faster on video generation, no retraining, ~no quality loss. Everything else is plumbing to make this idea fast on a GPU.
+</div>
+
+<h2 id="facts">1 · Two facts about diffusion transformers</h2>
+<p>Chipmunk hangs entirely on these two observations. If you remember nothing else, remember these.</p>
+
+<h3>Fact A — Activations change slowly across denoising steps</h3>
+<p>A diffusion model takes a noisy latent and gradually denoises it over (say) 50 steps. The intermediate activations — the values flowing through attention and MLP layers — <b>drift gradually</b> from step to step. Step 27's activations look a lot like step 26's.</p>
+<div class="analogy">Think of a video where each frame is 95% the same as the last. You'd be wasteful to recompute every pixel from scratch every frame.</div>
+
+<h3>Fact B — Inside any one step, attention and MLP outputs are sparse</h3>
+<ul class="tight">
+  <li><b>Attention sparsity.</b> A query token doesn't attend equally to all keys. Most of its softmax probability mass concentrates on a small set of keys. So the output is essentially a weighted sum of just a <i>few</i> value vectors — the rest contribute near-zero.</li>
+  <li><b>MLP sparsity.</b> After the GeLU/ReLU nonlinearity, most intermediate activations are tiny. So the final output is dominated by a few rows of <code>W2</code> — the rest barely matter.</li>
+</ul>
+<div class="key">Quantitatively, the paper finds <b>5–25% of the values explain 70–90% of the activation change</b> between steps. That's the gap Chipmunk exploits.</div>
+
+<h2 id="delta">2 · The delta insight</h2>
+<p>Both attention and MLP have the same shape:</p>
+<pre>output = Σᵢ (some scalar weight) × (some value vector)</pre>
+<ul class="tight">
+  <li>Attention: scalar = softmax probability, value = a row of <code>V</code></li>
+  <li>MLP: scalar = GeLU(intermediate), value = a row of <code>W2</code></li>
+</ul>
+
+<p>An output is just a <b>weighted sum of value vectors</b>. Now the trick. If between steps only a few of those scalar weights changed meaningfully, then:</p>
+
+<pre>output_n  =  output_{n−1}
+              −  (old contributions that no longer apply)
+              +  (new contributions that just kicked in)</pre>
+
+<p>That's a <b>delta update</b>. You're not recomputing the whole sum — you're patching only the parts that changed.</p>
+
+<div class="analogy">A spreadsheet with 1,000 formulas. Change one cell — you don't recompute every formula, just the ones that depend on that cell. Chipmunk does this for neural network activations across diffusion steps.</div>
+
+<h2 id="hardware">3 · Why GPUs hate naive sparsity</h2>
+
+<p>The naive plan: at each step, find the few output positions whose contribution changed, and recompute only those. The problem: GPUs don't <i>love</i> sparsity. They love big, contiguous blocks of computation — typically 128 to 256 elements wide, fed into tensor cores.</p>
+
+<p>If you ask a GPU to "load these 17 random rows from memory," it bottlenecks on memory addressing, breaks coalescing, and underutilizes tensor cores. So you have a tension:</p>
+
+<div class="twocol">
+  <div class="panel">
+    <b style="color:var(--accent)">Math wants:</b><br>
+    Unstructured sparsity — any individual element can be picked.
+  </div>
+  <div class="panel">
+    <b style="color:var(--accent2)">Hardware wants:</b><br>
+    Dense blocks of 128+ contiguous elements.
+  </div>
+</div>
+
+<p>The whole second half of the paper reconciles these.</p>
+
+<h2 id="packing">4 · The clever fix, part 1 — column packing</h2>
+
+<p>Attention's output is <code>softmax(QK^T) @ V</code>. If you pick a subset of <i>keys/values</i> you care about (say 100 out of 4,500), you can:</p>
+
+<ol class="tight">
+  <li>Gather those 100 columns of <code>K^T</code> and 100 rows of <code>V</code> from anywhere in HBM (slow, scattered).</li>
+  <li><b>Pack</b> them contiguously into a 100-element-wide dense tile in SRAM (shared memory).</li>
+  <li>Run a normal dense GEMM on the packed tile.</li>
+</ol>
+
+<p>This works because <b>reordering the picked columns of K^T (and rows of V) doesn't change the final output</b> — it's a permutation followed by a sum, and sums are permutation-invariant.</p>
+
+<div class="key">Chipmunk gets the <b>math</b> of fine-grained sparsity but the <b>compute pattern</b> of dense GEMM. They call this <code>[128, 1]</code> column sparsity: chunks of 128 query tokens share the same set of selected keys, and the keys themselves can be picked at fine granularity.</div>
+
+<div class="analogy">You need pages 3, 47, and 192 of a library. You don't read them one by one across the building — you photocopy them onto a single sheet and read that sheet. Same content, vastly fewer trips.</div>
+
+<div class="demo">
+  <b>Try it · Column packing</b>
+  <div class="footnote">A small <code>K^T</code> matrix in HBM. Click <i>Pick top columns</i> to select the most-important columns (highlighted), then <i>Pack to SRAM</i> to gather them into a dense tile. The packed tile is what the tensor cores actually compute on.</div>
+  <canvas id="packCv" width="780" height="220"></canvas>
+  <div>
+    <button onclick="pickCols()">Pick top columns</button>
+    <button class="alt" onclick="packCols()">Pack to SRAM</button>
+    <button onclick="resetPack()" style="background:#2a3346;color:var(--text)">Reset</button>
+  </div>
+  <div class="legend">
+    <span><span class="swatch" style="background:#2a3346"></span>Cold column (skip)</span>
+    <span><span class="swatch" style="background:#7cc4ff"></span>Picked column (in HBM, scattered)</span>
+    <span><span class="swatch" style="background:#ffb86b"></span>Packed column (in SRAM, contiguous)</span>
+  </div>
+</div>
+
+<h3>How does the "gather" actually happen?</h3>
+<p>The previous demo glosses over the mechanism. Here's the real flow when Chipmunk pulls those scattered columns out of HBM. Click <b>Next step</b> to walk through it stage by stage, and toggle <b>Compare dense</b> to see what the GPU <i>wishes</i> it could do instead.</p>
+
+<div class="demo">
+  <b>Try it · Gather flow (sparse vs dense)</b>
+  <div class="footnote">Four stages: top-k indices → address generation → scattered HBM accesses → packed SRAM tile. Each scattered load goes to a different DRAM bank/row, which is what makes the whole thing slower than a single dense load of the same number of bytes.</div>
+  <canvas id="flowCv" width="780" height="430"></canvas>
+  <div>
+    <button onclick="flowNext()">Next step</button>
+    <button class="alt" onclick="flowToggleDense()">Compare dense</button>
+    <button onclick="flowReset()" style="background:#2a3346;color:var(--text)">Reset</button>
+  </div>
+  <div class="legend">
+    <span><span class="swatch" style="background:#7cc4ff"></span>Picked column / load</span>
+    <span><span class="swatch" style="background:#ffb86b"></span>Packed in SRAM</span>
+    <span><span class="swatch" style="background:#3a4862"></span>HBM bank (cold)</span>
+    <span><span class="swatch" style="background:#6ee7b7"></span>Dense (contiguous)</span>
+  </div>
+</div>
+
+<div class="key">
+The <b>scattered HBM access pattern</b> is the real cost. Six columns of 64 bytes each = 384 bytes total — but instead of one 384-byte coalesced load, you issue six 64-byte loads, each hitting a different DRAM bank. You pay row-activation latency multiple times, partial bank utilization, and address-generation overhead. The packing trick is how you recover dense GEMM performance <i>after</i> the gather.
+</div>
+
+<div class="panel">
+<b>Step by step, in CUDA-ish pseudocode:</b>
+<pre>// Stage 1 — top-k produces a small index list
+int idx[K];
+top_k(scores, idx);                       // e.g. [3, 7, 12, 17, 22, 28]
+
+// Stage 2 — turn indices into HBM addresses
+for k in 0..K:
+    addr[k] = K_base + idx[k] * row_stride;
+
+// Stage 3 — issue K async loads (cp.async on Hopper)
+//          each goes to a different DRAM bank → no coalescing
+for k in 0..K:
+    cp.async(smem_tile[k], addr[k], 64B); // 64 bytes per column slice
+
+// Stage 4 — once loads arrive, smem_tile is dense
+//          tensor cores see a normal contiguous tile
+wgmma(out_tile, smem_tile, V_packed);     // dense GEMM</pre>
+</div>
+
+<h3>Zoom in: the HBM transaction timeline</h3>
+<p>"Are all K columns picked up in a single pass to HBM?" Not exactly. The K loads <b>issue in parallel</b>, but each one is individually less efficient than a coalesced load would be. The diagram below makes the difference visceral — same useful bytes loaded in both cases, very different wall-clock and bandwidth utilization.</p>
+
+<div class="demo">
+  <b>Side-by-side: sparse loads vs dense load</b>
+  <canvas id="timelineCv" width="780" height="460"></canvas>
+  <div class="legend">
+    <span><span class="swatch" style="background:#5a6b85"></span>Row activation (~10s of ns)</span>
+    <span><span class="swatch" style="background:#7cc4ff"></span>Useful 64B (sparse)</span>
+    <span><span class="swatch" style="background:#6ee7b7"></span>Useful 64B (dense)</span>
+    <span><span class="swatch" style="background:#3a2828"></span>Wasted burst bytes</span>
+  </div>
+</div>
+
+<div class="key">
+The K loads run <b>in parallel</b>, not in K sequential passes — the GPU's memory subsystem can have hundreds of transactions in flight. The penalty for sparsity isn't "K times slower"; it's <b>~50–60% of peak HBM bandwidth</b> instead of ~90%+, because each scattered load (a) activates its own DRAM row, (b) underutilizes its DRAM burst, and (c) breaks warp coalescing. Net throughput per byte is lower, but you only pay for the K bytes you actually want.
+</div>
+
+<div class="gotcha">
+This is also <b>why Chipmunk uses <code>cp.async</code> instead of TMA</b> on Hopper. TMA is faster (zero address-generation overhead) but it requires a contiguous multi-dim region — incompatible with column-level scatter. Sandy Research's Part III blog explicitly notes the <code>cp.async</code> path retains "85–90% of the dense-kernel performance" — the price they pay for fine-grained sparsity.
+</div>
+
+<h2 id="voxel">5 · The clever fix, part 2 — voxel reordering</h2>
+
+<p>Tokens in a video are usually laid out in <b>raster order</b> (row-major, frame by frame). Bad: token 1 and token 1000 may be spatially adjacent in the actual video but far apart in the sequence.</p>
+
+<p>If 128 contiguous tokens have to share a sparsity pattern, you want those 128 tokens to be <b>similar</b> — because similar tokens probably attend to similar keys. So Chipmunk <b>reorders tokens once</b> at the start so each 128-chunk corresponds to a contiguous spatial voxel (a small 3D block of pixels across a few frames). Undo the reorder before the final decode.</p>
+
+<div class="analogy">Grading 1,000 student essays. You can grade alphabetically (raster), or pre-sort by topic (voxel). Sorting by topic gets you into a rhythm — same vocabulary, same expected answers, faster grading.</div>
+
+<div class="demo">
+  <b>Try it · Raster vs voxel order</b>
+  <div class="footnote">A 16×16 image. Each cell is colored by which 128-chunk it belongs to (4 chunks of 64 cells in this scaled-down demo). Toggle the layout — voxel order keeps spatially-similar tokens in the same chunk.</div>
+  <canvas id="voxCv" width="780" height="320"></canvas>
+  <div>
+    <button onclick="setOrder('raster')">Raster order</button>
+    <button class="alt" onclick="setOrder('voxel')">Voxel order</button>
+  </div>
+</div>
+
+<div class="gotcha">Voxel reordering helps <b>attention</b> by ~1.2×, but the paper notes <b>near-zero impact on MLP</b>. Why? MLPs don't mix across tokens — each token is processed independently, so reordering them is invariant to MLP. This unexplained asymmetry is one of the angles for a critique paper.</div>
+
+<h2 id="walkthrough">6 · What actually happens at step <i>n</i></h2>
+
+<p>Walking through one full step now that you have all the parts:</p>
+
+<ol class="tight">
+  <li><b>Find what changed.</b> Compare current step's keys/queries to cached ones. Use a fast approximate top-k kernel to pick the columns whose contribution shifted most.</li>
+  <li><b>Reorder &amp; pack.</b> Gather those columns from HBM, pack them into dense SRAM tiles.</li>
+  <li><b>Run the small dense GEMM.</b> Compute the delta — what to add and subtract.</li>
+  <li><b>Apply to cache.</b> <code>output_n = output_{n−1} + delta</code>.</li>
+  <li><b>Write back.</b> Update the cache for next step. (Chipmunk overlaps this writeback with the next step's compute via TMA tricks.)</li>
+</ol>
+
+<p>Most steps are "sparse." Every ~10th step is a full <b>dense</b> step that re-anchors the cache, so error doesn't accumulate.</p>
+
+<h2 id="numbers">7 · The numbers in context</h2>
+
+<table>
+  <thead>
+    <tr><th>Setting</th><th>Baseline</th><th>Chipmunk</th><th>Speedup</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>HunyuanVideo (720p, 5 sec)</td><td>1030 s</td><td>477 s</td><td><b>2.16×</b></td></tr>
+    <tr><td>HunyuanVideo + step caching</td><td>1030 s</td><td>277 s</td><td><b>3.72×</b></td></tr>
+    <tr><td>FLUX.1-dev (1280×768)</td><td>6.60 s</td><td>4.90 s</td><td><b>1.41×</b></td></tr>
+    <tr><td>Their attn kernel @ 93% sparsity vs FlashAttention-3</td><td colspan="2">—</td><td><b>9.3×</b></td></tr>
+  </tbody>
+</table>
+
+<div class="meta-row">
+  <span><b>Hardware:</b> H100-SXM5</span>
+  <span><b>Batch:</b> 1</span>
+  <span><b>Precision:</b> fp16/bf16</span>
+  <span><b>Steps:</b> 50</span>
+</div>
+
+<div class="gotcha">Those caveats matter. <b>Single-batch evaluation</b> is the most overlooked. Real inference services batch requests, and each sample's column-sparse mask diverges across the batch — you can't share dense GEMM optimizations the same way. A characterization study of Chipmunk under batching is one of the most concrete project pitches available.</div>
+
+<h2 id="quiz">8 · Self-check</h2>
+
+<div class="quiz">
+  <div class="q">Q1. Why does the delta-update trick work for diffusion but not for a one-shot image classifier?</div>
+  <button onclick="answer(this, false)">The classifier doesn't have attention.</button>
+  <button onclick="answer(this, true)">A classifier runs once — there's no "previous step" to delta against. Diffusion's iterative refinement is what creates step n−1's cached state.</button>
+  <button onclick="answer(this, false)">Classifiers don't use a softmax.</button>
+  <div class="reveal">Right answer is the second one. The whole premise is that you have a useful cache from a previous, similar computation. One-shot inference offers nothing to delta against.</div>
+</div>
+
+<div class="quiz">
+  <div class="q">Q2. Why does Chipmunk pack scattered columns into SRAM instead of just running a sparse-aware kernel directly on HBM?</div>
+  <button onclick="answer(this, true)">GPUs are tuned for dense blocks of 128+ contiguous elements; scattered HBM loads waste tensor cores. Packing turns sparse math into dense compute.</button>
+  <button onclick="answer(this, false)">SRAM is bigger than HBM, so the packed version fits in less memory.</button>
+  <button onclick="answer(this, false)">The PyTorch sparse API is buggy.</button>
+  <div class="reveal">First answer. SRAM is much smaller than HBM — it's the speed difference and the dense compute pattern that matter.</div>
+</div>
+
+<div class="quiz">
+  <div class="q">Q3. Voxel reordering helps attention but is near-useless for MLP. Why?</div>
+  <button onclick="answer(this, false)">MLPs already have built-in voxel awareness.</button>
+  <button onclick="answer(this, true)">MLPs don't mix across tokens — each token's MLP is independent — so any token reordering is invariant. Attention mixes across tokens, so spatial locality matters there.</button>
+  <button onclick="answer(this, false)">The paper says voxel reordering is wrong for MLP.</button>
+  <div class="reveal">Second answer. This asymmetry is unexplored in the paper and is a real opening for a critique. Could MLP benefit from a <i>different</i> reordering — say by neuron co-firing patterns?</div>
+</div>
+
+<div class="quiz">
+  <div class="q">Q4. Chipmunk does a dense step every ~10 sparse steps. What's the dense step doing?</div>
+  <button onclick="answer(this, false)">Refreshing the GPU SRAM.</button>
+  <button onclick="answer(this, true)">Re-anchoring the cache so accumulated approximation error from sparse delta updates doesn't drift.</button>
+  <button onclick="answer(this, false)">Computing the loss for self-supervised correction.</button>
+  <div class="reveal">Second answer. Sparse deltas approximate; without periodic full passes, drift accumulates.</div>
+</div>
+
+<div class="quiz">
+  <div class="q">Q5. Which of these would be the <i>weakest</i> setup for Chipmunk?</div>
+  <button onclick="answer(this, false)">A 50-step DiT generating high-resolution video.</button>
+  <button onclick="answer(this, true)">A 4-step distilled model where activations change a lot per step.</button>
+  <button onclick="answer(this, false)">A long-sequence DiT with high attention cost.</button>
+  <div class="reveal">Second answer. Chipmunk's whole premise is that activations change slowly between steps. Few-step distilled models violate that — the paper itself flags this as a limitation.</div>
+</div>
+
+<h2 id="glossary">9 · Glossary</h2>
+
+<table>
+  <tbody>
+    <tr><td><b>Diffusion step</b></td><td>One forward pass that nudges the noisy latent slightly closer to the final image. 50 steps = 50 forward passes.</td></tr>
+    <tr><td><b>Activation</b></td><td>Numerical values flowing between layers during a forward pass.</td></tr>
+    <tr><td><b>Cache</b></td><td>A stored copy of last step's outputs so you can do delta updates.</td></tr>
+    <tr><td><b>Top-k</b></td><td>Pick the k largest values from a list. "Approximate top-k" means good enough, much faster.</td></tr>
+    <tr><td><b>Column sparsity <code>[128, 1]</code></b></td><td>Chunks of 128 rows share a sparsity pattern; columns within can be picked individually.</td></tr>
+    <tr><td><b>Voxel</b></td><td>A small 3D block of pixels (across spatial + temporal dims). 3D analog of a 2D patch.</td></tr>
+    <tr><td><b>GEMM</b></td><td>General Matrix Multiply — the dense matmul GPUs are optimized for.</td></tr>
+    <tr><td><b>HBM / SRAM</b></td><td>GPU memory tiers. HBM = big, slow. SRAM = small, very fast. HBM→SRAM transfers are often the bottleneck.</td></tr>
+    <tr><td><b>TMA</b></td><td>Tensor Memory Accelerator — Hopper hardware that loads multidim tensors from HBM to SRAM in one instruction.</td></tr>
+    <tr><td><b>Warp-specialization</b></td><td>Splitting GPU threads into "producer" warps (load) and "consumer" warps (compute) to overlap memory and math.</td></tr>
+  </tbody>
+</table>
+
+<h2>10 · Where to read next</h2>
+<ol class="tight">
+  <li><a href="https://sandyresearch.github.io/chipmunk-part-II/" style="color:var(--accent)">Blog Part II</a> — pattern selection &amp; voxel math, deeper.</li>
+  <li><a href="https://sandyresearch.github.io/chipmunk-part-III/" style="color:var(--accent)">Blog Part III</a> — kernel deep-dive (TMA, warp-specialization, mask offload).</li>
+  <li><a href="https://arxiv.org/abs/2506.03275" style="color:var(--accent)">Chipmunk paper (arXiv 2506.03275)</a> — benchmarks, ablations, appendix theory.</li>
+  <li><a href="https://arxiv.org/abs/2410.20399" style="color:var(--accent)">ThunderKittens</a> — the kernel DSL Chipmunk's kernels build on.</li>
+  <li><a href="https://arxiv.org/abs/2310.12109" style="color:var(--accent)">Monarch Mixer / M2</a> — Dan's <i>structured</i>-sparsity counterpart to Chipmunk's <i>dynamic</i> sparsity.</li>
+</ol>
+
+<div class="panel" style="margin-top:32px">
+  <b>The two questions to ask yourself when you finish:</b>
+  <ol class="tight">
+    <li>Why does the slowly-changing-activations property hold for diffusion specifically? Where else might it hold? Autoregressive decoding? SSMs?</li>
+    <li>Where does column-packing break down? (Hint: think about batch &gt; 1 with diverging masks.)</li>
+  </ol>
+  Answers to either move you from "I understood the paper" to "I have a research instinct about it."
+</div>
+
+</div>
+
+<script>
+// ===== Column-packing canvas =====
+(function() {
+  const cv = document.getElementById('packCv');
+  const ctx = cv.getContext('2d');
+  const N_COLS = 24, COL_H = 90;
+  const colW = 22, gap = 8;
+  const hbmX = 30, hbmY = 30;
+  const sramX = 30, sramY = 150;
+
+  // importance score per column — fixed for reproducibility
+  const importance = [0.1,0.2,0.9,0.15,0.3,0.85,0.4,0.1,0.7,0.2,0.95,0.3,
+                      0.45,0.15,0.6,0.1,0.8,0.25,0.4,0.92,0.18,0.35,0.7,0.12];
+  const TOP_K = 6;
+  let picked = [];
+  let packed = false;
+
+  function colColor(i) {
+    if (packed && picked.includes(i)) return null; // hidden in HBM after pack
+    if (picked.includes(i)) return '#7cc4ff';
+    return '#2a3346';
+  }
+
+  function draw() {
+    ctx.clearRect(0,0,cv.width,cv.height);
+
+    // Labels
+    ctx.fillStyle = '#a3b1c6';
+    ctx.font = '13px -apple-system, system-ui';
+    ctx.fillText('HBM (full K^T, scattered):', hbmX, hbmY - 8);
+    ctx.fillText('SRAM (packed tile, contiguous):', sramX, sramY - 8);
+
+    // HBM columns
+    for (let i = 0; i < N_COLS; i++) {
+      const x = hbmX + i * (colW + gap);
+      const y = hbmY;
+      const c = colColor(i);
+      if (c) {
+        ctx.fillStyle = c;
+        ctx.fillRect(x, y, colW, COL_H);
+        // hint of importance — taller bar inside col
+        ctx.fillStyle = 'rgba(255,255,255,0.18)';
+        const barH = COL_H * importance[i];
+        ctx.fillRect(x + 4, y + COL_H - barH, colW - 8, barH);
+      } else {
+        // outline only for picked-but-packed columns
+        ctx.strokeStyle = '#3a4862';
+        ctx.setLineDash([3,3]);
+        ctx.strokeRect(x, y, colW, COL_H);
+        ctx.setLineDash([]);
+      }
+    }
+
+    // SRAM tile
+    if (packed) {
+      for (let i = 0; i < picked.length; i++) {
+        const x = sramX + i * (colW + gap);
+        const y = sramY;
+        ctx.fillStyle = '#ffb86b';
+        ctx.fillRect(x, y, colW, COL_H);
+        // arrow from HBM to SRAM
+        const srcIdx = picked[i];
+        const sx = hbmX + srcIdx * (colW + gap) + colW/2;
+        const sy = hbmY + COL_H;
+        const ex = x + colW/2;
+        const ey = y;
+        ctx.strokeStyle = 'rgba(255,184,107,0.35)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.lineTo(ex, ey);
+        ctx.stroke();
+      }
+      ctx.fillStyle = '#a3b1c6';
+      ctx.font = '12px -apple-system, system-ui';
+      ctx.fillText('→ ready for one dense GEMM', sramX + picked.length * (colW + gap) + 12, sramY + COL_H/2 + 4);
+    } else {
+      ctx.fillStyle = '#3a4862';
+      ctx.font = '13px -apple-system, system-ui';
+      ctx.fillText('(empty — click "Pack to SRAM")', sramX, sramY + COL_H/2 + 4);
+    }
+  }
+
+  window.pickCols = function() {
+    const idx = importance.map((v,i) => [v,i]).sort((a,b)=>b[0]-a[0]).slice(0, TOP_K).map(x=>x[1]).sort((a,b)=>a-b);
+    picked = idx;
+    packed = false;
+    draw();
+  };
+  window.packCols = function() {
+    if (picked.length === 0) pickCols();
+    packed = true;
+    draw();
+  };
+  window.resetPack = function() {
+    picked = [];
+    packed = false;
+    draw();
+  };
+
+  draw();
+})();
+
+// ===== Voxel-reordering canvas =====
+(function() {
+  const cv = document.getElementById('voxCv');
+  const ctx = cv.getContext('2d');
+  const GRID = 16, CELL = 18;
+  const offX = 30, offY = 30;
+  // 4 chunks for the demo, 64 cells each (16*16=256, /4 = 64)
+  const CHUNK_COLORS = ['#7cc4ff', '#ffb86b', '#6ee7b7', '#ff9f9f'];
+  let order = 'raster';
+
+  function chunkOfCell(row, col) {
+    let seqIdx;
+    if (order === 'raster') {
+      seqIdx = row * GRID + col;
+    } else {
+      // voxel: 8x8 quadrants → 4 chunks
+      const qr = Math.floor(row / 8), qc = Math.floor(col / 8);
+      const qIdx = qr * 2 + qc;
+      const localR = row % 8, localC = col % 8;
+      const localIdx = localR * 8 + localC;
+      seqIdx = qIdx * 64 + localIdx;
+    }
+    return Math.floor(seqIdx / 64);
+  }
+
+  function draw() {
+    ctx.clearRect(0,0,cv.width,cv.height);
+
+    // Image grid
+    ctx.fillStyle = '#a3b1c6';
+    ctx.font = '13px -apple-system, system-ui';
+    ctx.fillText('"Image" with cells colored by chunk membership:', offX, offY - 8);
+
+    for (let r = 0; r < GRID; r++) {
+      for (let c = 0; c < GRID; c++) {
+        const ch = chunkOfCell(r, c);
+        ctx.fillStyle = CHUNK_COLORS[ch];
+        ctx.globalAlpha = 0.85;
+        ctx.fillRect(offX + c * CELL, offY + r * CELL, CELL - 1, CELL - 1);
+      }
+    }
+    ctx.globalAlpha = 1;
+
+    // Sequence strip on right
+    const seqX = offX + GRID * CELL + 60;
+    const seqW = 280;
+    const seqY = offY + 8;
+    ctx.fillStyle = '#a3b1c6';
+    ctx.fillText('Flattened sequence (256 tokens, 4 chunks of 64):', seqX, offY - 8);
+
+    const stripH = 24;
+    const tokW = seqW / 256;
+    for (let i = 0; i < 256; i++) {
+      const ch = Math.floor(i / 64);
+      ctx.fillStyle = CHUNK_COLORS[ch];
+      ctx.fillRect(seqX + i * tokW, seqY, tokW + 0.5, stripH);
+    }
+    // Chunk dividers
+    ctx.strokeStyle = '#0a0f1a';
+    ctx.lineWidth = 1.5;
+    for (let i = 1; i < 4; i++) {
+      const x = seqX + i * 64 * tokW;
+      ctx.beginPath(); ctx.moveTo(x, seqY); ctx.lineTo(x, seqY + stripH); ctx.stroke();
+    }
+
+    // Caption
+    ctx.fillStyle = '#a3b1c6';
+    ctx.font = '12px -apple-system, system-ui';
+    const cap = order === 'raster'
+      ? 'Raster order: each chunk is 4 horizontal strips — spatially incoherent.'
+      : 'Voxel order: each chunk is one 8×8 quadrant — spatially coherent.';
+    ctx.fillText(cap, seqX, seqY + stripH + 22);
+
+    // Quality indicator
+    ctx.font = '13px -apple-system, system-ui';
+    ctx.fillStyle = order === 'voxel' ? '#6ee7b7' : '#ff9f9f';
+    const qual = order === 'voxel' ? '✓ similar tokens grouped → shared sparsity pattern works' : '✗ dissimilar tokens grouped → shared sparsity pattern is bad';
+    ctx.fillText(qual, seqX, seqY + stripH + 50);
+  }
+
+  window.setOrder = function(o) {
+    order = o;
+    draw();
+  };
+  draw();
+})();
+
+// ===== Gather flow diagram =====
+(function() {
+  const cv = document.getElementById('flowCv');
+  const ctx = cv.getContext('2d');
+
+  const N_HBM = 32;            // total HBM columns shown
+  const PICKS = [3, 8, 14, 19, 23, 28]; // sparse pick indices
+  const DENSE_PICKS = [10, 11, 12, 13, 14, 15]; // dense alternative
+  const K = PICKS.length;
+  const BANKS = 8;             // pretend HBM is split into 8 banks
+
+  let stage = 0;     // 0..4 (0 = nothing yet)
+  let dense = false;
+
+  // Layout
+  const indexY = 30;
+  const indexBoxW = 38, indexBoxH = 28, indexGap = 14;
+  const indexStartX = (cv.width - (K * indexBoxW + (K - 1) * indexGap)) / 2;
+
+  const hbmY = 130;
+  const hbmH = 40;
+  const hbmX = 40;
+  const hbmW = cv.width - 80;
+  const colW = hbmW / N_HBM;
+
+  const sramY = 350;
+  const sramBoxW = 52, sramBoxH = 36, sramGap = 6;
+  const sramTotalW = K * sramBoxW + (K - 1) * sramGap;
+  const sramStartX = (cv.width - sramTotalW) / 2;
+
+  function picks() { return dense ? DENSE_PICKS : PICKS; }
+
+  function drawIndices() {
+    ctx.fillStyle = '#a3b1c6';
+    ctx.font = '12px -apple-system, system-ui';
+    ctx.fillText('Stage 1 — top-k indices (which columns to load):', 30, indexY - 12);
+    const p = picks();
+    for (let i = 0; i < K; i++) {
+      const x = indexStartX + i * (indexBoxW + indexGap);
+      ctx.fillStyle = stage >= 1 ? '#7cc4ff' : '#1a2030';
+      ctx.strokeStyle = '#2a3346';
+      ctx.fillRect(x, indexY, indexBoxW, indexBoxH);
+      ctx.strokeRect(x, indexY, indexBoxW, indexBoxH);
+      if (stage >= 1) {
+        ctx.fillStyle = '#0a0f1a';
+        ctx.font = 'bold 13px -apple-system, system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText(p[i], x + indexBoxW / 2, indexY + indexBoxH / 2 + 5);
+        ctx.textAlign = 'left';
+      }
+    }
+  }
+
+  function drawHBM() {
+    ctx.fillStyle = '#a3b1c6';
+    ctx.font = '12px -apple-system, system-ui';
+    ctx.fillText('Stage 2 — HBM (full K^T, split across DRAM banks):', 30, hbmY - 12);
+
+    // Bank dividers
+    const cellsPerBank = N_HBM / BANKS;
+    for (let b = 0; b < BANKS; b++) {
+      const bx = hbmX + b * cellsPerBank * colW;
+      const bw = cellsPerBank * colW;
+      ctx.fillStyle = b % 2 === 0 ? '#1a2030' : '#202738';
+      ctx.fillRect(bx, hbmY, bw, hbmH);
+      ctx.fillStyle = '#5a6b85';
+      ctx.font = '10px -apple-system, system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillText('bank ' + b, bx + bw / 2, hbmY + hbmH + 14);
+      ctx.textAlign = 'left';
+    }
+
+    // Cells
+    for (let i = 0; i < N_HBM; i++) {
+      const x = hbmX + i * colW;
+      const isPick = stage >= 2 && picks().includes(i);
+      if (isPick) {
+        ctx.fillStyle = dense ? '#6ee7b7' : '#7cc4ff';
+        ctx.fillRect(x + 1, hbmY + 4, colW - 2, hbmH - 8);
+      }
+    }
+
+    // HBM border
+    ctx.strokeStyle = '#2a3346';
+    ctx.strokeRect(hbmX, hbmY, hbmW, hbmH);
+
+    // Index → HBM arrows (Stage 1 just landed on Stage 2)
+    if (stage >= 2) {
+      const p = picks();
+      for (let i = 0; i < K; i++) {
+        const sx = indexStartX + i * (indexBoxW + indexGap) + indexBoxW / 2;
+        const sy = indexY + indexBoxH;
+        const ex = hbmX + p[i] * colW + colW / 2;
+        const ey = hbmY;
+        ctx.strokeStyle = 'rgba(124,196,255,0.55)';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.lineTo(ex, ey);
+        ctx.stroke();
+      }
+    }
+  }
+
+  function drawLoads() {
+    if (stage < 3) return;
+    ctx.fillStyle = '#a3b1c6';
+    ctx.font = '12px -apple-system, system-ui';
+    const label = dense
+      ? 'Stage 3 — dense load: 1 coalesced transfer, hits 1 bank, full bandwidth.'
+      : 'Stage 3 — scattered loads: K async transfers, each hits a different bank → bandwidth penalty.';
+    ctx.fillText(label, 30, hbmY + hbmH + 38);
+
+    const p = picks();
+    const loadAreaY1 = hbmY + hbmH + 50;
+    const loadAreaY2 = sramY - 10;
+
+    if (dense) {
+      // One big arrow
+      const startX = hbmX + p[0] * colW;
+      const endX = hbmX + (p[K - 1] + 1) * colW;
+      const startY = hbmY + hbmH;
+      ctx.fillStyle = 'rgba(110,231,183,0.18)';
+      ctx.beginPath();
+      ctx.moveTo(startX, startY);
+      ctx.lineTo(endX, startY);
+      ctx.lineTo(sramStartX + sramTotalW, sramY);
+      ctx.lineTo(sramStartX, sramY);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = '#6ee7b7';
+      ctx.font = '11px -apple-system, system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillText('1 cp.async transfer · ~1× latency', cv.width / 2, loadAreaY1 + 60);
+      ctx.textAlign = 'left';
+    } else {
+      // K individual lines, each labeled with its own bank hit
+      for (let i = 0; i < K; i++) {
+        const sx = hbmX + p[i] * colW + colW / 2;
+        const sy = hbmY + hbmH;
+        const ex = sramStartX + i * (sramBoxW + sramGap) + sramBoxW / 2;
+        const ey = sramY;
+
+        // Curvy load path
+        ctx.strokeStyle = 'rgba(124,196,255,0.6)';
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.bezierCurveTo(sx, sy + 60, ex, ey - 60, ex, ey);
+        ctx.stroke();
+
+        // Latency tag halfway down
+        const midX = (sx + ex) / 2;
+        const midY = (sy + ey) / 2;
+        ctx.fillStyle = '#1a2030';
+        ctx.fillRect(midX - 18, midY - 8, 36, 16);
+        ctx.strokeStyle = '#7cc4ff';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(midX - 18, midY - 8, 36, 16);
+        ctx.fillStyle = '#7cc4ff';
+        ctx.font = '10px -apple-system, system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText('cp.async', midX, midY + 3);
+        ctx.textAlign = 'left';
+      }
+
+      ctx.fillStyle = '#ff9f9f';
+      ctx.font = '11px -apple-system, system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillText('K transfers, K bank activations · row-activation cost paid K times', cv.width / 2, loadAreaY2 + 8);
+      ctx.textAlign = 'left';
+    }
+  }
+
+  function drawSRAM() {
+    if (stage < 4) {
+      // empty placeholder
+      ctx.fillStyle = '#3a4862';
+      ctx.font = '12px -apple-system, system-ui';
+      ctx.fillText('Stage 4 — SRAM tile (will fill on next step)', 30, sramY - 12);
+      ctx.strokeStyle = '#2a3346';
+      ctx.setLineDash([4, 4]);
+      ctx.strokeRect(sramStartX, sramY, sramTotalW, sramBoxH);
+      ctx.setLineDash([]);
+      return;
+    }
+
+    ctx.fillStyle = '#a3b1c6';
+    ctx.font = '12px -apple-system, system-ui';
+    ctx.fillText('Stage 4 — SRAM packed tile (contiguous, ready for tensor cores):', 30, sramY - 12);
+
+    for (let i = 0; i < K; i++) {
+      const x = sramStartX + i * (sramBoxW + sramGap);
+      ctx.fillStyle = dense ? '#6ee7b7' : '#ffb86b';
+      ctx.fillRect(x, sramY, sramBoxW, sramBoxH);
+      ctx.fillStyle = '#0a0f1a';
+      ctx.font = 'bold 12px -apple-system, system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillText('col ' + picks()[i], x + sramBoxW / 2, sramY + sramBoxH / 2 + 4);
+      ctx.textAlign = 'left';
+    }
+
+    // Caption
+    ctx.fillStyle = '#a3b1c6';
+    ctx.font = '11px -apple-system, system-ui';
+    ctx.fillText('→ wgmma sees a dense tile; the scatter is invisible from here.', sramStartX, sramY + sramBoxH + 18);
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    drawIndices();
+    drawHBM();
+    drawLoads();
+    drawSRAM();
+
+    // Header tag for mode
+    ctx.fillStyle = dense ? '#6ee7b7' : '#7cc4ff';
+    ctx.font = 'bold 11px -apple-system, system-ui';
+    ctx.textAlign = 'right';
+    ctx.fillText(dense ? 'MODE: dense (what GPUs love)' : 'MODE: sparse (what Chipmunk does)', cv.width - 16, 14);
+    ctx.textAlign = 'left';
+  }
+
+  window.flowNext = function() {
+    stage = Math.min(4, stage + 1);
+    draw();
+  };
+  window.flowReset = function() {
+    stage = 0;
+    draw();
+  };
+  window.flowToggleDense = function() {
+    dense = !dense;
+    draw();
+  };
+
+  draw();
+})();
+
+// ===== HBM timeline diagram =====
+(function() {
+  const cv = document.getElementById('timelineCv');
+  if (!cv) return;
+  const ctx = cv.getContext('2d');
+
+  // Geometry
+  const leftMargin = 70;
+  const trackH = 22;
+  const trackGap = 4;
+  const ACT_W = 96;       // width representing row-activation latency
+  const TX_W = 26;         // width representing one 64B useful transfer
+  const WASTE_W = 26;      // width representing wasted half of 128B burst
+
+  function drawTrack(y, startX, useful, waste, kind) {
+    // Activation
+    ctx.fillStyle = '#5a6b85';
+    ctx.fillRect(startX, y, ACT_W, trackH);
+    ctx.fillStyle = '#0a0f1a';
+    ctx.font = 'bold 11px -apple-system, system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('row activation', startX + ACT_W / 2, y + trackH - 7);
+
+    // Useful transfer(s)
+    const txColor = kind === 'dense' ? '#6ee7b7' : '#7cc4ff';
+    for (let i = 0; i < useful; i++) {
+      const x = startX + ACT_W + i * TX_W;
+      ctx.fillStyle = txColor;
+      ctx.fillRect(x + 1, y, TX_W - 1, trackH);
+      ctx.fillStyle = '#0a0f1a';
+      ctx.font = 'bold 10px -apple-system, system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillText('64B', x + TX_W / 2, y + trackH - 7);
+    }
+
+    // Wasted burst
+    if (waste) {
+      const x = startX + ACT_W + useful * TX_W;
+      ctx.fillStyle = '#3a2828';
+      ctx.fillRect(x + 1, y, WASTE_W - 1, trackH);
+      ctx.fillStyle = '#a06868';
+      ctx.font = '10px -apple-system, system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillText('waste', x + WASTE_W / 2, y + trackH - 7);
+    }
+    ctx.textAlign = 'left';
+  }
+
+  function drawLabel(y, text) {
+    ctx.fillStyle = '#a3b1c6';
+    ctx.font = '11px -apple-system, system-ui';
+    ctx.fillText(text, 12, y + trackH - 7);
+  }
+
+  function drawTimeAxis(y, width, captionColor, caption) {
+    ctx.strokeStyle = '#3a4862';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(leftMargin, y);
+    ctx.lineTo(leftMargin + width, y);
+    ctx.stroke();
+    // arrowhead
+    ctx.beginPath();
+    ctx.moveTo(leftMargin + width, y);
+    ctx.lineTo(leftMargin + width - 6, y - 4);
+    ctx.moveTo(leftMargin + width, y);
+    ctx.lineTo(leftMargin + width - 6, y + 4);
+    ctx.stroke();
+    ctx.fillStyle = '#a3b1c6';
+    ctx.font = '11px -apple-system, system-ui';
+    ctx.fillText('time →', leftMargin + width + 8, y + 4);
+    ctx.fillStyle = captionColor;
+    ctx.fillText(caption, 30, y + 22);
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, cv.width, cv.height);
+
+    // ===== SPARSE =====
+    let y = 18;
+    ctx.fillStyle = '#7cc4ff';
+    ctx.font = 'bold 13px -apple-system, system-ui';
+    ctx.fillText('Sparse: 6 cp.async loads → 6 bank activations + burst waste', 12, y);
+    y += 14;
+    ctx.fillStyle = '#a3b1c6';
+    ctx.font = '11px -apple-system, system-ui';
+    ctx.fillText('All loads issue in parallel; each pays its own row-activation cost and wastes the unused half of its 128B burst.', 12, y);
+    y += 16;
+
+    const banks = [0, 2, 3, 4, 5, 7];
+    for (let i = 0; i < banks.length; i++) {
+      drawLabel(y, 'bank ' + banks[i]);
+      drawTrack(y, leftMargin, 1, true, 'sparse'); // 1 useful 64B + waste
+      y += trackH + trackGap;
+    }
+
+    drawTimeAxis(y + 4, ACT_W + TX_W + WASTE_W,
+      '#ff9f9f',
+      'Wall-clock = longest single load. 6 row activations in parallel, ~50% bandwidth wasted.');
+
+    // ===== DIVIDER =====
+    y += 36;
+    ctx.strokeStyle = '#2a3346';
+    ctx.beginPath();
+    ctx.moveTo(12, y); ctx.lineTo(cv.width - 12, y); ctx.stroke();
+    y += 16;
+
+    // ===== DENSE =====
+    ctx.fillStyle = '#6ee7b7';
+    ctx.font = 'bold 13px -apple-system, system-ui';
+    ctx.fillText('Dense: 1 cp.async on contiguous columns → 1 activation, 100% burst usage', 12, y);
+    y += 14;
+    ctx.fillStyle = '#a3b1c6';
+    ctx.font = '11px -apple-system, system-ui';
+    ctx.fillText('One row opens; six adjacent 64B bursts pour out from the same bank with no wasted bytes.', 12, y);
+    y += 16;
+
+    drawLabel(y, 'bank 4');
+    drawTrack(y, leftMargin, 6, false, 'dense'); // 6 useful 64B, no waste
+    y += trackH + 8;
+
+    drawTimeAxis(y, ACT_W + 6 * TX_W,
+      '#6ee7b7',
+      'Same useful bytes as sparse, finishes sooner — 1 activation, all 6 transfers ride the open row.');
+
+    // ===== BOTTOM SUMMARY =====
+    y += 38;
+    ctx.fillStyle = '#a3b1c6';
+    ctx.font = '12px -apple-system, system-ui';
+    ctx.fillText('Same useful bytes loaded in both cases. Sparse pays for:', 12, y);
+    y += 16;
+    const bullets = [
+      '• 6 row activations vs 1 (banks parallelize, but each load still pays its own activation cost)',
+      '• ~50% wasted bandwidth — each 64B slice arrives inside a 128B DRAM burst',
+      '• Address generation per load (no TMA shortcut)'
+    ];
+    ctx.font = '11.5px -apple-system, system-ui';
+    for (const b of bullets) {
+      ctx.fillText(b, 24, y);
+      y += 15;
+    }
+  }
+
+  draw();
+})();
+
+// ===== Quiz =====
+function answer(btn, correct) {
+  const quiz = btn.closest('.quiz');
+  quiz.querySelectorAll('button').forEach(b => b.disabled = true);
+  btn.classList.add(correct ? 'right' : 'wrong');
+  quiz.querySelector('.reveal').classList.add('show');
+}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fast-dLLM: Interactive Learning Guide</title>
+<script>
+window.MathJax = {
+  tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
+  svg: { fontCache: 'global' }
+};
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<style>
+  :root {
+    --bg: #0f1419;
+    --panel: #1a2332;
+    --panel-light: #243447;
+    --accent: #76b900;
+    --accent-2: #4fc3f7;
+    --warn: #ff9800;
+    --danger: #f44336;
+    --text: #e4e8ec;
+    --text-dim: #9aa6b3;
+    --border: #2d3e54;
+    --mask: #6b7280;
+    --decoded: #fb923c;
+    --cached: #4fc3f7;
+    --prompt: #94a3b8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+  }
+  .hero {
+    background: linear-gradient(135deg, #0d1f0a 0%, #1a2332 50%, #0a1929 100%);
+    padding: 60px 40px;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -50%; right: -10%;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(118,185,0,0.15) 0%, transparent 60%);
+  }
+  .hero-content { max-width: 1100px; margin: 0 auto; position: relative; }
+  .hero h1 {
+    font-size: 2.6em;
+    margin: 0 0 12px 0;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 700;
+  }
+  .hero .subtitle { font-size: 1.2em; color: var(--text-dim); margin: 0 0 24px 0; }
+  .hero .authors { color: var(--text-dim); font-size: 0.95em; }
+  .badge {
+    display: inline-block;
+    padding: 4px 12px;
+    background: rgba(118,185,0,0.15);
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 20px;
+    font-size: 0.85em;
+    margin-right: 8px;
+    margin-bottom: 8px;
+  }
+  .container { max-width: 1100px; margin: 0 auto; padding: 30px 40px; }
+  .section {
+    background: var(--panel);
+    border-radius: 12px;
+    padding: 32px;
+    margin: 24px 0;
+    border: 1px solid var(--border);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  }
+  .section h2 {
+    color: var(--accent);
+    font-size: 1.7em;
+    margin-top: 0;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .section h2 .num {
+    background: var(--accent);
+    color: var(--bg);
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85em;
+    font-weight: 700;
+  }
+  .section h3 { color: var(--accent-2); margin-top: 28px; }
+  .section h4 { color: var(--text); margin-top: 20px; font-size: 1.1em; }
+  .toc {
+    background: var(--panel-light);
+    border-radius: 12px;
+    padding: 24px;
+    margin: 24px 0;
+  }
+  .toc h3 { margin-top: 0; color: var(--accent-2); }
+  .toc ol { margin: 0; padding-left: 20px; }
+  .toc li { padding: 6px 0; }
+  .toc a { color: var(--text); text-decoration: none; transition: color 0.2s; }
+  .toc a:hover { color: var(--accent); }
+
+  /* Key insight box */
+  .insight {
+    background: linear-gradient(90deg, rgba(118,185,0,0.1), rgba(79,195,247,0.05));
+    border-left: 4px solid var(--accent);
+    padding: 16px 20px;
+    margin: 20px 0;
+    border-radius: 0 8px 8px 0;
+  }
+  .insight strong { color: var(--accent); }
+  .warning {
+    background: rgba(255,152,0,0.1);
+    border-left: 4px solid var(--warn);
+    padding: 16px 20px;
+    margin: 20px 0;
+    border-radius: 0 8px 8px 0;
+  }
+  .warning strong { color: var(--warn); }
+  .definition {
+    background: rgba(79,195,247,0.08);
+    border-left: 4px solid var(--accent-2);
+    padding: 16px 20px;
+    margin: 20px 0;
+    border-radius: 0 8px 8px 0;
+  }
+  .definition strong { color: var(--accent-2); }
+
+  /* Tokens visualization */
+  .token-row { display: flex; gap: 4px; flex-wrap: wrap; margin: 10px 0; align-items: center; }
+  .token-label { color: var(--text-dim); width: 80px; font-size: 0.85em; }
+  .token {
+    min-width: 40px;
+    height: 40px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 0.85em;
+    transition: all 0.4s ease;
+    cursor: default;
+    padding: 0 8px;
+  }
+  .token.prompt { background: var(--prompt); color: var(--bg); }
+  .token.mask {
+    background: var(--mask); color: white;
+    background-image: linear-gradient(45deg, var(--mask) 25%, #4a5568 25%, #4a5568 50%, var(--mask) 50%, var(--mask) 75%, #4a5568 75%);
+    background-size: 8px 8px;
+  }
+  .token.decoded { background: var(--decoded); color: white; }
+  .token.cached { background: var(--cached); color: var(--bg); }
+  .token.high-conf { box-shadow: 0 0 0 2px var(--accent); }
+  .token.low-conf { opacity: 0.6; }
+
+  /* Legend */
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; margin: 12px 0; font-size: 0.9em; }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-box {
+    width: 18px; height: 18px; border-radius: 4px;
+  }
+
+  /* Controls */
+  .controls {
+    background: var(--panel-light);
+    padding: 18px;
+    border-radius: 8px;
+    margin: 16px 0;
+  }
+  .controls label { display: block; margin: 10px 0 4px; font-weight: 500; }
+  .controls input[type=range] { width: 100%; }
+  .controls button {
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+    padding: 8px 18px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    margin-right: 8px;
+    margin-top: 8px;
+    transition: opacity 0.2s;
+  }
+  .controls button:hover { opacity: 0.85; }
+  .controls button.secondary {
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .control-value {
+    color: var(--accent);
+    font-weight: 600;
+    font-family: 'SF Mono', Monaco, monospace;
+  }
+
+  /* Code blocks */
+  pre {
+    background: #0a0e14;
+    padding: 16px;
+    border-radius: 8px;
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    font-size: 0.9em;
+  }
+  code {
+    font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+    color: #c5e1a5;
+  }
+  pre code { color: #e4e8ec; }
+  .kw { color: #c792ea; }
+  .fn { color: #82aaff; }
+  .str { color: #c3e88d; }
+  .num { color: #f78c6c; }
+  .cm { color: #546e7a; font-style: italic; }
+
+  /* Tables */
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+  th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+  th { background: var(--panel-light); color: var(--accent); font-weight: 600; }
+  td.speedup { color: var(--accent); font-weight: 600; }
+  td.highlight { background: rgba(118,185,0,0.1); }
+
+  /* Diagrams */
+  .diagram {
+    background: var(--panel-light);
+    padding: 20px;
+    border-radius: 8px;
+    margin: 16px 0;
+    text-align: center;
+  }
+  .diagram-caption { color: var(--text-dim); font-size: 0.9em; margin-top: 10px; font-style: italic; }
+
+  /* Comparison grid */
+  .compare-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 16px 0;
+  }
+  .compare-card {
+    background: var(--panel-light);
+    border-radius: 8px;
+    padding: 20px;
+    border: 1px solid var(--border);
+  }
+  .compare-card h4 { margin-top: 0; }
+  .compare-card.bad { border-left: 4px solid var(--danger); }
+  .compare-card.good { border-left: 4px solid var(--accent); }
+
+  /* Quiz */
+  .quiz {
+    background: var(--panel-light);
+    border-radius: 8px;
+    padding: 20px;
+    margin: 20px 0;
+    border-left: 4px solid var(--warn);
+  }
+  .quiz-question { font-weight: 600; margin-bottom: 12px; }
+  .quiz-option {
+    display: block;
+    padding: 10px 14px;
+    margin: 6px 0;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .quiz-option:hover { border-color: var(--accent-2); }
+  .quiz-option.correct { background: rgba(118,185,0,0.2); border-color: var(--accent); }
+  .quiz-option.wrong { background: rgba(244,67,54,0.2); border-color: var(--danger); }
+  .quiz-feedback { margin-top: 12px; padding: 10px; border-radius: 6px; display: none; }
+  .quiz-feedback.show { display: block; }
+
+  /* Progress indicators */
+  .progress-bar {
+    background: var(--panel);
+    height: 8px;
+    border-radius: 4px;
+    overflow: hidden;
+    margin: 8px 0;
+  }
+  .progress-fill {
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    height: 100%;
+    transition: width 0.5s ease;
+  }
+
+  /* Tooltips */
+  .tooltip {
+    border-bottom: 1px dotted var(--accent-2);
+    cursor: help;
+    position: relative;
+  }
+  .tooltip:hover::after {
+    content: attr(data-tip);
+    position: absolute;
+    bottom: 120%; left: 50%;
+    transform: translateX(-50%);
+    background: var(--panel-light);
+    border: 1px solid var(--border);
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.85em;
+    width: 280px;
+    color: var(--text);
+    z-index: 100;
+    white-space: normal;
+  }
+
+  .step-list { counter-reset: step; padding-left: 0; list-style: none; }
+  .step-list li {
+    counter-increment: step;
+    padding: 12px 12px 12px 50px;
+    margin: 10px 0;
+    background: var(--panel-light);
+    border-radius: 8px;
+    position: relative;
+  }
+  .step-list li::before {
+    content: counter(step);
+    position: absolute;
+    left: 12px; top: 12px;
+    background: var(--accent);
+    color: var(--bg);
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+  }
+
+  .heatmap {
+    display: grid;
+    grid-template-columns: repeat(20, 1fr);
+    gap: 1px;
+    background: var(--border);
+    padding: 1px;
+    border-radius: 4px;
+    margin: 12px auto;
+    max-width: 400px;
+  }
+  .heatmap-cell {
+    aspect-ratio: 1;
+    border-radius: 1px;
+  }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 768px) {
+    .grid-2, .compare-grid { grid-template-columns: 1fr; }
+    .hero h1 { font-size: 1.8em; }
+    .container { padding: 20px; }
+  }
+
+  .speedup-display {
+    font-size: 3em;
+    font-weight: 700;
+    color: var(--accent);
+    text-align: center;
+    margin: 20px 0;
+  }
+  .speedup-display .x { color: var(--text-dim); font-size: 0.6em; }
+
+  details {
+    background: var(--panel-light);
+    padding: 14px 18px;
+    border-radius: 8px;
+    margin: 10px 0;
+    cursor: pointer;
+  }
+  details summary { color: var(--accent-2); font-weight: 600; }
+  details[open] summary { margin-bottom: 12px; }
+
+  /* SVG diagram styles */
+  .svg-container { background: white; border-radius: 8px; padding: 16px; margin: 16px 0; }
+
+  .nav-buttons {
+    display: flex;
+    gap: 12px;
+    margin: 24px 0;
+    flex-wrap: wrap;
+  }
+  .nav-button {
+    flex: 1;
+    min-width: 200px;
+    padding: 14px;
+    background: var(--panel-light);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    text-decoration: none;
+    text-align: center;
+    transition: all 0.2s;
+  }
+  .nav-button:hover {
+    background: var(--panel);
+    border-color: var(--accent);
+    transform: translateY(-2px);
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-content">
+    <div>
+      <span class="badge">arXiv:2505.22618</span>
+      <span class="badge">NVIDIA · HKU · MIT</span>
+      <span class="badge">July 2025</span>
+    </div>
+    <h1>Fast-dLLM</h1>
+    <p class="subtitle">Training-free Acceleration of Diffusion LLMs by Enabling KV Cache and Parallel Decoding</p>
+    <p class="authors">Chengyue Wu, Hao Zhang, Shuchen Xue, Zhijian Liu, Shizhe Diao, Ligeng Zhu, Ping Luo, Song Han, Enze Xie</p>
+    <div class="speedup-display">27.6<span class="x">×</span> speedup</div>
+    <p style="text-align:center; color: var(--text-dim);">with negligible accuracy loss · no retraining required</p>
+  </div>
+</div>
+
+<div class="container">
+
+<div class="toc">
+  <h3>📚 Learning Path</h3>
+  <ol>
+    <li><a href="#bigpic">The Big Picture — Why does this paper exist?</a></li>
+    <li><a href="#background">Background — Autoregressive vs. Diffusion LLMs</a></li>
+    <li><a href="#mdm">Masked Diffusion Models (MDMs) from Scratch</a></li>
+    <li><a href="#problem1">Problem #1: Diffusion LLMs Can't Use KV Cache</a></li>
+    <li><a href="#solution1">Solution #1: Block-Wise KV Cache</a></li>
+    <li><a href="#problem2">Problem #2: The Curse of Parallel Decoding</a></li>
+    <li><a href="#solution2">Solution #2: Confidence-Aware Parallel Decoding</a></li>
+    <li><a href="#theorem">The Theorem (Made Simple)</a></li>
+    <li><a href="#algorithm">Putting It Together — The Full Algorithm</a></li>
+    <li><a href="#results">Results &amp; Why They Matter</a></li>
+    <li><a href="#summary">Summary &amp; Key Takeaways</a></li>
+  </ol>
+</div>
+
+<!-- ============== SECTION 1 ============== -->
+<div class="section" id="bigpic">
+  <h2><span class="num">1</span> The Big Picture</h2>
+
+  <p>Imagine you're writing a sentence. Today's ChatGPT-style LLMs write <strong>one word at a time</strong>, left to right. After "The cat sat on the ___", they predict "mat".</p>
+
+  <p>But what if a model could fill in <strong>many blanks at once</strong>, like a crossword puzzle? That's the promise of <em>Diffusion Language Models</em> (Diffusion LLMs).</p>
+
+  <div class="insight">
+    <strong>The pitch:</strong> Diffusion LLMs start with a sentence full of <code>[MASK]</code> tokens and progressively fill them in. Because they don't go left-to-right, they could (in theory) generate text much faster by predicting many tokens in parallel.
+  </div>
+
+  <p>Companies like Mercury (1,000+ tokens/sec) and Google's Gemini Diffusion (1,400+ tokens/sec) have shown this is possible. But <strong>open-source diffusion LLMs are still slow</strong>. Why?</p>
+
+  <div class="grid-2">
+    <div class="compare-card bad">
+      <h4>❌ Problem 1: No KV Cache</h4>
+      <p>Standard LLMs reuse past computations through a <em>KV cache</em>. Diffusion LLMs use bidirectional attention, so they can't naively cache anything — every step recomputes everything.</p>
+    </div>
+    <div class="compare-card bad">
+      <h4>❌ Problem 2: Parallelism breaks quality</h4>
+      <p>If you predict many tokens at once, they don't "talk" to each other. The model might pick "high" and "house" independently — producing "high house" which makes no sense.</p>
+    </div>
+  </div>
+
+  <div class="insight">
+    <strong>Fast-dLLM's contribution:</strong> Two simple, training-free fixes that together give up to <span class="control-value">27.6× speedup</span> with almost no accuracy loss.
+    <ul>
+      <li><strong>Block-wise KV Cache</strong> — caches keys/values within fixed blocks, exploiting the fact that activations change very little between adjacent denoising steps.</li>
+      <li><strong>Confidence-aware Parallel Decoding</strong> — only unmask tokens the model is highly confident about, avoiding the "high house" failure mode.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============== SECTION 2 ============== -->
+<div class="section" id="background">
+  <h2><span class="num">2</span> Background — Two Ways to Generate Text</h2>
+
+  <h3>Autoregressive (AR) Models — left to right</h3>
+
+  <p>GPT, Llama, Claude — these all generate text token-by-token, conditioning on what came before:</p>
+
+  <p>$$p(x_1, x_2, \ldots, x_n) = \prod_{i=1}^{n} p(x_i \mid x_1, \ldots, x_{i-1})$$</p>
+
+  <p>The key trick is <strong>causal attention</strong>: when generating token $x_5$, the model only attends to $x_1, x_2, x_3, x_4$. So the keys $K$ and values $V$ for those earlier tokens never change — they can be cached.</p>
+
+  <div class="diagram">
+    <svg width="600" height="200" viewBox="0 0 600 200" xmlns="http://www.w3.org/2000/svg">
+      <rect width="600" height="200" fill="#243447"/>
+      <text x="20" y="30" fill="#e4e8ec" font-size="13">Generating step-by-step (AR):</text>
+      <!-- Row 1: t=1 -->
+      <g transform="translate(20,50)">
+        <rect x="0" y="0" width="50" height="35" fill="#fb923c" rx="4"/><text x="25" y="22" fill="white" text-anchor="middle" font-size="11">The</text>
+        <rect x="55" y="0" width="50" height="35" fill="#6b7280" rx="4"/><text x="80" y="22" fill="white" text-anchor="middle" font-size="11">?</text>
+        <rect x="110" y="0" width="50" height="35" fill="#6b7280" rx="4"/><text x="135" y="22" fill="white" text-anchor="middle" font-size="11">?</text>
+        <rect x="165" y="0" width="50" height="35" fill="#6b7280" rx="4"/><text x="190" y="22" fill="white" text-anchor="middle" font-size="11">?</text>
+        <text x="230" y="22" fill="#9aa6b3" font-size="11">step 1</text>
+      </g>
+      <g transform="translate(20,95)">
+        <rect x="0" y="0" width="50" height="35" fill="#4fc3f7" rx="4"/><text x="25" y="22" fill="black" text-anchor="middle" font-size="11">The</text>
+        <rect x="55" y="0" width="50" height="35" fill="#fb923c" rx="4"/><text x="80" y="22" fill="white" text-anchor="middle" font-size="11">cat</text>
+        <rect x="110" y="0" width="50" height="35" fill="#6b7280" rx="4"/><text x="135" y="22" fill="white" text-anchor="middle" font-size="11">?</text>
+        <rect x="165" y="0" width="50" height="35" fill="#6b7280" rx="4"/><text x="190" y="22" fill="white" text-anchor="middle" font-size="11">?</text>
+        <text x="230" y="22" fill="#9aa6b3" font-size="11">step 2 (K,V of 'The' cached)</text>
+      </g>
+      <g transform="translate(20,140)">
+        <rect x="0" y="0" width="50" height="35" fill="#4fc3f7" rx="4"/><text x="25" y="22" fill="black" text-anchor="middle" font-size="11">The</text>
+        <rect x="55" y="0" width="50" height="35" fill="#4fc3f7" rx="4"/><text x="80" y="22" fill="black" text-anchor="middle" font-size="11">cat</text>
+        <rect x="110" y="0" width="50" height="35" fill="#fb923c" rx="4"/><text x="135" y="22" fill="white" text-anchor="middle" font-size="11">sat</text>
+        <rect x="165" y="0" width="50" height="35" fill="#6b7280" rx="4"/><text x="190" y="22" fill="white" text-anchor="middle" font-size="11">?</text>
+        <text x="230" y="22" fill="#9aa6b3" font-size="11">step 3 ('The','cat' cached)</text>
+      </g>
+    </svg>
+    <div class="diagram-caption">Autoregressive generation: each new token only depends on previous tokens, so older K/V values stay fixed and can be cached.</div>
+  </div>
+
+  <h3>Diffusion LLMs — fill in the blanks</h3>
+
+  <p>Diffusion LLMs use a completely different paradigm. They start with a sequence of all <code>[MASK]</code> tokens and progressively "denoise" them — predicting which tokens should replace the masks over many steps.</p>
+
+  <p>Crucially, they use <strong>bidirectional attention</strong> — every token can attend to every other token. This makes them more powerful for some tasks (like infilling), but it also means <em>the K and V values for a token depend on the entire sequence</em>, including future positions. If we change <em>any</em> token, all K/V values in principle change.</p>
+
+  <div class="diagram">
+    <svg width="600" height="200" viewBox="0 0 600 200" xmlns="http://www.w3.org/2000/svg">
+      <rect width="600" height="200" fill="#243447"/>
+      <text x="20" y="30" fill="#e4e8ec" font-size="13">Diffusion generation (denoising):</text>
+      <g transform="translate(20,50)">
+        <rect x="0" y="0" width="50" height="35" fill="#94a3b8" rx="4"/><text x="25" y="22" fill="black" text-anchor="middle" font-size="11">Q:</text>
+        <rect x="55" y="0" width="50" height="35" fill="#6b7280" rx="4"/><text x="80" y="22" fill="white" text-anchor="middle" font-size="11">M</text>
+        <rect x="110" y="0" width="50" height="35" fill="#6b7280" rx="4"/><text x="135" y="22" fill="white" text-anchor="middle" font-size="11">M</text>
+        <rect x="165" y="0" width="50" height="35" fill="#6b7280" rx="4"/><text x="190" y="22" fill="white" text-anchor="middle" font-size="11">M</text>
+        <rect x="220" y="0" width="50" height="35" fill="#6b7280" rx="4"/><text x="245" y="22" fill="white" text-anchor="middle" font-size="11">M</text>
+        <text x="285" y="22" fill="#9aa6b3" font-size="11">t = 1 (all masks)</text>
+      </g>
+      <g transform="translate(20,95)">
+        <rect x="0" y="0" width="50" height="35" fill="#94a3b8" rx="4"/><text x="25" y="22" fill="black" text-anchor="middle" font-size="11">Q:</text>
+        <rect x="55" y="0" width="50" height="35" fill="#6b7280" rx="4"/><text x="80" y="22" fill="white" text-anchor="middle" font-size="11">M</text>
+        <rect x="110" y="0" width="50" height="35" fill="#fb923c" rx="4"/><text x="135" y="22" fill="white" text-anchor="middle" font-size="11">cat</text>
+        <rect x="165" y="0" width="50" height="35" fill="#6b7280" rx="4"/><text x="190" y="22" fill="white" text-anchor="middle" font-size="11">M</text>
+        <rect x="220" y="0" width="50" height="35" fill="#fb923c" rx="4"/><text x="245" y="22" fill="white" text-anchor="middle" font-size="11">mat</text>
+        <text x="285" y="22" fill="#9aa6b3" font-size="11">t = 0.5 (some unmasked)</text>
+      </g>
+      <g transform="translate(20,140)">
+        <rect x="0" y="0" width="50" height="35" fill="#94a3b8" rx="4"/><text x="25" y="22" fill="black" text-anchor="middle" font-size="11">Q:</text>
+        <rect x="55" y="0" width="50" height="35" fill="#fb923c" rx="4"/><text x="80" y="22" fill="white" text-anchor="middle" font-size="11">The</text>
+        <rect x="110" y="0" width="50" height="35" fill="#fb923c" rx="4"/><text x="135" y="22" fill="white" text-anchor="middle" font-size="11">cat</text>
+        <rect x="165" y="0" width="50" height="35" fill="#fb923c" rx="4"/><text x="190" y="22" fill="white" text-anchor="middle" font-size="11">sat</text>
+        <rect x="220" y="0" width="50" height="35" fill="#fb923c" rx="4"/><text x="245" y="22" fill="white" text-anchor="middle" font-size="11">mat</text>
+        <text x="285" y="22" fill="#9aa6b3" font-size="11">t = 0 (final answer)</text>
+      </g>
+    </svg>
+    <div class="diagram-caption">Diffusion generation: tokens can be revealed in any order. Each step uses bidirectional attention over the whole sequence.</div>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-box" style="background: var(--prompt)"></div>Prompt</div>
+    <div class="legend-item"><div class="legend-box" style="background: var(--mask)"></div>Masked</div>
+    <div class="legend-item"><div class="legend-box" style="background: var(--decoded)"></div>Decoded (revealed)</div>
+    <div class="legend-item"><div class="legend-box" style="background: var(--cached)"></div>Cached</div>
+  </div>
+</div>
+
+<!-- ============== SECTION 3 ============== -->
+<div class="section" id="mdm">
+  <h2><span class="num">3</span> Masked Diffusion Models, Built Up From Zero</h2>
+
+  <p>Before we can understand the speedups, let's understand exactly what a Masked Diffusion Model (MDM) is doing. We'll build it up gently.</p>
+
+  <h3>The forward process: how training data is corrupted</h3>
+
+  <p>Take a clean sentence $x_0$. Pick a "noise level" $t \in [0, 1]$. For each token, with probability $t$ we replace it with <code>[MASK]</code>; with probability $1-t$ we keep it.</p>
+
+  <p>Formally, for each token position $i$:</p>
+
+  <p>$$q_{t|0}(x_t^i \mid x_0^i) = \mathrm{Cat}\bigl(x_t^i;\; \underbrace{(1-t)\delta_{x_0^i}}_{\text{keep original}} + \underbrace{t\,\delta_{[\text{MASK}]}}_{\text{replace with MASK}}\bigr)$$</p>
+
+  <div class="definition">
+    <strong>In words:</strong>
+    <ul>
+      <li>$t = 0$: no masking — sequence is the original $x_0$</li>
+      <li>$t = 1$: everything is masked</li>
+      <li>$t = 0.5$: each token has a 50/50 chance of being masked</li>
+    </ul>
+    Cat = Categorical distribution. $\delta_a$ is a one-hot ("all probability on $a$").
+  </div>
+
+  <h3>Interactive: try different masking levels</h3>
+
+  <div class="controls">
+    <label>Noise level $t$: <span class="control-value" id="tval">0.5</span></label>
+    <input type="range" id="tslider" min="0" max="100" value="50">
+    <button onclick="resampleMask()">🎲 Resample</button>
+  </div>
+  <div class="token-row" id="maskDemo"></div>
+
+  <h3>The reverse process: training the model to denoise</h3>
+
+  <p>We train a neural network $p_\theta$ to <strong>predict the original token</strong> at each masked position, given the partially masked sequence. The training objective (an Evidence Lower Bound on the log-likelihood) is:</p>
+
+  <p>$$\mathcal{L}_{\text{MDM}} = \int_0^1 \frac{1}{t}\, \mathbb{E}_{q_{t|0}(x_t|x_0)} \Biggl[ \sum_{i:\, x_t^i = [\text{MASK}]} -\log p_\theta(x_0^i \mid x_t) \Biggr] dt$$</p>
+
+  <div class="insight">
+    <strong>Plain English:</strong> sample a random noise level $t$, randomly mask the input, then ask the model to predict each masked token. Minimize the cross-entropy loss on those predictions. That's it.
+  </div>
+
+  <h3>Generation: undoing the noise step by step</h3>
+
+  <p>To generate, we start at $t = 1$ (all masks) and work our way down to $t = 0$. At each step we go from noise level $t$ to a smaller level $s < t$, "unmasking" some tokens. The transition has three cases:</p>
+
+  <p>$$q_{s|t}(x_s^i \mid x_t) = \begin{cases}
+  1 & \text{if } x_t^i \neq [\text{MASK}] \text{ and } x_s^i = x_t^i \quad \text{(already revealed, stays)} \\
+  \frac{s}{t} & \text{if } x_t^i = [\text{MASK}] \text{ and } x_s^i = [\text{MASK}] \quad \text{(stays masked)} \\
+  \frac{t-s}{t}\, q_{0|t}(x_s^i \mid x_t) & \text{if } x_t^i = [\text{MASK}] \text{ and } x_s^i \neq [\text{MASK}] \quad \text{(reveal)}
+  \end{cases}$$</p>
+
+  <div class="definition">
+    <strong>The three cases broken down:</strong>
+    <ol>
+      <li><strong>Already revealed</strong> — keep it (probability 1).</li>
+      <li><strong>Still masked, stays masked</strong> — probability $s/t$ (the ratio of remaining noise).</li>
+      <li><strong>Still masked, gets revealed</strong> — probability $\tfrac{t-s}{t}$, and the chosen token comes from the model's predictive distribution $q_{0|t}$.</li>
+    </ol>
+  </div>
+
+  <p>The model's prediction $q_{0|t}(x_s^i \mid x_t)$ is just the softmax output of the neural network for position $i$: "given the current partially masked sequence, what token belongs at position $i$?"</p>
+
+  <div class="warning">
+    <strong>The slow path:</strong> if you only unmask <em>one token per step</em>, you need ~$L$ steps for a sequence of length $L$. For $L=1024$, that's 1024 forward passes through the model. Painful.
+    <br><br>
+    <strong>The fast (but broken) path:</strong> unmask many tokens per step using $\tau$-leaping. Fewer steps — but generation quality collapses. <em>Why?</em> That's the topic of Section 6.
+  </div>
+</div>
+
+<!-- ============== SECTION 4 ============== -->
+<div class="section" id="problem1">
+  <h2><span class="num">4</span> Problem #1 — Why Diffusion LLMs Can't Cache</h2>
+
+  <p>In autoregressive models, <strong>causal attention</strong> means K and V for past tokens never need to change. Cache once, reuse forever.</p>
+
+  <p>In diffusion LLMs, <strong>bidirectional attention</strong> means every token's K, V depend on every other token. If any token changes (e.g., a mask becomes "cat"), in principle, every K and V changes — so nothing can be cached.</p>
+
+  <div class="compare-grid">
+    <div class="compare-card good">
+      <h4>✓ Autoregressive: caching is easy</h4>
+      <p>K, V for past tokens are <em>computed once</em>. Token $i$'s attention only looks at tokens $1..i$. Past K, V never depend on the future.</p>
+    </div>
+    <div class="compare-card bad">
+      <h4>✗ Diffusion: caching seems impossible</h4>
+      <p>Token $i$'s K, V are produced by attention over the <em>entire sequence</em>, including masked positions. As masks become real tokens, every K, V technically shifts.</p>
+    </div>
+  </div>
+
+  <h3>The key empirical observation</h3>
+
+  <p>The paper plots the cosine similarity of K, V activations across denoising steps. Result: <strong>they barely change</strong> between adjacent steps within a small block of tokens.</p>
+
+  <div class="diagram">
+    <p style="margin: 0 0 10px 0; color: var(--text-dim); font-size: 0.9em;">Simulated K,V cosine similarity heatmap (each cell = similarity between two inference steps)</p>
+    <div class="heatmap" id="heatmap"></div>
+    <div class="diagram-caption">Cells near the diagonal (similar steps) are bright yellow ≈ 1.0. Conclusion: K/V activations at adjacent inference steps are nearly identical — we <em>can</em> approximately reuse them.</div>
+  </div>
+
+  <div class="insight">
+    <strong>The opportunity:</strong> if K/V values change by less than ε between adjacent steps, we can cache them and accept a tiny approximation error in exchange for huge speed gains.
+  </div>
+</div>
+
+<!-- ============== SECTION 5 ============== -->
+<div class="section" id="solution1">
+  <h2><span class="num">5</span> Solution #1 — Block-Wise KV Cache</h2>
+
+  <h3>The idea</h3>
+
+  <p>Instead of caching everything forever (impossible) or nothing (slow), Fast-dLLM uses <strong>blocks</strong>:</p>
+
+  <ol class="step-list">
+    <li>Divide the answer region into fixed-size blocks (typical block size = 32 tokens).</li>
+    <li>Before starting a block, do <strong>one full forward pass</strong> and compute K, V for the entire sequence (prompt + all blocks).</li>
+    <li>Inside the block, freeze the K, V for everything outside the block. Reuse them on every step.</li>
+    <li>Once the block is done, recompute K, V for the next block and freeze again.</li>
+  </ol>
+
+  <p>This is approximate (because the cached K, V are slightly stale), but the heatmap above shows the approximation is tiny.</p>
+
+  <h3>PrefixCache vs DualCache</h3>
+
+  <div class="grid-2">
+    <div class="compare-card">
+      <h4>PrefixCache</h4>
+      <p>Cache only the <em>prefix</em>: prompt + previously decoded blocks. The current block and future blocks (still mostly masks) are recomputed each step.</p>
+    </div>
+    <div class="compare-card">
+      <h4>DualCache (Dual = both sides)</h4>
+      <p>Cache <em>both</em> the prefix <em>and</em> the suffix (the still-masked tail). Why does this work? Because masked positions all look the same to the network in K-projection space, so their K, V also barely change. Even faster.</p>
+    </div>
+  </div>
+
+  <h3>Interactive: watch block-wise decoding</h3>
+
+  <div class="controls">
+    <button onclick="startBlockDemo()">▶ Play animation</button>
+    <button class="secondary" onclick="resetBlockDemo()">Reset</button>
+    <label>Step: <span class="control-value" id="blockStep">0</span> / 12</label>
+  </div>
+
+  <div id="blockDemo">
+    <div class="token-row">
+      <span class="token-label">t = 1</span>
+      <div id="row0"></div>
+    </div>
+  </div>
+
+  <div class="legend" style="margin-top: 12px;">
+    <div class="legend-item"><div class="legend-box" style="background: var(--prompt)"></div>Prompt</div>
+    <div class="legend-item"><div class="legend-box" style="background: var(--cached)"></div>Cached K, V</div>
+    <div class="legend-item"><div class="legend-box" style="background: var(--mask)"></div>Masked</div>
+    <div class="legend-item"><div class="legend-box" style="background: var(--decoded)"></div>Decoded</div>
+  </div>
+
+  <div class="insight" style="margin-top: 20px;">
+    <strong>Why this is a free lunch:</strong> The cache update happens <em>at the end of each block</em>. Since you needed to do a forward pass anyway to decode the next position, the cache update is essentially zero overhead. You just save the K, V tensors during that pass.
+  </div>
+</div>
+
+<!-- ============== SECTION 6 ============== -->
+<div class="section" id="problem2">
+  <h2><span class="num">6</span> Problem #2 — The Curse of Parallel Decoding</h2>
+
+  <p>Even with KV cache, we're still doing one token per step. To get the big speedup, we need to unmask <strong>multiple tokens in parallel</strong>. But here's the catch...</p>
+
+  <h3>An example: poker hands</h3>
+
+  <div class="definition">
+    <em>"The list of poker hands that consist of two English words are: ___ ___."</em>
+    <br><br>
+    Valid completions: "high card", "two pair", "full house", "straight flush".
+  </div>
+
+  <p>If we decode the two blanks independently, the model knows position 1 ∈ {high, two, full, straight} and position 2 ∈ {card, pair, house, flush}. Both have probability ~25% over their own marginal.</p>
+
+  <p>Independent sampling might give us: <strong>"high house"</strong>. The marginals are correct individually, but the <em>joint</em> distribution is not the product of marginals. There's a hidden correlation that gets destroyed.</p>
+
+  <h3>Formal statement of the problem</h3>
+
+  <p>For two masked positions $i, j$, the true distribution is the joint:</p>
+
+  <p>$$p(x_s^i, x_s^j \mid x_t) \neq p(x_s^i \mid x_t) \cdot p(x_s^j \mid x_t)$$</p>
+
+  <p>But parallel decoding samples from the product on the right (the "conditional independence" approximation). When tokens are <em>correlated</em>, this introduces errors.</p>
+
+  <div class="warning">
+    <strong>This is why LLaDA "performs best when generating tokens one at a time"</strong> — sequential decoding doesn't make this independence assumption. The challenge: how can we go parallel without ruining quality?
+  </div>
+
+  <h3>The intuition behind Fast-dLLM's fix</h3>
+
+  <p>Here's the key insight. Even though, in general, $p(x_i, x_j) \neq p(x_i) p(x_j)$, there's a special case where it's <em>approximately</em> true:</p>
+
+  <div class="insight">
+    <strong>When the model is very confident about a token — say, $p(x_i = \text{cat}) > 0.99$ — the joint distribution effectively collapses to a single value at that position.</strong> The correlation with other tokens vanishes, because there's no uncertainty to correlate.
+  </div>
+
+  <p>This motivates the next idea: <strong>only decode tokens in parallel when the model is highly confident about them.</strong></p>
+</div>
+
+<!-- ============== SECTION 7 ============== -->
+<div class="section" id="solution2">
+  <h2><span class="num">7</span> Solution #2 — Confidence-Aware Parallel Decoding</h2>
+
+  <h3>The recipe</h3>
+
+  <ol class="step-list">
+    <li>At each diffusion step, run the model on the current (partially masked) sequence.</li>
+    <li>For each masked position $i$, compute the confidence $c^i = \max_v p_\theta(x^i = v \mid x_t)$ — the maximum softmax probability across the vocabulary.</li>
+    <li>Pick a threshold $\tau$ (typical value: 0.9).</li>
+    <li>Unmask <strong>every</strong> token whose confidence exceeds $\tau$. The rest stay masked for now.</li>
+    <li>Special case: if <em>no</em> token meets the threshold, just unmask the one with the highest confidence (to avoid an infinite loop).</li>
+  </ol>
+
+  <h3>Try it yourself</h3>
+
+  <div class="controls">
+    <label>Confidence threshold $\tau$: <span class="control-value" id="tauval">0.90</span></label>
+    <input type="range" id="tauslider" min="50" max="100" value="90">
+    <button onclick="reshuffleConf()">🎲 New token distribution</button>
+  </div>
+
+  <div id="confDemo"></div>
+
+  <p style="margin-top: 16px; color: var(--text-dim);">⬆️ Try lowering $\tau$. More tokens get unmasked per step (faster) but lower-confidence tokens may have dependencies, hurting quality. Higher $\tau$ → safer but slower.</p>
+
+  <h3>Why this works mathematically</h3>
+
+  <p>The paper proves that when token marginals are all high-confidence (close to 1), <strong>parallel decoding with the product-of-marginals approximation gives the same answer as sequential decoding with the true joint distribution</strong>. The next section explains this theorem.</p>
+</div>
+
+<!-- ============== SECTION 8 ============== -->
+<div class="section" id="theorem">
+  <h2><span class="num">8</span> The Theorem (Made Simple)</h2>
+
+  <h3>Setup</h3>
+
+  <p>Let's set up the notation carefully:</p>
+
+  <ul>
+    <li>$E$ = current evidence (the prompt + already-decoded tokens). It's the input "context".</li>
+    <li>$X = (X_{i_1}, \ldots, X_{i_n})$ = the $n$ masked positions we want to decode.</li>
+    <li>$p(X | E)$ = the <em>true joint</em> distribution over those $n$ tokens (what we'd want).</li>
+    <li>$q(X | E) = \prod_j p_j(X_{i_j} | E)$ = the <em>product of marginals</em> (what parallel decoding actually does).</li>
+  </ul>
+
+  <p>Question: when does $\arg\max_z p(z | E) = \arg\max_z q(z | E)$? I.e., when does greedy parallel decoding produce the same answer as greedy joint decoding?</p>
+
+  <h3>Theorem 1 — Equivalence under high confidence</h3>
+
+  <div class="definition">
+    <strong>Theorem (Wu et al. 2025):</strong> Suppose there exists a sequence $x^* = (x_{i_1}, \ldots, x_{i_n})$ such that for each $j \in \{1, \ldots, n\}$, the model is very confident:
+    $$p_j(X_{i_j} = x_{i_j} \mid E) > 1 - \epsilon$$
+    Then if $(n+1)\epsilon \leq 1$ (equivalently, $\epsilon \leq \tfrac{1}{n+1}$):
+    $$\arg\max_z p(z \mid E) = \arg\max_z q(z \mid E) = x^*$$
+  </div>
+
+  <h3>What this means in plain English</h3>
+
+  <p>If for every position the model assigns more than $1 - \epsilon$ probability to some token, and we're trying to decode $n$ tokens in parallel, <strong>as long as $\epsilon \leq 1/(n+1)$, parallel and sequential decoding agree on the same answer</strong>.</p>
+
+  <div class="insight">
+    <strong>Concrete example.</strong> Suppose we want to decode $n=4$ tokens. Then we need $\epsilon \leq 1/5 = 0.2$, i.e., confidence $\geq 0.8$ at every position. If all four tokens have softmax probability ≥ 0.8 for their top choice, parallel decoding is guaranteed to give the same greedy answer as sequential decoding. ✓
+  </div>
+
+  <h3>How confidence threshold maps to "how many tokens can I decode in parallel"</h3>
+
+  <div class="controls">
+    <label>Confidence threshold $\tau$: <span class="control-value" id="tau2val">0.90</span></label>
+    <input type="range" id="tau2slider" min="50" max="99" value="90">
+    <label>Maximum safe parallel decodes $n$: <span class="control-value" id="nmaxval">9</span></label>
+  </div>
+
+  <p style="color: var(--text-dim);">Formula: $n \leq \frac{1}{1-\tau} - 1$. At $\tau = 0.9$, you can safely decode up to <strong>9 tokens</strong> at once. At $\tau = 0.99$, up to <strong>99 tokens</strong>!</p>
+
+  <h3>Why the bound is intuitive</h3>
+
+  <p>The theorem proof shows that when each marginal puts $\geq 1 - \epsilon$ on its top token, the joint probability of the all-top combination $x^*$ is at least $1 - n\epsilon$. Meanwhile, any alternative joint has probability at most $\epsilon$ on at least one factor, so a careful counting argument gives the bound.</p>
+
+  <h3>Bonus: divergence bounds</h3>
+
+  <p>The paper also bounds how far the marginal product $q$ is from the joint $p$ in standard probability metrics:</p>
+
+  <div class="definition">
+    <strong>Total Variation distance:</strong>
+    $$D_{\text{TV}}(p, q) < \frac{3n-1}{2}\, \epsilon$$
+    <strong>$L_p$ distance:</strong>
+    $$D_p(p, q) < ((n-1)^p + 2n)^{1/p}\, \epsilon$$
+    <strong>Forward KL divergence:</strong>
+    $$D_{\text{KL}}(p \| q) < (n-1)\bigl(H_b(\epsilon) + \epsilon \ln(|\mathcal{V}| - 1)\bigr)$$
+    where $H_b(\epsilon) = -\epsilon \ln \epsilon - (1-\epsilon)\ln(1-\epsilon)$ is the binary entropy.
+  </div>
+
+  <p>These bounds all go to 0 as $\epsilon \to 0$. So <em>the higher the confidence, the more parallel we can safely go</em>.</p>
+
+  <h3>From theorem to algorithm: the factor-based strategy</h3>
+
+  <p>Instead of a fixed threshold $\tau$, you can pick a <em>factor</em> hyperparameter $f$ and dynamically choose the largest $n$ such that $(n+1)(1 - c^{(n)}) < f$, where $c^{(n)}$ is the $n$-th highest confidence. This adapts the parallelism per step based on confidence levels.</p>
+</div>
+
+<!-- ============== SECTION 9 ============== -->
+<div class="section" id="algorithm">
+  <h2><span class="num">9</span> Putting It Together — Algorithm 1</h2>
+
+  <p>Here is the full algorithm — block-wise decoding with KV cache and confidence-aware parallel decoding:</p>
+
+<pre><code><span class="kw">Require:</span> model p_θ, prompt p_0, answer length L, blocks K, block size B,
+         steps per block T, threshold τ, use_DualCache, strategy, factor f
+
+ <span class="num">1:</span>  x ← [p_0; [MASK], ..., [MASK]]              <span class="cm"># initialize all-masked answer</span>
+ <span class="num">2:</span>  Initialize KV Cache (single or dual)         <span class="cm"># // KV Cache init</span>
+
+ <span class="num">3:</span>  <span class="kw">for</span> k = 1 <span class="kw">to</span> K <span class="kw">do</span>                            <span class="cm"># loop over blocks</span>
+ <span class="num">4:</span>      s ← |p_0| + (k - 1) · B
+ <span class="num">5:</span>      e ← |p_0| + k · B
+ <span class="num">6:</span>      <span class="kw">for</span> t = 1 <span class="kw">to</span> T <span class="kw">do</span>                        <span class="cm"># denoising steps within block</span>
+ <span class="num">7:</span>          <span class="kw">if</span> use_DualCache: run p_θ on x[s:e]   <span class="cm"># only forward current block</span>
+              <span class="kw">else:</span>            run p_θ on x[s:]    <span class="cm"># forward block + suffix</span>
+ <span class="num">8:</span>          <span class="kw">for</span> each masked x^i: compute c^i = max_x p_θ(x^i | ·)
+ <span class="num">9:</span>          <span class="kw">if</span> strategy == threshold:
+<span class="num">10:</span>              Unmask all i in [s, e] with c^i ≥ τ
+                  Always at least unmask argmax c^i
+<span class="num">11:</span>          <span class="kw">else if</span> strategy == factor:
+<span class="num">12:</span>              Sort c^i descending: (c^(1), c^(2), ...)
+<span class="num">13:</span>              Find largest n with (n+1)(1 - c^(n)) &lt; f
+<span class="num">14:</span>              Unmask top-n tokens
+<span class="num">15:</span>          <span class="kw">if</span> all x[s:e] unmasked: <span class="kw">break</span>
+<span class="num">16:</span>      <span class="kw">end for</span>
+<span class="num">17:</span>      Update KV cache:                          <span class="cm"># // cache update</span>
+            if DualCache: update prefix &amp; suffix
+            else:         update prefix only
+<span class="num">18:</span>  <span class="kw">end for</span>
+<span class="num">19:</span>  <span class="kw">return</span> x
+</code></pre>
+
+  <h3>Three loops in one picture</h3>
+
+  <ul>
+    <li><strong>Outer loop (blocks):</strong> work from left to right through blocks.</li>
+    <li><strong>Inner loop (steps):</strong> denoise within a block. Each step the cache is reused, no recomputation of outside-block K, V.</li>
+    <li><strong>Per-step (selection):</strong> choose which tokens to unmask based on confidence.</li>
+  </ul>
+
+  <details>
+    <summary>How many forward passes are needed? (Click to expand)</summary>
+    <p>Suppose answer length $L = 1024$, block size $B = 32$ (so $K = 32$ blocks), and threshold $\tau = 0.9$. Empirically, each block needs ~4–5 forward passes (not 32 — the confidence-aware step often unmasks several tokens per pass). Total: ~140 forward passes.</p>
+    <p>Vanilla LLaDA needs ~1024 forward passes (one token per step). So this is already a 7× reduction in <em>steps</em>, on top of the KV-cache speedup per step. That's where the 27.6× total comes from.</p>
+  </details>
+</div>
+
+<!-- ============== SECTION 10 ============== -->
+<div class="section" id="results">
+  <h2><span class="num">10</span> Results &amp; Why They Matter</h2>
+
+  <h3>Main results on LLaDA-Instruct</h3>
+
+  <p>Each cell shows (<strong>accuracy</strong> in %) and (throughput in tokens/sec, with speedup vs. baseline LLaDA in orange):</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Benchmark</th>
+        <th>Length</th>
+        <th>LLaDA (base)</th>
+        <th>+ KV Cache</th>
+        <th>+ Parallel</th>
+        <th>Fast-dLLM (both)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>GSM8K</td>
+        <td>512</td>
+        <td>77.5 · 3.2 tok/s</td>
+        <td>77.0 · 10.4 tok/s <span class="speedup">(3.3×)</span></td>
+        <td>77.6 · 18.6 tok/s <span class="speedup">(5.8×)</span></td>
+        <td class="highlight">77.2 · 35.3 tok/s <span class="speedup">(11.0×)</span></td>
+      </tr>
+      <tr>
+        <td>MATH</td>
+        <td>512</td>
+        <td>37.2 · 8.0 tok/s</td>
+        <td>36.2 · 19.7 tok/s <span class="speedup">(2.5×)</span></td>
+        <td>36.8 · 23.8 tok/s <span class="speedup">(3.0×)</span></td>
+        <td class="highlight">36.0 · 47.1 tok/s <span class="speedup">(5.9×)</span></td>
+      </tr>
+      <tr>
+        <td>HumanEval</td>
+        <td>512</td>
+        <td>43.9 · 18.4 tok/s</td>
+        <td>45.7 · 29.3 tok/s <span class="speedup">(1.6×)</span></td>
+        <td>43.3 · 57.1 tok/s <span class="speedup">(3.1×)</span></td>
+        <td class="highlight">44.5 · 73.7 tok/s <span class="speedup">(4.0×)</span></td>
+      </tr>
+      <tr>
+        <td>MBPP</td>
+        <td>512</td>
+        <td>14.8 · 4.3 tok/s</td>
+        <td>13.8 · 10.1 tok/s <span class="speedup">(2.3×)</span></td>
+        <td>15.0 · 22.3 tok/s <span class="speedup">(5.1×)</span></td>
+        <td class="highlight">13.8 · 39.5 tok/s <span class="speedup">(9.2×)</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>Notice: <strong>accuracy stays within 1–2 points</strong> of the baseline, and in many cases it actually <em>improves</em>.</p>
+
+  <h3>The headline numbers</h3>
+
+  <div class="grid-2">
+    <div class="diagram">
+      <div class="speedup-display" style="font-size: 2.5em;">11×</div>
+      <p style="margin: 0;">GSM8K, length 512<br>on LLaDA</p>
+    </div>
+    <div class="diagram">
+      <div class="speedup-display" style="font-size: 2.5em;">27.6×</div>
+      <p style="margin: 0;">GSM8K, length 1024<br>(8-shot, long prefill)</p>
+    </div>
+  </div>
+
+  <h3>What makes the speedup compound</h3>
+
+  <p>The breakdown of the 27.6× speedup (Figure 1c in the paper):</p>
+
+  <div class="progress-bar"><div class="progress-fill" style="width: 100%"></div></div>
+  <p>LLaDA baseline (1024 steps): <strong>0.7 tok/s</strong> · 1× </p>
+
+  <div class="progress-bar"><div class="progress-fill" style="width: 13%"></div></div>
+  <p>+ Parallel decoding (~100 steps): <strong>9.3 tok/s</strong> · 13.3× </p>
+
+  <div class="progress-bar"><div class="progress-fill" style="width: 7%"></div></div>
+  <p>+ Prefix cache (~140 steps): <strong>13.0 tok/s</strong> · 18.6× </p>
+
+  <div class="progress-bar"><div class="progress-fill" style="width: 4%"></div></div>
+  <p>+ DualCache (~140 steps): <strong>19.3 tok/s</strong> · <span class="control-value">27.6×</span></p>
+
+  <h3>Sensitivity to hyperparameters</h3>
+
+  <div class="grid-2">
+    <div class="compare-card">
+      <h4>Threshold τ</h4>
+      <p>The sweet spot is around <strong>τ = 0.9</strong>. Below 0.5 quality drops noticeably; above 0.95 you barely unmask multiple tokens per step (defeats the purpose).</p>
+    </div>
+    <div class="compare-card">
+      <h4>Block size B</h4>
+      <p>Optimal block size is around <strong>32</strong> tokens. Too small → too many cache refreshes (overhead). Too large → cache becomes stale, accuracy drops.</p>
+    </div>
+  </div>
+
+  <div class="quiz">
+    <div class="quiz-question">🧠 Quick check: Why does Fast-dLLM achieve <em>higher</em> speedup on longer sequences (27.6× at length 1024 vs 11× at length 512)?</div>
+    <div class="quiz-option" onclick="checkQuiz(this, false)">A. Longer sequences have less correlation between tokens.</div>
+    <div class="quiz-option" onclick="checkQuiz(this, true)">B. KV cache reuse and parallelism both scale with sequence length — more tokens cached per forward pass, more tokens unmasked in parallel.</div>
+    <div class="quiz-option" onclick="checkQuiz(this, false)">C. The model is more accurate on longer sequences.</div>
+    <div class="quiz-feedback"></div>
+  </div>
+</div>
+
+<!-- ============== SECTION 11 ============== -->
+<div class="section" id="summary">
+  <h2><span class="num">11</span> Summary &amp; Key Takeaways</h2>
+
+  <div class="insight">
+    <strong>One-sentence summary:</strong> Fast-dLLM speeds up diffusion language models by 5–27× with two training-free tricks — block-wise approximate KV caching, and confidence-aware parallel decoding — backed by a theorem that high-confidence tokens can be safely decoded in parallel.
+  </div>
+
+  <h3>What to remember</h3>
+
+  <ol class="step-list">
+    <li><strong>Diffusion LLMs ≠ Autoregressive LLMs.</strong> They generate by progressively unmasking, using bidirectional attention. This makes naive KV caching impossible.</li>
+    <li><strong>K, V activations are nearly identical across adjacent denoising steps.</strong> Empirical fact, exploited by block-wise caching with negligible loss.</li>
+    <li><strong>Parallel decoding breaks token dependencies.</strong> "high house" instead of "high card" — the product of marginals isn't the joint.</li>
+    <li><strong>High confidence ⇒ safe parallelism.</strong> Theorem 1 quantifies this: $\epsilon \leq 1/(n+1)$ guarantees greedy equivalence for $n$ parallel decodes.</li>
+    <li><strong>Empirical sweet spot:</strong> block size = 32, threshold τ = 0.9, DualCache enabled.</li>
+  </ol>
+
+  <h3>Limitations and open questions</h3>
+
+  <ul>
+    <li>The KV cache is <em>approximate</em>. There's a measurable (though small) accuracy gap on some tasks.</li>
+    <li>Greedy decoding is implicitly assumed by Theorem 1. Sampling diversity (temperature > 0) is less rigorously analyzed.</li>
+    <li>The block size and threshold are still hyperparameters — they're not adapted per task.</li>
+    <li>Whether the same tricks apply to <em>discrete continuous-time</em> diffusion models (SEDD-style) is not yet shown.</li>
+  </ul>
+
+  <h3>Connections to your other reading</h3>
+
+  <p>If you've read the other papers in this directory, here are some links:</p>
+
+  <ul>
+    <li><strong>FlashAttention:</strong> Fast-dLLM is orthogonal — you can still use FlashAttention for the underlying attention computation. Fast-dLLM reduces the <em>number</em> of attention computations needed.</li>
+    <li><strong>Chipmunk:</strong> Both papers target inference-time acceleration of expensive transformer operations. Chipmunk focuses on dynamic sparsity in diffusion; Fast-dLLM caches across timesteps.</li>
+    <li><strong>H3 / Monarch Mixer:</strong> These reduce attention complexity at training time. Fast-dLLM keeps the model unchanged and only changes how inference is done.</li>
+  </ul>
+
+  <h3>If you want to go deeper</h3>
+
+  <ul>
+    <li>Read Appendix A of the paper for the full proof of Theorem 1.</li>
+    <li>Check out the LLaDA paper (Nie et al. 2025) for the underlying diffusion LM you're accelerating.</li>
+    <li>Explore the GitHub: <a href="https://nvlabs.github.io/Fast-dLLM/" style="color: var(--accent-2);">nvlabs.github.io/Fast-dLLM/</a></li>
+  </ul>
+
+  <div class="nav-buttons">
+    <a class="nav-button" href="Fast-dLLM.pdf">📄 Read the original paper (PDF)</a>
+    <a class="nav-button" href="#bigpic">🔝 Back to top</a>
+  </div>
+</div>
+
+</div><!-- /container -->
+
+<script>
+// ============================ Section 3: mask demo ============================
+const tokens = ['The', 'cat', 'sat', 'on', 'the', 'red', 'mat', 'near', 'the', 'window'];
+function renderMask() {
+  const t = parseInt(document.getElementById('tslider').value) / 100;
+  document.getElementById('tval').textContent = t.toFixed(2);
+  const row = document.getElementById('maskDemo');
+  row.innerHTML = '';
+  tokens.forEach(tok => {
+    const d = document.createElement('div');
+    if (Math.random() < t) {
+      d.className = 'token mask';
+      d.textContent = 'M';
+    } else {
+      d.className = 'token decoded';
+      d.textContent = tok;
+    }
+    row.appendChild(d);
+  });
+}
+function resampleMask() { renderMask(); }
+document.getElementById('tslider').addEventListener('input', renderMask);
+renderMask();
+
+// ============================ Section 4: heatmap ============================
+function renderHeatmap() {
+  const hm = document.getElementById('heatmap');
+  hm.innerHTML = '';
+  for (let i = 0; i < 20; i++) {
+    for (let j = 0; j < 20; j++) {
+      const d = Math.abs(i - j);
+      // similarity decays with distance, but stays high within 3-step neighborhood
+      let sim;
+      if (d <= 3) sim = 0.98 + Math.random() * 0.02;
+      else if (d <= 8) sim = 0.92 + Math.random() * 0.04;
+      else sim = 0.84 + Math.random() * 0.06;
+      const cell = document.createElement('div');
+      cell.className = 'heatmap-cell';
+      // viridis-ish: low = dark purple, high = yellow
+      const r = Math.round(255 * (sim - 0.8) / 0.2);
+      const g = Math.round(200 * (sim - 0.8) / 0.2 + 50);
+      const b = Math.round(80 - 60 * (sim - 0.8) / 0.2);
+      cell.style.background = `rgb(${r},${g},${b})`;
+      hm.appendChild(cell);
+    }
+  }
+}
+renderHeatmap();
+
+// ============================ Section 5: block decoding animation ============================
+const blockTokens = ['Q:', 'What', 'is', '7+5', '?'];
+const blockAnswer = ['Let', 'me', 'compute', 'this', '.', 'Seven', 'plus', 'five', 'is', 'twelve', '(', '12', ')', '.'];
+let blockStep = 0;
+let blockInterval = null;
+
+function renderBlockState(step) {
+  const container = document.getElementById('blockDemo');
+  container.innerHTML = '';
+
+  // Define block states for ~12 steps
+  // block 0: indices 0-4 of answer, block 1: 5-9, block 2: 10-13
+  // state per step: which answer tokens are decoded, which are masked, which are cached
+  const states = [
+    // step 0: all masks
+    { decoded: [], cached: [], currentBlock: 0 },
+    // step 1: enter block 0
+    { decoded: [], cached: [], currentBlock: 0 },
+    // step 2: decode 'Let'
+    { decoded: [0], cached: [], currentBlock: 0 },
+    // step 3: decode 'me','compute' in parallel
+    { decoded: [0,1,2], cached: [], currentBlock: 0 },
+    // step 4: finish block 0
+    { decoded: [0,1,2,3,4], cached: [], currentBlock: 0 },
+    // step 5: cache block 0, enter block 1
+    { decoded: [0,1,2,3,4], cached: [0,1,2,3,4], currentBlock: 1 },
+    // step 6: decode 'Seven','plus' parallel
+    { decoded: [0,1,2,3,4,5,6], cached: [0,1,2,3,4], currentBlock: 1 },
+    // step 7: more of block 1
+    { decoded: [0,1,2,3,4,5,6,7,8], cached: [0,1,2,3,4], currentBlock: 1 },
+    // step 8: finish block 1
+    { decoded: [0,1,2,3,4,5,6,7,8,9], cached: [0,1,2,3,4], currentBlock: 1 },
+    // step 9: cache block 1, enter block 2
+    { decoded: [0,1,2,3,4,5,6,7,8,9], cached: [0,1,2,3,4,5,6,7,8,9], currentBlock: 2 },
+    // step 10: decode parallel
+    { decoded: [0,1,2,3,4,5,6,7,8,9,10,11], cached: [0,1,2,3,4,5,6,7,8,9], currentBlock: 2 },
+    // step 11: finish
+    { decoded: [0,1,2,3,4,5,6,7,8,9,10,11,12,13], cached: [0,1,2,3,4,5,6,7,8,9], currentBlock: 2 },
+    // step 12: all cached
+    { decoded: [0,1,2,3,4,5,6,7,8,9,10,11,12,13], cached: [0,1,2,3,4,5,6,7,8,9,10,11,12,13], currentBlock: 3 },
+  ];
+  const s = states[Math.min(step, states.length - 1)];
+
+  const row = document.createElement('div');
+  row.className = 'token-row';
+  const label = document.createElement('span');
+  label.className = 'token-label';
+  label.textContent = 'step ' + step;
+  row.appendChild(label);
+
+  // prompt tokens
+  blockTokens.forEach(t => {
+    const d = document.createElement('div');
+    d.className = 'token prompt';
+    d.textContent = t;
+    row.appendChild(d);
+  });
+
+  // separator
+  const sep = document.createElement('div');
+  sep.style.width = '8px';
+  row.appendChild(sep);
+
+  // answer tokens with block boundaries
+  blockAnswer.forEach((t, i) => {
+    const d = document.createElement('div');
+    const blockIdx = Math.floor(i / 5);
+    if (s.cached.includes(i)) {
+      d.className = 'token cached';
+      d.textContent = t;
+    } else if (s.decoded.includes(i)) {
+      d.className = 'token decoded';
+      d.textContent = t;
+    } else {
+      d.className = 'token mask';
+      d.textContent = 'M';
+    }
+    // highlight current block
+    if (blockIdx === s.currentBlock && !s.cached.includes(i)) {
+      d.style.outline = '2px dashed #76b900';
+      d.style.outlineOffset = '2px';
+    }
+    // block separator
+    if (i > 0 && i % 5 === 0) {
+      const bsep = document.createElement('div');
+      bsep.style.width = '6px';
+      bsep.style.borderLeft = '2px solid #76b900';
+      bsep.style.height = '40px';
+      row.appendChild(bsep);
+    }
+    row.appendChild(d);
+  });
+
+  container.appendChild(row);
+  document.getElementById('blockStep').textContent = step;
+}
+
+function startBlockDemo() {
+  if (blockInterval) return;
+  blockInterval = setInterval(() => {
+    blockStep++;
+    if (blockStep > 12) {
+      clearInterval(blockInterval);
+      blockInterval = null;
+      return;
+    }
+    renderBlockState(blockStep);
+  }, 900);
+}
+function resetBlockDemo() {
+  if (blockInterval) { clearInterval(blockInterval); blockInterval = null; }
+  blockStep = 0;
+  renderBlockState(0);
+}
+renderBlockState(0);
+
+// ============================ Section 7: confidence demo ============================
+let confTokens = [];
+function initConf() {
+  const words = ['solve', 'this', 'problem', ':', 'compute', '7×8', 'equals', 'fifty', 'six', '.'];
+  confTokens = words.map(w => ({
+    word: w,
+    conf: 0.5 + Math.random() * 0.5
+  }));
+}
+function renderConf() {
+  const tau = parseInt(document.getElementById('tauslider').value) / 100;
+  document.getElementById('tauval').textContent = tau.toFixed(2);
+  const container = document.getElementById('confDemo');
+  container.innerHTML = '';
+
+  let unmaskedCount = 0;
+  confTokens.forEach((t, i) => {
+    const row = document.createElement('div');
+    row.style.display = 'flex';
+    row.style.alignItems = 'center';
+    row.style.gap = '12px';
+    row.style.margin = '6px 0';
+
+    const tok = document.createElement('div');
+    const passes = t.conf >= tau;
+    if (passes) {
+      tok.className = 'token decoded';
+      tok.textContent = t.word;
+      unmaskedCount++;
+    } else {
+      tok.className = 'token mask';
+      tok.textContent = 'M';
+    }
+    tok.style.minWidth = '80px';
+
+    const bar = document.createElement('div');
+    bar.style.flex = '1';
+    bar.style.background = '#1a2332';
+    bar.style.height = '20px';
+    bar.style.borderRadius = '4px';
+    bar.style.overflow = 'hidden';
+    bar.style.position = 'relative';
+    const fill = document.createElement('div');
+    fill.style.height = '100%';
+    fill.style.width = (t.conf * 100) + '%';
+    fill.style.background = passes ? 'linear-gradient(90deg, #76b900, #4fc3f7)' : '#fb923c';
+    fill.style.transition = 'all 0.3s';
+    bar.appendChild(fill);
+
+    const thresholdMark = document.createElement('div');
+    thresholdMark.style.position = 'absolute';
+    thresholdMark.style.left = (tau * 100) + '%';
+    thresholdMark.style.top = '-2px';
+    thresholdMark.style.bottom = '-2px';
+    thresholdMark.style.width = '2px';
+    thresholdMark.style.background = '#f44336';
+    bar.appendChild(thresholdMark);
+
+    const label = document.createElement('span');
+    label.textContent = t.conf.toFixed(2);
+    label.style.fontFamily = 'monospace';
+    label.style.color = passes ? '#76b900' : '#9aa6b3';
+    label.style.minWidth = '50px';
+
+    row.appendChild(tok);
+    row.appendChild(bar);
+    row.appendChild(label);
+    container.appendChild(row);
+  });
+
+  const summary = document.createElement('div');
+  summary.style.marginTop = '12px';
+  summary.style.color = '#76b900';
+  summary.style.fontWeight = '600';
+  summary.innerHTML = `→ ${unmaskedCount} of ${confTokens.length} tokens unmasked in this step.`;
+  container.appendChild(summary);
+}
+function reshuffleConf() { initConf(); renderConf(); }
+document.getElementById('tauslider').addEventListener('input', renderConf);
+initConf();
+renderConf();
+
+// ============================ Section 8: theorem demo ============================
+function updateNmax() {
+  const tau = parseInt(document.getElementById('tau2slider').value) / 100;
+  document.getElementById('tau2val').textContent = tau.toFixed(2);
+  const eps = 1 - tau;
+  const n = Math.floor(1/eps - 1);
+  document.getElementById('nmaxval').textContent = isFinite(n) ? n : '∞';
+}
+document.getElementById('tau2slider').addEventListener('input', updateNmax);
+updateNmax();
+
+// ============================ Quiz ============================
+function checkQuiz(el, correct) {
+  const parent = el.parentElement;
+  parent.querySelectorAll('.quiz-option').forEach(o => {
+    o.classList.remove('correct', 'wrong');
+  });
+  el.classList.add(correct ? 'correct' : 'wrong');
+  const fb = parent.querySelector('.quiz-feedback');
+  fb.classList.add('show');
+  if (correct) {
+    fb.style.background = 'rgba(118,185,0,0.15)';
+    fb.style.color = '#76b900';
+    fb.textContent = '✓ Correct! KV cache benefits scale with the number of tokens cached, and parallel decoding scales with the number of high-confidence positions. Both effects compound with sequence length.';
+  } else {
+    fb.style.background = 'rgba(244,67,54,0.15)';
+    fb.style.color = '#f44336';
+    fb.textContent = '✗ Not quite. The key is that both speedup mechanisms scale with sequence length. Try again.';
+  }
+}
+</script>
+
+</body>
+</html>
