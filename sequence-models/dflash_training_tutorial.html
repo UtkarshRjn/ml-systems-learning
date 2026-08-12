@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>How DFlash Trains Its Draft Model from the Target Model</title>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2030;
+    --text: #e7ecf3;
+    --muted: #a3b1c6;
+    --accent: #7cc4ff;
+    --accent2: #ffb86b;
+    --good: #6ee7b7;
+    --bad: #ff8a8a;
+    --purple: #c4a3ff;
+    --line: #2a3346;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.65;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 48px 24px 80px; }
+  h1 { font-size: 2.1rem; margin: 0 0 8px; }
+  h2 { color: var(--accent); margin-top: 2.4em; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+  h3 { color: var(--accent2); margin-top: 1.6em; }
+  .subtitle { color: var(--muted); font-size: 1.05rem; margin-bottom: 20px; }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 18px 22px;
+    margin: 18px 0;
+  }
+  .source {
+    background: #14192a;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 14px 20px;
+    margin: 18px 0 32px;
+    font-size: 0.92rem;
+    color: var(--muted);
+  }
+  .source b { color: var(--text); }
+  .source a { color: var(--accent); }
+  .analogy {
+    border-left: 4px solid var(--accent2);
+    background: #1f2535;
+    padding: 14px 18px;
+    margin: 18px 0;
+    border-radius: 4px;
+  }
+  .analogy::before {
+    content: "Analogy";
+    display: block;
+    font-weight: 700;
+    color: var(--accent2);
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .key {
+    border-left: 4px solid var(--good);
+    background: #1c2a26;
+    padding: 14px 18px;
+    margin: 18px 0;
+    border-radius: 4px;
+  }
+  .key::before {
+    content: "Key idea";
+    display: block;
+    font-weight: 700;
+    color: var(--good);
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .mirrors {
+    border-left: 4px solid var(--purple);
+    background: #201c2e;
+    padding: 14px 18px;
+    margin: 18px 0;
+    border-radius: 4px;
+  }
+  .mirrors::before {
+    content: "Training mirrors inference";
+    display: block;
+    font-weight: 700;
+    color: var(--purple);
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  code {
+    background: #0a0f1a;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.92em;
+    color: #ffd29a;
+  }
+  pre {
+    background: #0a0f1a;
+    border: 1px solid var(--line);
+    padding: 14px 16px;
+    border-radius: 8px;
+    overflow-x: auto;
+    color: #d6dceb;
+  }
+  table { width: 100%; border-collapse: collapse; margin: 14px 0; }
+  th, td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; }
+  th { color: var(--accent); font-weight: 600; }
+  .demo {
+    background: #0a0f1a;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 20px;
+    margin: 20px 0;
+  }
+  .demo label { display: block; margin: 10px 0 4px; color: var(--muted); font-size: 0.92rem; }
+  .demo input[type="range"] { width: 100%; }
+  canvas { background: #050810; border-radius: 6px; display: block; margin-top: 12px; max-width: 100%; }
+  .pill {
+    display: inline-block;
+    background: #2a3346;
+    color: var(--muted);
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    margin-right: 4px;
+  }
+  .nav {
+    position: sticky; top: 0;
+    background: rgba(15,20,32,0.92);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line);
+    padding: 10px 24px;
+    font-size: 0.86rem;
+    z-index: 10;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  .nav a { color: var(--muted); margin-right: 14px; text-decoration: none; }
+  .nav a:hover { color: var(--accent); }
+  .footnote { color: var(--muted); font-size: 0.9rem; }
+  .quiz { background: #1f2535; border-radius: 8px; padding: 16px 20px; margin: 18px 0; }
+  .quiz .q { font-weight: 600; margin-bottom: 8px; }
+  .quiz button {
+    background: #2a3346; color: var(--text); border: 1px solid var(--line);
+    padding: 6px 12px; border-radius: 6px; margin: 4px 6px 4px 0; cursor: pointer;
+  }
+  .quiz button.right { background: #1c2a26; border-color: var(--good); color: var(--good); }
+  .quiz button.wrong { background: #2a1c1c; border-color: var(--bad); color: var(--bad); }
+  .tabs { display: flex; gap: 4px; margin: 0 0 28px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .tab-btn {
+    background: transparent; color: var(--muted); border: none; border-bottom: 2px solid transparent;
+    padding: 12px 18px; font-size: 0.98rem; font-weight: 600; cursor: pointer;
+    transition: color 0.15s, border-color 0.15s; margin-bottom: -1px;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 10px; font-size: 0.85rem; color: var(--muted); }
+  .legend .sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: middle; }
+  .toggle-row { margin: 10px 0; }
+  .toggle-btn {
+    background: #2a3346; color: var(--text); border: 1px solid var(--line);
+    padding: 6px 14px; border-radius: 6px; cursor: pointer; margin-right: 8px; font-size: 0.88rem;
+  }
+  .toggle-btn.active { background: var(--accent); color: #0a0f1a; border-color: var(--accent); font-weight: 700; }
+  .statline {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.9rem; color: var(--text); background: #131a29; border: 1px solid var(--line);
+    border-radius: 6px; padding: 10px 14px; margin-top: 12px; white-space: pre-wrap;
+  }
+  .statline b { color: var(--accent); }
+  .pipeline { counter-reset: step; margin: 22px 0; }
+  .pipeline-step {
+    display: flex; gap: 16px; align-items: flex-start;
+    padding: 12px 0; border-left: 2px solid var(--line); margin-left: 15px; padding-left: 20px;
+    position: relative;
+  }
+  .pipeline-step:last-child { border-left: 2px solid transparent; }
+  .step-num {
+    counter-increment: step;
+    position: absolute; left: -15px; top: 12px;
+    width: 30px; height: 30px; border-radius: 50%;
+    background: var(--accent); color: #0a0f1a; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; font-size: 0.85rem;
+  }
+  .step-num::before { content: counter(step); }
+  .step-body { padding-top: 4px; }
+  .step-body b { color: var(--text); }
+  .token-strip { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 14px; }
+  .tok-cell {
+    width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
+    border-radius: 4px; font-size: 0.68rem; font-family: ui-monospace, monospace; font-weight: 600;
+  }
+  .tok-past { background: #1a2030; color: var(--muted); border: 1px solid var(--line); }
+  .tok-anchor { background: var(--accent2); color: #0a0f1a; }
+  .tok-masked { background: var(--good); color: #0a0f1a; }
+  .tok-future { background: #131826; color: #3a4460; border: 1px dashed var(--line); }
+  @media (max-width: 720px) { .twocol { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<div class="nav">
+  <a href="#why">Why diffusion drafting</a>
+  <a href="#arch">Architecture</a>
+  <a href="#pipeline">Training pipeline</a>
+  <a href="#data">1. Data</a>
+  <a href="#features">2. Features</a>
+  <a href="#anchors">3. Anchors</a>
+  <a href="#packing">4. Packing</a>
+  <a href="#kv">5. KV injection</a>
+  <a href="#loss">6. Loss</a>
+  <a href="#frozen">7. Frozen parts</a>
+  <a href="#quiz">Quiz</a>
+</div>
+
+<div class="wrap">
+
+<h1>How DFlash Trains Its Draft Model from the Target Model</h1>
+<p class="subtitle">
+  A walkthrough of the training recipe behind DFlash's block-diffusion speculative-decoding draft
+  model — every design choice explained through one question: <i>what will the draft model actually
+  see at inference time?</i>
+</p>
+
+<div class="source">
+  <b>Source:</b> Jian Chen, Yesheng Liang, Zhijian Liu (UC San Diego).
+  <i>"DFlash: Block Diffusion for Flash Speculative Decoding."</i> ICML 2026.
+  <a href="https://arxiv.org/abs/2602.06036" target="_blank">arXiv:2602.06036</a> ·
+  <a href="https://github.com/z-lab/dflash" target="_blank">GitHub</a> ·
+  <a href="https://dflash.z-lab.ai" target="_blank">Project page</a>.
+  All facts, numbers, and hyperparameters below are taken directly from the paper (including its
+  appendix); the training recipe is not yet in the public GitHub repo at the time of writing.
+</div>
+
+<!-- ====================================================== -->
+<h2 id="why">1. Why diffusion for drafting?</h2>
+<p>
+  Speculative decoding speeds up a big <b>target model</b> <code>M_t</code> by having a small
+  <b>draft model</b> <code>M_d</code> propose <code>γ</code> tokens per cycle, which the target then
+  verifies in parallel. The average per-token latency is:
+</p>
+<pre>L = (T_draft + T_verify) / τ          # τ = expected number of accepted tokens per cycle
+speedup η = L_target / L</pre>
+<p>
+  The catch: <b>autoregressive</b> draft models (EAGLE, Medusa, ...) generate their <code>γ</code>
+  tokens one at a time, so drafting cost scales linearly with the speculation budget:
+</p>
+<pre>T_draft (autoregressive) = γ · t_step        # grows with γ → forces very shallow draft models</pre>
+<p>
+  A <b>diffusion</b> draft model instead fills an entire block of <code>γ</code> positions in a
+  single parallel forward pass:
+</p>
+<pre>T_draft (diffusion) = t_parallel              # ~constant — barely grows with γ</pre>
+<div class="key">
+  Because drafting cost no longer scales with block size, a diffusion drafter can afford to be
+  <b>deeper and more expressive</b> without paying a latency tax. DFlash's core bet: use that extra
+  capacity, fused tightly with the target model's own hidden features, to get long accepted spans
+  <i>and</i> low drafting latency at the same time — something autoregressive drafters structurally
+  can't do. Result: DFlash reports up to <b>6.1× lossless speedup</b>, about <b>2.5× faster</b> than
+  EAGLE-3.
+</div>
+
+<!-- ====================================================== -->
+<h2 id="arch">2. The draft model, just enough to understand training</h2>
+<p>
+  DFlash's draft model is a small transformer stack (typically <b>5 layers</b>, 8 for the
+  Qwen3-Coder variant) with two unusual properties, both of which training has to be built around:
+</p>
+<ul>
+  <li>It has <b>no embedding table and no LM head of its own</b> — it reuses the target model's,
+  frozen. It only ever operates in the target's vocabulary/representation space.</li>
+  <li>It doesn't just see the previous token — it's conditioned on <b>fused hidden features from
+  several target-model layers</b>, injected directly into every draft layer's attention as extra
+  Key/Value entries (not fed in as input embeddings, unlike EAGLE-3).</li>
+</ul>
+<p>
+  At inference, the draft model fills a whole <code>block_size</code>-token block (starting from one
+  clean "bonus" token already verified by the target) in one forward pass, and the target verifies
+  the entire block in parallel. That block-filling behavior is exactly what training has to teach.
+</p>
+
+<!-- ====================================================== -->
+<h2 id="pipeline">3. The training pipeline, end to end</h2>
+<div class="mirrors">
+  Every choice below exists to make a training example look exactly like what the draft model will
+  see once it's deployed. Keep asking "what happens at inference?" and the training recipe stops
+  looking arbitrary.
+</div>
+
+<div class="pipeline">
+  <div class="pipeline-step"><div class="step-num"></div><div class="step-body">
+    <b>Curate self-distilled data.</b> Take prompts from a large SFT-style mixture, but replace the
+    dataset's original responses with responses <i>generated by the frozen target model itself</i>.
+  </div></div>
+  <div class="pipeline-step"><div class="step-num"></div><div class="step-body">
+    <b>Extract & fuse target features.</b> Run the clean (prompt + response) sequence through the
+    frozen target model once; pull hidden states from 5 layers, concatenate and project them into one
+    compact per-token "target context feature."
+  </div></div>
+  <div class="pipeline-step"><div class="step-num"></div><div class="step-body">
+    <b>Sample anchors, build blocks.</b> Randomly pick anchor positions in the response; each anchor
+    becomes a clean bonus token, the next <code>block_size − 1</code> positions become mask tokens the
+    draft model must predict.
+  </div></div>
+  <div class="pipeline-step"><div class="step-num"></div><div class="step-body">
+    <b>Pack many blocks into one training sequence.</b> Concatenate blocks and train them jointly with
+    a sparse attention mask: bidirectional inside a block, blocked across blocks.
+  </div></div>
+  <div class="pipeline-step"><div class="step-num"></div><div class="step-body">
+    <b>Inject target features as KV, at every layer.</b> The fused target feature is added as extra
+    Key/Value entries to every draft transformer layer's self-attention — not fed in as an input token.
+  </div></div>
+  <div class="pipeline-step"><div class="step-num"></div><div class="step-body">
+    <b>Weight the loss toward early block positions.</b> Cross-entropy at each masked position is
+    scaled by an exponentially decaying weight, since an early mistake invalidates every token after
+    it under greedy acceptance.
+  </div></div>
+  <div class="pipeline-step"><div class="step-num"></div><div class="step-body">
+    <b>Optimize only the small draft stack.</b> Target model, embedding table, and LM head all stay
+    frozen; only the draft transformer layers (and one small projection) are trained.
+  </div></div>
+</div>
+
+<!-- ====================================================== -->
+<h2 id="data">Step 1: Curate data via self-distillation</h2>
+<p>
+  Training data is a ~800K-sample mixture drawn from the <b>NVIDIA Nemotron Post-Training Dataset V2</b>
+  and <b>CodeAlpaca</b> (the LLaMA-3.1 ablation instead uses UltraChat + ShareGPT, matching EAGLE-3's
+  setup exactly for a fair comparison).
+</p>
+<div class="key">
+  The subtle but important part: DFlash does <b>not</b> train on the dataset's original responses.
+  For every prompt, the frozen target model generates its own response, and <i>that</i> becomes the
+  training label. This closes the distribution gap between "what some other model/human said" and
+  "what the target model actually tends to say" — the exact distribution the draft model needs to
+  imitate to get long accepted spans.
+</div>
+
+<!-- ====================================================== -->
+<h2 id="features">Step 2: Extract and fuse target features</h2>
+<p>
+  For each clean (prompt + response) sequence, the frozen target model runs once. Hidden states are
+  pulled from <b>5 layers</b>, uniformly spaced between the 2nd layer and the third-to-last layer
+  (8 layers for Qwen3-Coder). They're concatenated per token and projected into one shared feature:
+</p>
+<pre>H_t = RMSNorm( W_c · [ H⁽ˡ¹⁾ ; H⁽ˡ²⁾ ; H⁽ˡ³⁾ ; H⁽ˡ⁴⁾ ; H⁽ˡ⁵⁾ ] )   # W_c: D × 5D shared projection</pre>
+<p>
+  <code>H_t</code> is the same for every draft layer — computed once, reused everywhere (§5 shows this
+  scales acceptance length with draft depth far better than injecting once at the input, EAGLE-3
+  style, where the signal dilutes as it's carried through more layers).
+</p>
+<p class="footnote">
+  This extraction can happen <b>online</b> (recomputed every training step) or <b>offline</b>
+  (precomputed once and cached to disk, then loaded during draft optimization) — offline trades disk
+  space for a much cheaper training loop, since the multi-billion-parameter target model doesn't need
+  to run forward on every step.
+</p>
+<div class="key">
+  Ablation check (paper Table 10): a 5-layer draft model trained <b>without</b> any target
+  conditioning only reaches a modest 2–3× speedup. Feeding it the target's own hidden features is what
+  turns "small transformer guessing blindly" into "small transformer riding on the target's internal
+  representations" — this single choice is the biggest lever in the whole recipe.
+</div>
+
+<!-- ====================================================== -->
+<h2 id="anchors">Step 3: Sample anchors, build blocks</h2>
+<p>
+  Standard block-diffusion training uniformly chops the response into fixed blocks. DFlash does
+  something different, matched to speculative decoding: it randomly samples <b>512 anchor
+  positions</b> per training sequence (resampled every epoch). Each anchor is treated as the first,
+  <i>clean</i> token of a block; the following <code>block_size − 1</code> positions are replaced with
+  a mask token, and the draft model is trained to predict them in parallel.
+</p>
+<div class="mirrors">
+  This exactly matches inference: the draft model always starts a block from one clean token — the
+  "bonus token" the target model just verified in the previous cycle. Randomizing anchor positions
+  also exposes the draft model to far more diverse target-context features per epoch than a fixed
+  chopping would, which the paper finds meaningfully improves both acceptance length and speedup
+  (Table 13: random anchors push MT-Bench speedup from 2.13× to 2.38×).
+</div>
+
+<div class="demo">
+  <h3 style="margin-top:0;">Try it: anchor sampling & block construction</h3>
+  <p class="footnote">
+    A toy 24-token response. Pick a block size and drag the anchor position — watch which tokens
+    become the clean anchor, which become mask tokens the draft model must predict, and which stay
+    outside this training example entirely.
+  </p>
+  <div class="toggle-row" id="blockSizeToggle">
+    <button class="toggle-btn" onclick="setBlockSize(8, this)">block size 8</button>
+    <button class="toggle-btn" onclick="setBlockSize(10, this)">block size 10</button>
+    <button class="toggle-btn active" onclick="setBlockSize(16, this)">block size 16</button>
+  </div>
+  <label>Anchor position within the response: <span id="anchorPosVal">5</span></label>
+  <input id="anchorPosSlide" type="range" min="1" max="8" step="1" value="5" />
+  <div id="tokenStrip" class="token-strip"></div>
+  <div class="legend">
+    <span><span class="sw" style="background:#1a2030;border:1px solid #2a3346"></span>past (outside block)</span>
+    <span><span class="sw" style="background:#ffb86b"></span>anchor — clean bonus token</span>
+    <span><span class="sw" style="background:#6ee7b7"></span>mask tokens — draft predicts these</span>
+    <span><span class="sw" style="background:#131826;border:1px dashed #2a3346"></span>future (outside block)</span>
+  </div>
+  <div class="statline" id="blockStats"></div>
+</div>
+
+<!-- ====================================================== -->
+<h2 id="packing">Step 4: Pack many blocks per training sequence</h2>
+<p>
+  Sampling 512 anchors per sequence would be enormously wasteful if each block needed its own forward
+  pass. Instead, all sampled blocks for a sequence are <b>concatenated and trained jointly in one
+  forward/backward pass</b>, using a sparse attention mask built with FlexAttention: tokens attend
+  bidirectionally within their own block and to the injected target feature, but attention
+  <b>across different blocks is disallowed</b> — otherwise a block could "peek" at another block's
+  answer key.
+</p>
+
+<div class="demo">
+  <h3 style="margin-top:0;">Try it: the packed block-diagonal attention mask</h3>
+  <p class="footnote">
+    Each colored region is a block of draft tokens. Bright green = attention allowed (same block, or
+    the always-visible target-feature column). Faint red = attention blocked (a different block).
+  </p>
+  <label>Number of blocks packed together: <span id="numBlocksVal">3</span></label>
+  <input id="numBlocksSlide" type="range" min="2" max="4" step="1" value="3" />
+  <label>Block size (toy scale, for visibility): <span id="bs2Val">6</span></label>
+  <input id="blockSizeSlide2" type="range" min="4" max="8" step="1" value="6" />
+  <canvas id="attnMaskCanvas" width="680" height="420"></canvas>
+  <div class="legend">
+    <span><span class="sw" style="background:rgba(124,196,255,0.9)"></span>target-feature column — every token can attend here</span>
+    <span><span class="sw" style="background:rgba(110,231,183,0.85)"></span>allowed (same block)</span>
+    <span><span class="sw" style="background:rgba(255,138,138,0.25)"></span>blocked (different block)</span>
+  </div>
+  <div class="statline" id="attnStats"></div>
+</div>
+
+<!-- ====================================================== -->
+<h2 id="kv">Step 5: Inject target features as KV, at every layer</h2>
+<p>
+  Instead of fusing target features into the draft model's <i>input</i> embeddings once (the EAGLE-3
+  approach — where the signal dilutes as it passes through more draft layers), DFlash injects the same
+  fused feature <code>H_t</code> as <b>extra Key/Value entries</b> at <i>every</i> draft layer's
+  self-attention, alongside the draft tokens' own KV:
+</p>
+<pre>Q_i =        W_i^Q · H_d                            # queries: from draft tokens only
+K_i = concat( W_i^K · H_t ,  W_i^K · H_d )           # keys:    target feature  +  draft tokens
+V_i = concat( W_i^V · H_t ,  W_i^V · H_d )           # values:  target feature  +  draft tokens</pre>
+<p>
+  The target feature bypasses the draft model's own query projection, output projection, and FFN — it
+  only ever serves as something for draft tokens to attend <i>to</i>. The extra parameters are tiny
+  (just the shared projection <code>W_c</code>, tens of MB even for a 35B target model).
+</p>
+<table>
+  <tr><th>Conditioning strategy</th><th>GSM8K τ/speedup</th><th>MT-Bench τ/speedup</th></tr>
+  <tr><td>Input fusion (EAGLE-3 style)</td><td>3.5 / 2.9×</td><td>2.6 / 2.0×</td></tr>
+  <tr><td><b>KV injection (DFlash)</b></td><td><b>4.2 / 3.3×</b></td><td><b>3.0 / 2.2×</b></td></tr>
+</table>
+<p class="footnote">Qwen3-4B, 5-layer draft, block size 8 (paper Table 9). KV injection wins in both block-diffusion and autoregressive drafting variants.</p>
+
+<!-- ====================================================== -->
+<h2 id="loss">Step 6: Weight the loss toward early block positions</h2>
+<p>
+  Not all predicted positions in a block matter equally. Because DFlash's acceptance rule is a
+  <b>greedy prefix match</b> (candidate token <code>t+1</code> must equal the target's own argmax at
+  <code>t+1</code>, checked left to right), one wrong token early in the block throws away every
+  correct token that comes after it. The loss reflects that asymmetry with an exponentially decaying
+  per-position weight:
+</p>
+<pre>w_k = exp( −(k − 1) / γ )                     # k = position within the block (1 = right after the anchor)
+loss = Σ_k  w_k · CrossEntropy( draft_logits_k , target_token_k )</pre>
+<p>
+  <code>γ</code> is set per block size: <b>7</b> for block size 16, <b>5</b> for block size 10,
+  <b>4</b> for block size 8. The paper's ablation (Figure 5) shows this decay makes training converge
+  faster <i>and</i> reach a higher final acceptance length than uniform weighting.
+</p>
+
+<div class="demo">
+  <h3 style="margin-top:0;">Try it: loss decay and why early mistakes are costly</h3>
+  <p class="footnote">
+    Top: the per-position loss weight <code>w_k</code> for the selected block size (γ set to the
+    paper's value automatically). Bottom: drag "first wrong position" to see how a single mistake
+    truncates the accepted span, no matter how correct the rest of the block is.
+  </p>
+  <div class="toggle-row" id="lossBlockToggle">
+    <button class="toggle-btn" onclick="setLossBlockSize(8, this)">block size 8</button>
+    <button class="toggle-btn" onclick="setLossBlockSize(10, this)">block size 10</button>
+    <button class="toggle-btn active" onclick="setLossBlockSize(16, this)">block size 16</button>
+  </div>
+  <canvas id="lossWeightCanvas" width="680" height="200"></canvas>
+  <label>First wrong prediction at block position: <span id="firstWrongVal">16</span> <span class="footnote">(16 = draft got the whole block right)</span></label>
+  <input id="firstWrongSlide" type="range" min="1" max="16" step="1" value="16" />
+  <div id="acceptStrip" class="token-strip"></div>
+  <div class="statline" id="lossStats"></div>
+</div>
+
+<!-- ====================================================== -->
+<h2 id="frozen">Step 7: Optimize only the small draft stack</h2>
+<p>
+  The draft model shares the target model's token embedding layer and LM head — and keeps both
+  <b>frozen</b> during training. So does the target model itself. Only the draft transformer layers
+  (plus the small feature projection <code>W_c</code>) are updated.
+</p>
+<div class="key">
+  This does two things at once: it forces the draft model to stay in the target's representation
+  space (its output logits are directly comparable to the target's, by construction), and it keeps
+  the trainable parameter count tiny — a few hundred million parameters at most, regardless of how
+  large the target model is.
+</div>
+
+<h3>Full training hyperparameters</h3>
+<table>
+  <tr><th>Hyperparameter</th><th>Value</th></tr>
+  <tr><td>Optimizer</td><td>AdamW</td></tr>
+  <tr><td>Learning rate</td><td>6 × 10⁻⁴</td></tr>
+  <tr><td>LR schedule</td><td>Cosine, 4% warmup ratio</td></tr>
+  <tr><td>Gradient clipping</td><td>1.0</td></tr>
+  <tr><td>Epochs</td><td>6</td></tr>
+  <tr><td>Max sequence length</td><td>3072 tokens (4096 for Qwen3-Coder)</td></tr>
+  <tr><td>Anchor positions per sequence</td><td>512, resampled every epoch</td></tr>
+  <tr><td>Draft layers</td><td>5 (8 for Qwen3-Coder)</td></tr>
+  <tr><td>Block size</td><td>16 (10 for LLaMA-3.1, 8 for Qwen3-Coder)</td></tr>
+  <tr><td>γ (loss decay rate)</td><td>7 / 5 / 4 for block size 16 / 10 / 8</td></tr>
+  <tr><td>Target hidden layers extracted</td><td>5, uniform between layer 2 and third-to-last</td></tr>
+  <tr><td>Attention implementation</td><td>FlexAttention (sparse, block-packed)</td></tr>
+  <tr><td>Frozen</td><td>Target model, token embedding, LM head</td></tr>
+</table>
+
+<!-- ====================================================== -->
+<h2 id="quiz">Quick check</h2>
+
+<div class="quiz">
+  <div class="q">Q1. Why does drafting a whole block in one parallel forward pass let DFlash afford a deeper draft model than autoregressive methods like EAGLE-3?</div>
+  <button onclick="answer(this, false)">Deeper models are always faster on GPUs</button>
+  <button onclick="answer(this, true)">Because T_draft for a diffusion drafter is ~constant in block size, while an autoregressive drafter's cost grows linearly with γ — so autoregressive methods are forced into very shallow architectures to stay fast</button>
+  <button onclick="answer(this, false)">EAGLE-3 doesn't use a draft model at all</button>
+  <div class="reveal"></div>
+</div>
+
+<div class="quiz">
+  <div class="q">Q2. Why does DFlash train on responses generated by the target model itself, instead of the original dataset's responses?</div>
+  <button onclick="answer(this, false)">The original datasets don't have any responses</button>
+  <button onclick="answer(this, true)">To close the distribution gap — the draft model needs to imitate what the target model actually tends to say, not what a human or another model said for that prompt</button>
+  <button onclick="answer(this, false)">It's cheaper to skip loading the dataset entirely</button>
+  <div class="reveal"></div>
+</div>
+
+<div class="quiz">
+  <div class="q">Q3. Why does DFlash sample random anchor positions instead of uniformly chopping each response into fixed blocks?</div>
+  <button onclick="answer(this, true)">It matches inference (the draft always starts from one clean bonus token) and exposes the model to more diverse target-context features, improving data efficiency</button>
+  <button onclick="answer(this, false)">Random sampling is required for the attention mask to compile</button>
+  <button onclick="answer(this, false)">It has no measurable effect — the paper found both approaches equivalent</button>
+  <div class="reveal"></div>
+</div>
+
+<div class="quiz">
+  <div class="q">Q4. What's the key architectural difference between how DFlash and EAGLE-3-style methods use the target model's hidden features?</div>
+  <button onclick="answer(this, false)">DFlash doesn't use target hidden features at all</button>
+  <button onclick="answer(this, true)">DFlash injects the fused feature as extra Key/Value entries at every draft layer; EAGLE-3-style methods fuse it once into the input embeddings, so the signal dilutes with depth</button>
+  <button onclick="answer(this, false)">EAGLE-3 injects features into the loss function, not the model</button>
+  <div class="reveal"></div>
+</div>
+
+<div class="quiz">
+  <div class="q">Q5. Why does the training loss weight early block positions more heavily than later ones?</div>
+  <button onclick="answer(this, false)">Early tokens are always harder to predict linguistically</button>
+  <button onclick="answer(this, true)">Because acceptance is a greedy prefix match — one wrong token early in the block invalidates every correct token after it, so early accuracy matters disproportionately for the final accepted length</button>
+  <button onclick="answer(this, false)">To make the gradients numerically stable</button>
+  <div class="reveal"></div>
+</div>
+
+<div class="quiz">
+  <div class="q">Q6. Why are the target model's embedding table and LM head shared with (and frozen for) the draft model?</div>
+  <button onclick="answer(this, true)">It keeps the draft model's output distribution directly comparable to the target's (same representation space) and minimizes the number of trainable parameters</button>
+  <button onclick="answer(this, false)">Training a separate LM head for the draft model is not mathematically possible</button>
+  <button onclick="answer(this, false)">It's purely a memory-saving trick with no effect on draft quality</button>
+  <div class="reveal"></div>
+</div>
+
+</div>
+
+<script>
+  // =====================================================
+  // Demo: anchor sampling & block construction
+  // =====================================================
+  const RESP_LEN = 24;
+  let currentBlockSize = 16;
+
+  function setBlockSize(bs, btn) {
+    currentBlockSize = bs;
+    document.querySelectorAll('#blockSizeToggle .toggle-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const slide = document.getElementById('anchorPosSlide');
+    const maxAnchor = RESP_LEN - bs + 1;
+    slide.max = maxAnchor;
+    if (parseInt(slide.value, 10) > maxAnchor) slide.value = maxAnchor;
+    drawBlockDemo();
+  }
+
+  function drawBlockDemo() {
+    const anchor = parseInt(document.getElementById('anchorPosSlide').value, 10);
+    document.getElementById('anchorPosVal').textContent = anchor;
+    const strip = document.getElementById('tokenStrip');
+    strip.innerHTML = '';
+    const maskEnd = anchor + currentBlockSize - 1; // last masked position (inclusive)
+    for (let i = 1; i <= RESP_LEN; i++) {
+      const cell = document.createElement('div');
+      let cls, label;
+      if (i < anchor) { cls = 'tok-past'; label = 'r' + i; }
+      else if (i === anchor) { cls = 'tok-anchor'; label = 'r' + i; }
+      else if (i <= maskEnd) { cls = 'tok-masked'; label = 'M'; }
+      else { cls = 'tok-future'; label = 'r' + i; }
+      cell.className = 'tok-cell ' + cls;
+      cell.textContent = label;
+      strip.appendChild(cell);
+    }
+    const stats = document.getElementById('blockStats');
+    stats.innerHTML =
+      `block_size = ${currentBlockSize}  →  1 clean anchor (r${anchor}) + ${currentBlockSize - 1} mask tokens (r${anchor + 1}..r${maskEnd})\n` +
+      `Draft model attends bidirectionally within these ${currentBlockSize} positions, plus the target context feature (always visible everywhere).\n` +
+      `r1..r${anchor - 1} and r${maskEnd + 1}..r${RESP_LEN} are invisible to the draft model in this training example.`;
+  }
+
+  document.getElementById('anchorPosSlide').addEventListener('input', drawBlockDemo);
+  drawBlockDemo();
+
+  // =====================================================
+  // Demo: packed block-diagonal attention mask
+  // =====================================================
+  (function () {
+    const cv = document.getElementById('attnMaskCanvas');
+    const ctx = cv.getContext('2d');
+    const numBlocksSlide = document.getElementById('numBlocksSlide');
+    const bsSlide = document.getElementById('blockSizeSlide2');
+
+    function draw() {
+      const numBlocks = parseInt(numBlocksSlide.value, 10);
+      const bs = parseInt(bsSlide.value, 10);
+      document.getElementById('numBlocksVal').textContent = numBlocks;
+      document.getElementById('bs2Val').textContent = bs;
+
+      const total = numBlocks * bs;
+      const W = cv.width, H = cv.height;
+      ctx.clearRect(0, 0, W, H);
+
+      const marginL = 20, marginT = 60, marginR = 20, marginB = 20;
+      const cols = total + 1; // +1 target-feature column
+      const rows = total;
+      const cellW = (W - marginL - marginR) / cols;
+      const cellH = (H - marginT - marginB) / rows;
+
+      for (let r = 0; r < rows; r++) {
+        const blockR = Math.floor(r / bs);
+        for (let c = 0; c < cols; c++) {
+          let color;
+          if (c === 0) {
+            color = 'rgba(124,196,255,0.9)';
+          } else {
+            const blockC = Math.floor((c - 1) / bs);
+            color = (blockC === blockR) ? 'rgba(110,231,183,0.85)' : 'rgba(255,138,138,0.22)';
+          }
+          ctx.fillStyle = color;
+          ctx.fillRect(marginL + c * cellW, marginT + r * cellH, Math.max(cellW - 1, 1), Math.max(cellH - 1, 1));
+        }
+      }
+
+      // block boundary gridlines
+      ctx.strokeStyle = '#0f1420';
+      ctx.lineWidth = 2;
+      for (let b = 0; b <= numBlocks; b++) {
+        const x = marginL + cellW + b * bs * cellW; // +cellW to skip target-feature col
+        ctx.beginPath(); ctx.moveTo(x, marginT); ctx.lineTo(x, marginT + rows * cellH); ctx.stroke();
+        const y = marginT + b * bs * cellH;
+        ctx.beginPath(); ctx.moveTo(marginL, y); ctx.lineTo(marginL + cols * cellW, y); ctx.stroke();
+      }
+      // separate target-feature column from the rest
+      ctx.strokeStyle = '#e7ecf3';
+      ctx.beginPath();
+      ctx.moveTo(marginL + cellW, marginT); ctx.lineTo(marginL + cellW, marginT + rows * cellH);
+      ctx.stroke();
+
+      ctx.fillStyle = '#a3b1c6';
+      ctx.font = '12px system-ui';
+      ctx.fillText('← keys / values (columns) →', marginL, 20);
+      ctx.save();
+      ctx.translate(14, marginT + rows * cellH / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillText('queries (rows) →', -40, 0);
+      ctx.restore();
+      ctx.fillText('target feat.', marginL - 4, 36);
+      for (let b = 0; b < numBlocks; b++) {
+        ctx.fillText('block ' + (b + 1), marginL + cellW + (b * bs + bs / 2) * cellW - 18, 50);
+      }
+
+      document.getElementById('attnStats').innerHTML =
+        `${numBlocks} blocks × ${bs} tokens = ${total} draft-token rows, trained in a single forward/backward pass.\n` +
+        `Every row attends to the target-feature column (blue) and to every column inside its own block (green) — nothing else.`;
+    }
+
+    numBlocksSlide.addEventListener('input', draw);
+    bsSlide.addEventListener('input', draw);
+    draw();
+  })();
+
+  // =====================================================
+  // Demo: loss decay weights + greedy acceptance
+  // =====================================================
+  const GAMMA_MAP = { 8: 4, 10: 5, 16: 7 };
+  let lossBlockSize = 16;
+
+  function setLossBlockSize(bs, btn) {
+    lossBlockSize = bs;
+    document.querySelectorAll('#lossBlockToggle .toggle-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const slide = document.getElementById('firstWrongSlide');
+    slide.max = bs;
+    if (parseInt(slide.value, 10) > bs) slide.value = bs;
+    drawLossDemo();
+  }
+
+  function drawLossDemo() {
+    const bs = lossBlockSize;
+    const gamma = GAMMA_MAP[bs];
+    const firstWrong = parseInt(document.getElementById('firstWrongSlide').value, 10);
+    document.getElementById('firstWrongVal').textContent = firstWrong === bs ? bs + ' (all correct)' : firstWrong;
+
+    // weight bar chart: k = 1..(bs-1) predicted positions
+    const cv = document.getElementById('lossWeightCanvas');
+    const ctx = cv.getContext('2d');
+    const W = cv.width, H = cv.height;
+    ctx.clearRect(0, 0, W, H);
+    const n = bs - 1;
+    const marginL = 44, marginR = 16, marginT = 16, marginB = 30;
+    const barW = (W - marginL - marginR) / n;
+    ctx.strokeStyle = '#2a3346';
+    ctx.beginPath();
+    ctx.moveTo(marginL, H - marginB); ctx.lineTo(W - marginR, H - marginB);
+    ctx.moveTo(marginL, marginT); ctx.lineTo(marginL, H - marginB);
+    ctx.stroke();
+    ctx.fillStyle = '#a3b1c6';
+    ctx.font = '11px system-ui';
+    for (let k = 1; k <= n; k++) {
+      const w = Math.exp(-(k - 1) / gamma);
+      const barH = w * (H - marginT - marginB);
+      const x = marginL + (k - 1) * barW;
+      ctx.fillStyle = '#7cc4ff';
+      ctx.fillRect(x + 1, H - marginB - barH, barW - 2, barH);
+      if (n <= 16) {
+        ctx.fillStyle = '#a3b1c6';
+        ctx.fillText(k.toString(), x + barW / 2 - 3, H - marginB + 14);
+      }
+    }
+    ctx.fillText('γ = ' + gamma + '  (block size ' + bs + ')', marginL, 14);
+    ctx.save();
+    ctx.translate(12, H / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText('w_k', -8, 0);
+    ctx.restore();
+
+    // acceptance strip
+    const strip = document.getElementById('acceptStrip');
+    strip.innerHTML = '';
+    for (let k = 1; k <= n; k++) {
+      const cell = document.createElement('div');
+      let cls;
+      if (k < firstWrong) cls = 'tok-masked';       // accepted (correct)
+      else if (k === firstWrong && firstWrong <= n) cls = 'tok-future';
+      else cls = 'tok-past';
+      cell.className = 'tok-cell ' + (k === firstWrong && firstWrong <= n ? '' : cls);
+      if (k === firstWrong && firstWrong <= n) {
+        cell.style.background = '#ff8a8a';
+        cell.style.color = '#0a0f1a';
+      }
+      cell.textContent = k.toString();
+      strip.appendChild(cell);
+    }
+
+    const accepted = Math.min(firstWrong - 1, n);
+    const stats = document.getElementById('lossStats');
+    if (firstWrong > n) {
+      stats.innerHTML = `All ${n} predicted positions correct → all ${n} drafted tokens accepted this cycle.`;
+    } else {
+      stats.innerHTML =
+        `First wrong prediction at block position k=${firstWrong} (red) → only ${accepted} of the ${n} drafted tokens are accepted, ` +
+        `even if positions after k=${firstWrong} happened to be correct too (gray = never checked).\n` +
+        `This is exactly why w_k decays with k: getting position 1 right is worth more accepted tokens, on average, than getting position ${n} right.`;
+    }
+  }
+
+  document.getElementById('firstWrongSlide').addEventListener('input', drawLossDemo);
+  drawLossDemo();
+
+  // ---------- quiz ----------
+  function answer(btn, correct) {
+    const siblings = btn.parentElement.querySelectorAll('button');
+    siblings.forEach(b => b.disabled = true);
+    btn.classList.add(correct ? 'right' : 'wrong');
+    if (!correct) {
+      siblings.forEach(b => {
+        if (b.getAttribute('onclick').includes('true')) b.classList.add('right');
+      });
+    }
+  }
+</script>
+
+</body>
+</html>

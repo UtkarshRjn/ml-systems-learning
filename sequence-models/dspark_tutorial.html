@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>DSpark: Semi-Autoregressive Drafting + Confidence-Scheduled Verification</title>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2030;
+    --text: #e7ecf3;
+    --muted: #a3b1c6;
+    --accent: #7cc4ff;
+    --accent2: #ffb86b;
+    --good: #6ee7b7;
+    --bad: #ff8a8a;
+    --purple: #c4a3ff;
+    --line: #2a3346;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.65;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 48px 24px 80px; }
+  h1 { font-size: 2.1rem; margin: 0 0 8px; }
+  h2 { color: var(--accent); margin-top: 2.4em; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+  h3 { color: var(--accent2); margin-top: 1.6em; }
+  .subtitle { color: var(--muted); font-size: 1.05rem; margin-bottom: 20px; }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 18px 22px;
+    margin: 18px 0;
+  }
+  .source {
+    background: #14192a;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 14px 20px;
+    margin: 18px 0 32px;
+    font-size: 0.92rem;
+    color: var(--muted);
+  }
+  .source b { color: var(--text); }
+  .source a { color: var(--accent); }
+  .analogy {
+    border-left: 4px solid var(--accent2);
+    background: #1f2535;
+    padding: 14px 18px;
+    margin: 18px 0;
+    border-radius: 4px;
+  }
+  .analogy::before {
+    content: "Analogy";
+    display: block;
+    font-weight: 700;
+    color: var(--accent2);
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .key {
+    border-left: 4px solid var(--good);
+    background: #1c2a26;
+    padding: 14px 18px;
+    margin: 18px 0;
+    border-radius: 4px;
+  }
+  .key::before {
+    content: "Key idea";
+    display: block;
+    font-weight: 700;
+    color: var(--good);
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .system {
+    border-left: 4px solid var(--purple);
+    background: #201c2e;
+    padding: 14px 18px;
+    margin: 18px 0;
+    border-radius: 4px;
+  }
+  .system::before {
+    content: "Systems view";
+    display: block;
+    font-weight: 700;
+    color: var(--purple);
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .lossless {
+    border-left: 4px solid var(--bad);
+    background: #2a1c1c;
+    padding: 14px 18px;
+    margin: 18px 0;
+    border-radius: 4px;
+  }
+  .lossless::before {
+    content: "Losslessness check";
+    display: block;
+    font-weight: 700;
+    color: var(--bad);
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  code {
+    background: #0a0f1a;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.92em;
+    color: #ffd29a;
+  }
+  pre {
+    background: #0a0f1a;
+    border: 1px solid var(--line);
+    padding: 14px 16px;
+    border-radius: 8px;
+    overflow-x: auto;
+    color: #d6dceb;
+  }
+  table { width: 100%; border-collapse: collapse; margin: 14px 0; }
+  th, td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; }
+  th { color: var(--accent); font-weight: 600; }
+  .demo {
+    background: #0a0f1a;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 20px;
+    margin: 20px 0;
+  }
+  .demo label { display: block; margin: 10px 0 4px; color: var(--muted); font-size: 0.92rem; }
+  .demo input[type="range"] { width: 100%; }
+  canvas { background: #050810; border-radius: 6px; display: block; margin-top: 12px; max-width: 100%; }
+  .nav {
+    position: sticky; top: 0;
+    background: rgba(15,20,32,0.92);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line);
+    padding: 10px 24px;
+    font-size: 0.86rem;
+    z-index: 10;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  .nav a { color: var(--muted); margin-right: 14px; text-decoration: none; }
+  .nav a:hover { color: var(--accent); }
+  .footnote { color: var(--muted); font-size: 0.9rem; }
+  .quiz { background: #1f2535; border-radius: 8px; padding: 16px 20px; margin: 18px 0; }
+  .quiz .q { font-weight: 600; margin-bottom: 8px; }
+  .quiz button {
+    background: #2a3346; color: var(--text); border: 1px solid var(--line);
+    padding: 6px 12px; border-radius: 6px; margin: 4px 6px 4px 0; cursor: pointer;
+  }
+  .quiz button.right { background: #1c2a26; border-color: var(--good); color: var(--good); }
+  .quiz button.wrong { background: #2a1c1c; border-color: var(--bad); color: var(--bad); }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 10px; font-size: 0.85rem; color: var(--muted); }
+  .legend .sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: middle; }
+  .toggle-row { margin: 10px 0; }
+  .toggle-btn {
+    background: #2a3346; color: var(--text); border: 1px solid var(--line);
+    padding: 6px 14px; border-radius: 6px; cursor: pointer; margin-right: 8px; font-size: 0.88rem;
+  }
+  .toggle-btn.active { background: var(--accent); color: #0a0f1a; border-color: var(--accent); font-weight: 700; }
+  .statline {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.9rem; color: var(--text); background: #131a29; border: 1px solid var(--line);
+    border-radius: 6px; padding: 10px 14px; margin-top: 12px; white-space: pre-wrap;
+  }
+  .statline b { color: var(--accent); }
+  .token-strip { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 14px; }
+  .tok-cell {
+    width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
+    border-radius: 4px; font-size: 0.68rem; font-family: ui-monospace, monospace; font-weight: 600;
+  }
+  .tok-verify { background: var(--good); color: #0a0f1a; }
+  .tok-prune { background: #131826; color: #3a4460; border: 1px dashed var(--line); }
+  .tok-label { background: #1a2030; color: var(--muted); border: 1px solid var(--line); width: auto; padding: 0 8px; }
+</style>
+</head>
+<body>
+
+<div class="nav">
+  <a href="#recap">Why another drafter</a>
+  <a href="#decay">Suffix decay</a>
+  <a href="#semiar">Semi-autoregression</a>
+  <a href="#conf">Confidence head</a>
+  <a href="#sched">Scheduler</a>
+  <a href="#lossless">Losslessness</a>
+  <a href="#training">Training</a>
+  <a href="#results">Results</a>
+  <a href="#deploy">Deployment</a>
+  <a href="#quiz">Quiz</a>
+</div>
+
+<div class="wrap">
+
+<h1>DSpark: Semi-Autoregressive Drafting + Confidence-Scheduled Verification</h1>
+<p class="subtitle">
+  DeepSeek's production speculative-decoding stack, explained through the one equation it is built
+  to optimize — <code>L = (T_draft + T_verify) / τ</code> — and the one constraint it refuses to
+  break: the output distribution must stay <i>exactly</i> the target model's.
+</p>
+
+<div class="source">
+  <b>Source:</b> Xin Cheng, Xingkai Yu, Chenze Shao, Jiashi Li, Yunfan Xiong, et&nbsp;al.
+  (Peking University &amp; DeepSeek-AI).
+  <i>"DSpark: Confidence-Scheduled Speculative Decoding with Semi-Autoregressive Generation."</i>
+  <a href="https://arxiv.org/abs/2607.05147" target="_blank">arXiv:2607.05147</a> (July 2026).
+  DeepSeek open-sourced the DSpark checkpoints and <b>DeepSpec</b>, a training repo that also
+  reimplements Eagle3 and DFlash. All facts and numbers below come from the paper.
+  Companion reading in this repo:
+  <a href="speculative_decoding_tutorial.html">speculative decoding from scratch</a> and
+  <a href="dflash_training_tutorial.html">how DFlash trains its draft model</a> — DSpark
+  literally uses a (modified) DFlash as its backbone.
+</div>
+
+<!-- ====================================================== -->
+<h2 id="recap">1. Why another drafter? The three levers of speculative decoding</h2>
+<p>
+  Quick recap. A draft model <code>M_d</code> proposes <code>γ</code> tokens; the target
+  <code>M_t</code> verifies them all in one forward pass by rejection sampling, accepting the
+  longest consistent prefix plus one bonus token. Average latency per generated token:
+</p>
+<pre>L = (T_draft + T_verify) / τ        # τ = expected accepted tokens per cycle (incl. the bonus token)</pre>
+<p>There are exactly three ways to improve this, and the two drafter families each nail one:</p>
+<table>
+  <tr><th>Lever</th><th>Autoregressive drafters (Eagle3, MTP)</th><th>Parallel drafters (Medusa, DFlash)</th></tr>
+  <tr><td>Draft faster (↓ T_draft)</td><td>✗ — T_draft ∝ γ, forced shallow</td><td>✓ — one pass, ~constant in γ</td></tr>
+  <tr><td>Draft better (↑ τ)</td><td>✓ — each token conditions on the last</td><td>✗ — positions predicted independently, acceptance decays fast</td></tr>
+  <tr><td>Verify smarter (↓ effective T_verify)</td><td colspan="2" style="text-align:center;">✗ neither — both verify a fixed-length block regardless of content or system load</td></tr>
+</table>
+<div class="key">
+  DSpark's claim is that you can have all three at once: a <b>parallel backbone</b> keeps
+  drafting O(1) in block size, a <b>lightweight sequential head</b> restores intra-block
+  dependencies (draft better), and a <b>confidence-scheduled verifier</b> decides, per request and
+  per system-load, how many draft tokens are even worth sending to the target (verify smarter).
+  The third lever is the novel one — it treats verification length as a global scheduling
+  problem across every request in the batch, not a per-request constant.
+</div>
+
+<!-- ====================================================== -->
+<h2 id="decay">2. The problem: parallel drafters win at position 1 and lose everywhere after</h2>
+<p>
+  The paper's most instructive analysis (its Figure 2) measures <b>position-wise conditional
+  acceptance</b>: at draft position <code>k</code>, among only the cycles where positions
+  <code>1..k−1</code> were all accepted, how often is position <code>k</code> accepted too? This
+  strips out the compounding penalty of earlier rejections and exposes each architecture's raw
+  predictive quality per position. Two opposite patterns emerge:
+</p>
+<ul>
+  <li><b>Parallel (DFlash) starts high, then decays.</b> Because drafting is one pass regardless of
+  depth, DFlash affords 5 layers vs Eagle3's 1 — pure capacity — and wins position 1 decisively
+  (0.88 vs 0.81 on math; 0.72 vs 0.53 on chat). But each later position marginalizes over all
+  possible predecessors instead of conditioning on the sampled ones, so acceptance slides
+  (0.87 → 0.78 on code, 0.72 → 0.63 on chat).</li>
+  <li><b>Autoregressive (Eagle3) starts low, then climbs.</b> Shallow, so weak at position 1 — but
+  once earlier tokens lock in a semantic path, later tokens get easier, and Eagle3 exploits that
+  conditional certainty (0.53 → 0.74 on chat).</li>
+</ul>
+<div class="analogy">
+  A parallel drafter is a committee where every member writes one word of the sentence
+  simultaneously, without seeing each other's drafts. If the context admits two continuations —
+  "of course" and "no problem" — the position-1 writer may pick "of" while the position-2 writer,
+  hedging over both modes, picks "problem". Each word is individually plausible; the pair
+  "of problem" is nonsense. This is the classic <b>multi-modal collision</b> from
+  non-autoregressive machine translation (Gu et al. 2018), resurfacing inside a speculative
+  decoder.
+</div>
+<p>
+  Position 1 matters disproportionately: verification is a strict prefix match, so a rejection
+  there throws away the whole block. That's why DFlash beats Eagle3 on total accepted length
+  despite decaying — its position-1 edge has the highest leverage. But the decay caps how much a
+  longer block can help. The obvious synthesis: keep the deep parallel backbone for the initial
+  capacity, add just enough autoregression to stop the suffix rot.
+</p>
+
+<div class="demo">
+  <h3 style="margin-top:0;">Try it: position-wise acceptance → expected accepted length</h3>
+  <p class="footnote">
+    Conditional acceptance curves for the three drafter families, shaped to match the paper's
+    Figure 2 (Qwen3-4B; exact per-position values are read off the figure, so treat them as
+    illustrative). The statline integrates each curve into the expected accepted length
+    τ = 1 + Σ_j Π_{i≤j} c_i — watch how DFlash's high start but fast decay, and Eagle3's low start
+    but rising tail, both lose to DSpark's "start high, stay high".
+  </p>
+  <div class="toggle-row" id="domainToggle">
+    <button class="toggle-btn active" onclick="setDomain('math', this)">Math</button>
+    <button class="toggle-btn" onclick="setDomain('code', this)">Code</button>
+    <button class="toggle-btn" onclick="setDomain('chat', this)">Chat</button>
+  </div>
+  <canvas id="decayCanvas" width="680" height="300"></canvas>
+  <div class="legend">
+    <span><span class="sw" style="background:#ff8a8a"></span>Eagle3 (autoregressive, 1 layer)</span>
+    <span><span class="sw" style="background:#7cc4ff"></span>DFlash (parallel, 5 layers)</span>
+    <span><span class="sw" style="background:#6ee7b7"></span>DSpark (semi-autoregressive, 5 layers)</span>
+  </div>
+  <div class="statline" id="decayStats"></div>
+</div>
+
+<!-- ====================================================== -->
+<h2 id="semiar">3. Semi-autoregressive generation: a heavy parallel body, a featherweight serial head</h2>
+<p>
+  DSpark's drafter has two stages. The <b>parallel stage</b> is a modified DFlash backbone: one
+  forward pass over the block produces hidden states <code>h_1..h_γ</code> and base logits
+  <code>U_1..U_γ</code>. (The modification: the anchor token itself becomes the first prediction
+  position, so <code>γ</code> inputs — anchor + γ−1 masks — yield <code>γ</code> draft logits
+  instead of needing γ+1 inputs. Slightly less compute, same quality.)
+</p>
+<p>
+  The <b>sequential stage</b> then samples the block left to right, adding a prefix-dependent
+  <b>transition bias</b> <code>B_k</code> on top of the frozen base logits:
+</p>
+<pre>p_k(v | x_0, x_&lt;k) ∝ exp( U_k(v) + B_k(x_0, x_&lt;k, v) )      # x_0 = anchor from the previous cycle</pre>
+<div class="key">
+  The expensive tensor — <code>U_k</code>, produced by the deep backbone — is computed once, in
+  parallel. Only the cheap correction <code>B_k</code> runs serially. Since
+  <code>T_sequential ≪ T_parallel</code>, draft latency stays essentially flat in γ (measured:
+  +0.2%–1.3% full-round latency going from draft length 4 to 16, at batch 128), while the
+  factorized distribution <code>P(X|x_0) = Π_k p_k(x_k | x_0, x_&lt;k)</code> is a genuine causal
+  chain — each token conditions on the tokens actually sampled before it. And crucially for
+  speculative decoding, every <code>p_k</code> is an exact softmax: the exact per-token
+  probabilities that rejection sampling needs. (Globally-normalized alternatives like CRF heads
+  can't provide these — their partition function ruins per-token exactness.)
+</div>
+<p>Two instantiations of the bias <code>B_k</code>, in increasing order of memory span:</p>
+<h3>Markov head (the default)</h3>
+<p>
+  <code>B_k</code> depends only on the immediately preceding token: a first-order transition matrix
+  <code>B(x_{k−1}, ·)</code>. A full V×V table would be enormous, so it's low-rank factorized:
+</p>
+<pre>B = W₁ W₂,   W₁ ∈ ℝ^{V×r},  W₂ ∈ ℝ^{r×V},  r = 256
+B(x_{k−1}, ·) = W₁[x_{k−1}] · W₂          # one embedding lookup + one r×V matvec per step</pre>
+<p>
+  Once position 1 samples "of", the row <code>W₁[of]·W₂</code> boosts "course" and suppresses
+  "problem" at position 2 — the collision dissolves.
+</p>
+<h3>RNN head</h3>
+<p>
+  The Markov head is memoryless beyond one step. The RNN head carries a recurrent state
+  <code>s_k ∈ ℝ^r</code> across the block: each step concatenates
+  <code>z_k = [s_{k−1}; W₁[x_{k−1}]; h_k]</code> and applies a single gated update
+  (<code>s_k = σ(W_g z_k) ⊙ s_{k−1} + (1−σ(W_g z_k)) ⊙ tanh(W_c z_k)</code>), emitting
+  <code>B_k = W₂ᵀ tanh(W_o z_k)</code>. Full prefix memory — but the ablation says it only helps
+  marginally, and mainly at long proposal lengths. Given the deployment friction of a recurrent
+  loop, DeepSeek ships the Markov head.
+</p>
+<div class="key">
+  "A little autoregression goes a long way": with block size fixed at 7, a <b>2-layer</b> DSpark
+  already beats the <b>5-layer</b> DFlash baseline across math, code, and chat. Adding one serial
+  rank-256 bigram correction buys more accepted length than tripling the parallel stack's depth.
+  And the gap widens with block size: +16/15/18% over DFlash (math/code/chat) at γ=7 grows to
+  +30/26/22% at γ=15, because DSpark decays so much more slowly along the block.
+</div>
+
+<div class="demo">
+  <h3 style="margin-top:0;">Try it: the multi-modal collision, with and without the Markov head</h3>
+  <p class="footnote">
+    Toy setting: after the anchor "Sure,", the target model is split 50/50 between the
+    continuations <b>"of course"</b> and <b>"no problem"</b>. A pure parallel drafter samples each
+    position independently from its marginals. Toggle the Markov head and drag the bias strength,
+    then sample a batch of 500 draft blocks and watch the fraction of coherent pairs.
+  </p>
+  <div class="toggle-row" id="markovToggle">
+    <button class="toggle-btn active" onclick="setMarkov(false, this)">Parallel only (DFlash-style)</button>
+    <button class="toggle-btn" onclick="setMarkov(true, this)">+ Markov head (DSpark)</button>
+  </div>
+  <label>Markov bias strength (how sharply W₁[x₁]·W₂ reshapes position 2): <span id="biasVal">0.9</span></label>
+  <input id="biasSlide" type="range" min="0" max="1" step="0.05" value="0.9" />
+  <div class="toggle-row">
+    <button class="toggle-btn" onclick="sampleBlocks()">Sample 500 draft blocks</button>
+  </div>
+  <canvas id="collisionCanvas" width="680" height="220"></canvas>
+  <div class="statline" id="collisionStats">Press "Sample 500 draft blocks".</div>
+</div>
+
+<!-- ====================================================== -->
+<h2 id="conf">4. The confidence head: predicting a token's survival odds before verification</h2>
+<p>
+  Long, high-quality drafts solve the modeling problem but create a systems one: is it worth
+  <i>verifying</i> all γ tokens? Acceptance varies wildly by domain (structured code sustains far
+  longer accepted spans than open-ended chat), and the trailing tokens of a chat draft are likely
+  dead weight. DSpark's first ingredient for "verify smarter" is a per-position <b>confidence
+  head</b> — a single linear probe:
+</p>
+<pre>c_k = σ( wᵀ [ h_k ; W₁[x_{k−1}] ] )      # h_k: backbone hidden state, W₁[x_{k−1}]: Markov embedding of the sampled predecessor</pre>
+<p>
+  <code>c_k</code> estimates the <i>conditional</i> probability that draft token <code>k</code>
+  survives verification given that positions <code>1..k−1</code> were all accepted. By the chain
+  rule, the probability that the whole prefix up to <code>j</code> survives is the running product
+  <code>a_j = Π_{i≤j} c_i</code>. Supervision is elegant: the true per-step acceptance rate has a
+  closed form from speculative-sampling theory,
+</p>
+<pre>c*_k = 1 − ½ · ‖ p_d^k − p_t^k ‖₁        # 1 − total variation distance between draft and target distributions</pre>
+<p>
+  so the head is trained with binary cross-entropy against this analytical soft label — no extra
+  rollouts needed, just the two distributions already computed during training.
+</p>
+<h3>Post-hoc calibration: Sequential Temperature Scaling</h3>
+<p>
+  Threshold-style heuristics only need confidences to <i>rank</i> tokens correctly. DSpark's
+  scheduler needs their <i>absolute magnitudes</i> — it literally computes expected accepted
+  tokens as sums of the <code>a_j</code>. Raw neural confidences are overconfident (ECE 3–8%
+  despite good discrimination, ROC-AUC 0.81–0.90). The fix, <b>Sequential Temperature Scaling</b>:
+  walk positions left to right, and at each position grid-search one temperature scalar that
+  minimizes the calibration error of the <i>cumulative product</i>, holding earlier positions
+  fixed. Temperature scaling is order-preserving — rankings survive — and average ECE drops to
+  ~1%.
+</p>
+<div class="key">
+  A static threshold sweep validates the head in isolation: pruning tokens below a confidence bar
+  raises chat's overall acceptance rate from 45.7% to 95.7% (math: 76.9→92.5%, code: 67.6→92.0%)
+  by discarding exactly the tokens that would have been rejected anyway. Chat prunes hardest —
+  high-entropy domains are where fixed-length verification wastes the most.
+</div>
+
+<!-- ====================================================== -->
+<h2 id="sched">5. The hardware-aware prefix scheduler: verification length as a throughput problem</h2>
+<p>
+  Here is the paper's central systems insight. A static confidence threshold ignores <b>load</b>:
+  under light traffic, verifying a dubious token is nearly free (the GPU had idle capacity anyway);
+  under heavy traffic, that same token occupies batch capacity another request needed. So DSpark
+  frames verification-length selection across all <code>R</code> active requests as one
+  optimization:
+</p>
+<pre>maximize   Θ = τ · SPS(B)
+where      B  = Σ_r (1 + ℓ_r)                    # total tokens sent to the target this step
+           τ  = Σ_r (1 + Σ_{j≤ℓ_r} a_{r,j})      # expected accepted tokens (the +1s are bonus tokens)
+           SPS(B) = engine steps-per-second at batch size B   # profiled once at engine init</pre>
+<p>
+  The structure makes this easy to solve greedily. Since <code>a_{r,j}</code> is non-increasing in
+  <code>j</code>, the marginal gain from extending request <code>r</code>'s verification from
+  <code>j−1</code> to <code>j</code> is exactly <code>a_{r,j}</code>. So: pool <i>every</i>
+  candidate token from every request, sort globally by survival probability, and admit them one by
+  one — updating <code>Θ = τ·SPS(B)</code> from the profiled cost table after each admission — and
+  <b>stop the moment Θ drops</b>. The sort order automatically respects prefix structure (a
+  token's survival probability is never higher than its predecessor's), and the early stop is
+  load-awareness incarnate: when SPS(B) is flat (idle GPU), nearly everything gets admitted; when
+  SPS(B) is falling steeply (saturated GPU), only near-certain tokens make the cut.
+</p>
+<div class="analogy">
+  It's an airline seat-upgrade queue. Every draft token is a standby passenger whose "show-up
+  probability" is its survival estimate <code>a_{r,j}</code>. Boarding one more standby is free
+  while the plane has empty seats (flat SPS), but once you'd have to swap to a bigger, slower
+  aircraft (SPS cliff), you only board passengers near-certain to show. Sorting globally by
+  probability and stopping when expected passengers-per-hour drops is precisely the greedy
+  admission loop.
+</div>
+
+<div class="demo">
+  <h3 style="margin-top:0;">Try it: the greedy admission loop under load</h3>
+  <p class="footnote">
+    Each request drafts γ=8 tokens with domain-dependent confidence decay (code decays slowly,
+    chat fast; per-request jitter fixed by seed). The scheduler pools all tokens, sorts by
+    cumulative survival a<sub>r,j</sub>, and admits greedily; the curve shows expected throughput
+    Θ = τ·SPS(B) after each admission, with the early-stop peak marked. Below, each request's
+    scheduled prefix: green = sent for verification, dashed = pruned. Crank concurrency up and
+    watch per-request budgets shrink — this is Figure 8 of the paper in miniature.
+  </p>
+  <label>Concurrent requests R: <span id="reqVal">4</span></label>
+  <input id="reqSlide" type="range" min="1" max="12" step="1" value="4" />
+  <label>GPU saturation point (batch size where SPS starts degrading): <span id="satVal">24</span></label>
+  <input id="satSlide" type="range" min="8" max="64" step="4" value="24" />
+  <div class="toggle-row" id="schedDomainToggle">
+    <button class="toggle-btn" onclick="setSchedDomain('code', this)">Code-like traffic</button>
+    <button class="toggle-btn active" onclick="setSchedDomain('mixed', this)">Mixed traffic</button>
+    <button class="toggle-btn" onclick="setSchedDomain('chat', this)">Chat-like traffic</button>
+  </div>
+  <canvas id="schedCanvas" width="680" height="240"></canvas>
+  <div id="schedStrips"></div>
+  <div class="statline" id="schedStats"></div>
+</div>
+
+<!-- ====================================================== -->
+<h2 id="lossless">6. Why it stays lossless: the non-anticipating property</h2>
+<p>
+  Speculative decoding's exactness proof requires that the decision to <i>admit</i> draft token
+  <code>k</code> for verification must not depend on the <i>value</i> of token <code>k</code> (or
+  anything downstream of it). DSpark's confidence head threatens this subtly: <code>c_{k+1}</code>
+  is computed from the Markov embedding of the sampled token <code>x_k</code>. So if the scheduler
+  searched <i>past</i> a throughput dip to check whether later admissions pay off, the
+  continuation-dependent <code>c_{k+1}</code> would leak information about <code>x_k</code> back
+  into <code>x_k</code>'s own admission decision.
+</p>
+<div class="lossless">
+  The paper's Appendix A counterexample, in full. One request, γ=2, first-token survival
+  a₁ = 0.8, capacity curve SPS(1)=1.0, SPS(2)=0.5, SPS(3)=0.45. Then Θ₀ = 1·1.0 = <b>1.0</b> and
+  Θ₁ = 1.8·0.5 = <b>0.9</b> — a dip. A retrospective scheduler peeks at Θ₂, which depends on c₂,
+  which depends on the sampled x₁: if x₁ leads to c₂=0.9, Θ₂ = 2.52·0.45 = <b>1.134</b> → admit
+  x₁ (ℓ=2); if x₁ leads to c₂=0, Θ₂ = 1.8·0.45 = <b>0.81</b> → drop x₁ (ℓ=0). The token's own
+  value decided its admission. Concretely, with target (0.7, 0.3) and draft (0.5, 0.5) over
+  {A, B}, this scheduler outputs A with probability 0.85 instead of 0.7 — <b>the target
+  distribution is broken</b>. The early-stopping break in the greedy loop prevents exactly this:
+  it halts at the Θ₁ &lt; Θ₀ dip, before any continuation-dependent quantity is ever consulted.
+</div>
+<p>
+  One catch: stopping at the first dip finds the global optimum only if Θ is unimodal in the
+  admission count — true for a smoothly decaying SPS curve, false for real hardware. The
+  production fix is in <a href="#deploy">§9</a>, and it's clever: make the search global again,
+  but feed it only stale information that <i>cannot</i> depend on the current tokens.
+</p>
+
+<!-- ====================================================== -->
+<h2 id="training">7. Training: three losses, one frozen target</h2>
+<p>
+  Training mirrors DFlash's recipe (anchors sampled from target sequences to form γ-token blocks;
+  target model frozen; embedding and LM head shared with the target and frozen; only the backbone,
+  sequential head, and confidence head update). Every term is weighted by the same
+  position-decay <code>w_k = exp(−(k−1)/γ)</code> — early block positions carry more expected
+  acceptance length, so they carry more gradient. The objective stacks three losses:
+</p>
+<pre>L = 0.1 · L_ce  +  0.9 · L_tv  +  1.0 · L_conf
+
+L_ce   = − Σ_k w_k · log p_d^k(x*_k)                    # predict the target's actual next token
+L_tv   =   Σ_k w_k · ‖ p_d^k − p_t^k ‖₁                 # match the target's full distribution
+L_conf = − Σ_k w_k · BCE( c_k , c*_k )                  # confidence head vs analytical acceptance label</pre>
+<div class="key">
+  Note the weighting: the total-variation loss dominates cross-entropy 9-to-1. That's because TV
+  distance <i>is</i> the acceptance rate — per-step acceptance equals
+  <code>1 − ½‖p_d − p_t‖₁</code> exactly — so minimizing L_tv directly maximizes the quantity
+  speculative decoding cares about. Cross-entropy is just a stabilizing auxiliary. And L_conf gets
+  its labels for free from the same two distributions.
+</div>
+
+<!-- ====================================================== -->
+<h2 id="results">8. Offline results: how much does each idea buy?</h2>
+<p>
+  Setup: Qwen3-{4B, 8B, 14B} and Gemma4-12B targets; all three drafters (Eagle3, DFlash, DSpark)
+  retrained in the same framework on the same data (Open-PerfectBlend prompts, responses
+  regenerated by each target — the same self-distillation trick DFlash uses), block size 7,
+  chain drafting, temperature 1.0, accepted length τ includes the bonus token.
+</p>
+<table>
+  <tr><th>Qwen3-4B target</th><th>GSM8K</th><th>MT-Bench</th><th>Macro avg vs. Eagle3</th><th>vs. DFlash</th></tr>
+  <tr><td>Eagle3 (autoregressive)</td><td>5.14</td><td>2.39</td><td>—</td><td>—</td></tr>
+  <tr><td>DFlash (parallel)</td><td>5.40</td><td>3.07</td><td>+12.5%</td><td>—</td></tr>
+  <tr><td><b>DSpark (semi-AR)</b></td><td><b>6.11</b></td><td><b>3.64</b></td><td><b>+30.9%</b></td><td><b>+16.3%</b></td></tr>
+</table>
+<p class="footnote">
+  Accepted length τ per round. Across scales the pattern holds: +30.9/26.7/30.0% over Eagle3 and
+  +16.3/18.4/18.3% over DFlash on Qwen3-4B/8B/14B, and the gains transfer to Gemma4-12B (where,
+  interestingly, DFlash alone <i>loses</i> to Eagle3 — 5.45 vs 5.87 on GSM8K — but DSpark still
+  wins at 6.05: the sequential head rescues the parallel backbone).
+</p>
+<p>
+  The domain spread motivates everything in §4–5: for Qwen3-4B DSpark, math averages τ≈5.57 and
+  code 5.12, but chat only 3.49. Same drafter, same block size — wildly different numbers of
+  tokens actually worth verifying.
+</p>
+
+<!-- ====================================================== -->
+<h2 id="deploy">9. Production deployment in DeepSeek-V4</h2>
+<p>
+  DSpark replaced MTP-1 (single-token multi-token-prediction drafting, the DeepSeek-V3-era
+  baseline) as the production drafter for DeepSeek-V4-Flash and V4-Pro two weeks after the
+  V4-preview release. The deployed configuration: a parallel backbone of <b>3 MoE layers</b> with
+  a 128-token sliding window, block size <b>γ=5</b>, <b>Markov head</b>, confidence head calibrated
+  with STS. Notably, MTP-3/5 (just verifying more static tokens) had always been rejected in
+  production because it strictly degrades throughput under high concurrency — the scheduler is
+  what makes long drafts safe to deploy.
+</p>
+<h3>Making the scheduler real</h3>
+<div class="system">
+  Algorithm 1 assumes a smooth SPS curve and a scheduler that can act synchronously between
+  steps. Real engines have jagged, cliff-shaped SPS(B) (kernel tiling boundaries), and
+  Zero-Overhead Scheduling needs the next step's batch size <i>before</i> the current step
+  finishes. The deployed adaptation: the truncation capacity K for the upcoming step is estimated
+  from confidence outputs <b>two steps prior</b>, while the actual candidate ranking still uses
+  up-to-date survival scores — a dynamic top-K where the K is stale but the ranking is fresh.
+  This buys two things at once. (1) Scheduling latency disappears into the pipeline, keeping CUDA
+  graphs / ZOS intact. (2) The early-stopping break can be <i>removed</i> — the global search
+  across jagged SPS cliffs is now safe, because decisions depend only on two-step-old
+  information, which forms a causal barrier: no current token's value can influence its own
+  admission. Losslessness is preserved not by restricting the search, but by making its inputs
+  stale.
+</div>
+<p>
+  Two further engineering notes. Training-side: instead of shipping full-vocabulary target logits
+  (V≈10⁵) between workers, only pre-LM-head hidden states move (O(d) per token), with the shared
+  frozen head applied locally; and draft blocks are packed via anchor-bounded token-level
+  attention indices, decoupling draft training cost from target context length. Inference-side:
+  variable per-request verification lengths break fixed-query-length decode kernels, so tokens
+  are flattened into one stream with sequence structure carried by a marker tensor — on
+  DeepSeek-V4 only the index-attention and compress kernels needed modification.
+</p>
+<h3>What it bought under live traffic</h3>
+<table>
+  <tr><th>Engine</th><th>Moderate SLA</th><th>Strict SLA</th><th>Per-user speed at matched throughput</th></tr>
+  <tr><td>V4-Flash</td><td>+51% throughput @ 80 tok/s/user</td><td>frontier extended @ 120 tok/s/user (nominal +661% over a collapsing baseline)</td><td>+60–85%</td></tr>
+  <tr><td>V4-Pro</td><td>+52% throughput @ 35 tok/s/user</td><td>frontier extended @ 50 tok/s/user (nominal +406%)</td><td>+57–78%</td></tr>
+</table>
+<p>
+  The mechanism is visible in the telemetry: under moderate concurrency the scheduler expands
+  per-request verification budgets to ~4–6 tokens (vs MTP-1's static 2), converting idle compute
+  into accepted tokens; as concurrency saturates the target, budgets shrink smoothly, protecting
+  batch capacity. The paper is careful about the huge strict-SLA percentages: they mostly mean the
+  <i>baseline</i> collapses to a tiny feasible batch there, i.e. DSpark unlocks interactivity
+  tiers that previously didn't exist, rather than being 7× faster at a healthy operating point.
+</p>
+<p class="footnote">
+  Stated limitation: the parallel backbone always pays the full γ-block drafting cost up front,
+  even for hard requests where little will be accepted — difficulty-aware early exit inside the
+  drafter is left as future work.
+</p>
+
+<!-- ====================================================== -->
+<h2 id="quiz">Quick check</h2>
+
+<div class="quiz">
+  <div class="q">Q1. In the position-wise conditional acceptance analysis, why does the parallel drafter (DFlash) beat the autoregressive one (Eagle3) at position 1?</div>
+  <button onclick="answer(this, false)">Because parallel drafters see the sampled prefix while Eagle3 doesn't</button>
+  <button onclick="answer(this, true)">Pure capacity: since parallel drafting is one pass regardless of depth, DFlash affords 5 layers where Eagle3's O(γ) drafting cost forces 1 — and at position 1 both condition on identical information, so depth decides</button>
+  <button onclick="answer(this, false)">Position 1 is masked during Eagle3 training</button>
+</div>
+
+<div class="quiz">
+  <div class="q">Q2. What exactly does DSpark's sequential stage add to the parallel backbone's output?</div>
+  <button onclick="answer(this, false)">It reranks complete candidate blocks generated by the backbone</button>
+  <button onclick="answer(this, true)">A prefix-dependent transition bias B_k added to the frozen base logits inside a causal factorization — each p_k stays an exact softmax, so per-token probabilities remain valid for rejection sampling</button>
+  <button onclick="answer(this, false)">A second full transformer pass conditioned on the sampled tokens</button>
+</div>
+
+<div class="quiz">
+  <div class="q">Q3. Why does the confidence head need calibration (STS) when threshold-based methods get away without it?</div>
+  <button onclick="answer(this, false)">Because the confidence head is trained with the wrong loss</button>
+  <button onclick="answer(this, true)">Thresholding only needs correct rankings, but the scheduler computes expected accepted tokens from cumulative products of the raw values — so absolute magnitudes must match empirical acceptance rates, and overconfident estimates would distort the throughput objective</button>
+  <button onclick="answer(this, false)">STS is what makes the head's outputs differentiable</button>
+</div>
+
+<div class="quiz">
+  <div class="q">Q4. Why can removing the early-stopping break from Algorithm 1 make decoding lossy?</div>
+  <button onclick="answer(this, true)">Later survival estimates depend (via the Markov feature) on the values of already-sampled tokens, so a retrospective search leaks a token's own value into its admission decision — selection bias that provably shifts the output distribution</button>
+  <button onclick="answer(this, false)">The search becomes too slow to run between decoding steps</button>
+  <button onclick="answer(this, false)">It can't — early stopping is purely a speed optimization</button>
+</div>
+
+<div class="quiz">
+  <div class="q">Q5. How does the production deployment run an unconstrained global search over the jagged SPS curve without reintroducing that selection bias?</div>
+  <button onclick="answer(this, false)">It re-derives the proof for non-unimodal objectives</button>
+  <button onclick="answer(this, false)">It verifies every draft token, so no admission decision is needed</button>
+  <button onclick="answer(this, true)">The truncation capacity is estimated from confidence outputs two steps prior — stale information forms a causal barrier, so no current token's value can influence its own admission, while the ranking itself stays fresh and rank-preserving</button>
+</div>
+
+<div class="quiz">
+  <div class="q">Q6. Why is the distribution-matching loss weighted 9× heavier than cross-entropy?</div>
+  <button onclick="answer(this, false)">Cross-entropy gradients explode on large vocabularies</button>
+  <button onclick="answer(this, true)">Per-step acceptance probability equals exactly 1 − ½‖p_d − p_t‖₁, so minimizing total variation distance directly maximizes the acceptance rate — the true objective; cross-entropy is only an auxiliary</button>
+  <button onclick="answer(this, false)">The paper found the weights don't matter</button>
+</div>
+
+<div class="quiz">
+  <div class="q">Q7. Under heavy concurrency, the scheduler shrinks per-request verification budgets. What is the underlying economic reason?</div>
+  <button onclick="answer(this, false)">Long drafts become less accurate when the GPU is busy</button>
+  <button onclick="answer(this, true)">When SPS(B) is falling steeply, a low-confidence token's expected accepted-token gain no longer covers the throughput cost of the batch slot it occupies — capacity another request could convert to near-certain tokens</button>
+  <button onclick="answer(this, false)">KV-cache memory runs out at large batch sizes</button>
+</div>
+
+</div>
+
+<script>
+  // =====================================================
+  // Demo 1: position-wise conditional acceptance curves
+  // Shaped to match paper Figure 2 (Qwen3-4B); illustrative.
+  // =====================================================
+  const CURVES = {
+    math: {
+      eagle3: [0.81, 0.82, 0.83, 0.84, 0.84, 0.85, 0.85],
+      dflash: [0.88, 0.86, 0.84, 0.82, 0.81, 0.79, 0.78],
+      dspark: [0.93, 0.91, 0.90, 0.89, 0.88, 0.88, 0.87],
+    },
+    code: {
+      eagle3: [0.70, 0.72, 0.74, 0.75, 0.76, 0.77, 0.77],
+      dflash: [0.87, 0.85, 0.83, 0.81, 0.80, 0.79, 0.78],
+      dspark: [0.90, 0.89, 0.88, 0.87, 0.86, 0.85, 0.85],
+    },
+    chat: {
+      eagle3: [0.53, 0.60, 0.66, 0.70, 0.72, 0.73, 0.74],
+      dflash: [0.72, 0.70, 0.68, 0.66, 0.65, 0.64, 0.63],
+      dspark: [0.78, 0.77, 0.76, 0.75, 0.74, 0.73, 0.72],
+    },
+  };
+  const CURVE_COLORS = { eagle3: '#ff8a8a', dflash: '#7cc4ff', dspark: '#6ee7b7' };
+  let currentDomain = 'math';
+
+  function expectedTau(cs) {
+    let tau = 1, prod = 1;         // 1 = bonus token
+    for (const c of cs) { prod *= c; tau += prod; }
+    return tau;
+  }
+
+  function setDomain(d, btn) {
+    currentDomain = d;
+    document.querySelectorAll('#domainToggle .toggle-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    drawDecay();
+  }
+
+  function drawDecay() {
+    const cv = document.getElementById('decayCanvas');
+    const ctx = cv.getContext('2d');
+    const W = cv.width, H = cv.height;
+    ctx.clearRect(0, 0, W, H);
+    const mL = 48, mR = 16, mT = 18, mB = 34;
+    const yMin = 0.4, yMax = 1.0;
+    const n = 7;
+    const x = k => mL + (k - 1) / (n - 1) * (W - mL - mR);
+    const y = v => mT + (yMax - v) / (yMax - yMin) * (H - mT - mB);
+
+    ctx.strokeStyle = '#2a3346';
+    ctx.fillStyle = '#a3b1c6';
+    ctx.font = '11px system-ui';
+    for (let g = 0.4; g <= 1.001; g += 0.1) {
+      ctx.beginPath(); ctx.moveTo(mL, y(g)); ctx.lineTo(W - mR, y(g)); ctx.stroke();
+      ctx.fillText(g.toFixed(1), 14, y(g) + 4);
+    }
+    for (let k = 1; k <= n; k++) ctx.fillText(k.toString(), x(k) - 3, H - 14);
+    ctx.fillText('draft position k', W / 2 - 40, H - 2);
+    ctx.save(); ctx.translate(6, H / 2 + 50); ctx.rotate(-Math.PI / 2);
+    ctx.fillText('conditional acceptance', 0, 0); ctx.restore();
+
+    const data = CURVES[currentDomain];
+    for (const name of ['eagle3', 'dflash', 'dspark']) {
+      const cs = data[name];
+      ctx.strokeStyle = CURVE_COLORS[name];
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      cs.forEach((v, i) => { const px = x(i + 1), py = y(v); i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py); });
+      ctx.stroke();
+      ctx.fillStyle = CURVE_COLORS[name];
+      cs.forEach((v, i) => { ctx.beginPath(); ctx.arc(x(i + 1), y(v), 3.5, 0, 7); ctx.fill(); });
+    }
+
+    const tE = expectedTau(data.eagle3), tF = expectedTau(data.dflash), tS = expectedTau(data.dspark);
+    document.getElementById('decayStats').innerHTML =
+      `Expected accepted length τ = 1 + Σ_j Π_{i≤j} c_i  (γ=7, bonus token included):\n` +
+      `Eagle3 ≈ <b>${tE.toFixed(2)}</b>   DFlash ≈ <b>${tF.toFixed(2)}</b>   DSpark ≈ <b>${tS.toFixed(2)}</b>\n` +
+      `DSpark keeps DFlash's position-1 head start AND Eagle3's flat tail — the product compounds both advantages.`;
+  }
+  drawDecay();
+
+  // =====================================================
+  // Demo 2: multi-modal collision + Markov head
+  // =====================================================
+  let markovOn = false;
+
+  function setMarkov(on, btn) {
+    markovOn = on;
+    document.querySelectorAll('#markovToggle .toggle-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    sampleBlocks();
+  }
+
+  function sampleBlocks() {
+    const s = parseFloat(document.getElementById('biasSlide').value);
+    document.getElementById('biasVal').textContent = s.toFixed(2);
+    const N = 500;
+    // position 1 marginal: of 0.5 / no 0.5
+    // position 2: independent marginal course 0.5 / problem 0.5
+    //   with Markov head: P(course | of) = 0.5 + 0.5s ; P(course | no) = 0.5 - 0.5s
+    let coherent = 0;
+    const pairCounts = { 'of course': 0, 'no problem': 0, 'of problem': 0, 'no course': 0 };
+    for (let i = 0; i < N; i++) {
+      const first = Math.random() < 0.5 ? 'of' : 'no';
+      let pCourse = 0.5;
+      if (markovOn) pCourse = first === 'of' ? 0.5 + 0.5 * s : 0.5 - 0.5 * s;
+      const second = Math.random() < pCourse ? 'course' : 'problem';
+      const pair = first + ' ' + second;
+      pairCounts[pair]++;
+      if (pair === 'of course' || pair === 'no problem') coherent++;
+    }
+    drawCollision(pairCounts, N);
+    const pct = (100 * coherent / N).toFixed(1);
+    document.getElementById('collisionStats').innerHTML =
+      (markovOn
+        ? `Markov head ON (bias ${s.toFixed(2)}): <b>${pct}%</b> of sampled blocks are coherent.`
+        : `Parallel only: <b>${pct}%</b> coherent — with independent positions the theoretical ceiling is 50%, `
+          + `no matter how well each marginal is modeled.`) +
+      `\nCoherent pairs survive target verification at position 2; incoherent pairs ("of problem", "no course") get rejected there, ` +
+      `truncating the block. This is suffix decay at its smallest scale.`;
+  }
+
+  function drawCollision(counts, N) {
+    const cv = document.getElementById('collisionCanvas');
+    const ctx = cv.getContext('2d');
+    const W = cv.width, H = cv.height;
+    ctx.clearRect(0, 0, W, H);
+    const pairs = ['of course', 'no problem', 'of problem', 'no course'];
+    const colors = ['#6ee7b7', '#6ee7b7', '#ff8a8a', '#ff8a8a'];
+    const mL = 40, mB = 40, mT = 20;
+    const barW = (W - mL - 30) / pairs.length;
+    ctx.font = '12px system-ui';
+    pairs.forEach((p, i) => {
+      const frac = counts[p] / N;
+      const h = frac * (H - mT - mB) / 0.55;   // scale: 55% fills the plot
+      const x = mL + i * barW + 14;
+      ctx.fillStyle = colors[i];
+      ctx.fillRect(x, H - mB - h, barW - 28, h);
+      ctx.fillStyle = '#a3b1c6';
+      ctx.fillText(p, x + (barW - 28) / 2 - ctx.measureText(p).width / 2, H - mB + 16);
+      ctx.fillStyle = '#e7ecf3';
+      ctx.fillText((100 * frac).toFixed(0) + '%', x + (barW - 28) / 2 - 10, H - mB - h - 6);
+    });
+    ctx.fillStyle = '#a3b1c6';
+    ctx.fillText('green = coherent (target-consistent)   red = multi-modal collision', mL, 14);
+  }
+
+  document.getElementById('biasSlide').addEventListener('input', sampleBlocks);
+  sampleBlocks();
+
+  // =====================================================
+  // Demo 3: hardware-aware prefix scheduler
+  // =====================================================
+  const GAMMA = 8;
+  let schedDomain = 'mixed';
+
+  // deterministic per-request pseudo-randomness
+  function mulberry32(seed) {
+    return function () {
+      seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+      let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+
+  function confProfile(domain, rIdx) {
+    const rng = mulberry32(1000 + rIdx * 77);
+    let base, decay;
+    if (domain === 'code') { base = 0.92; decay = 0.015; }
+    else if (domain === 'chat') { base = 0.72; decay = 0.06; }
+    else { // mixed: alternate request types
+      if (rIdx % 3 === 0) { base = 0.92; decay = 0.015; }
+      else if (rIdx % 3 === 1) { base = 0.82; decay = 0.04; }
+      else { base = 0.72; decay = 0.06; }
+    }
+    const cs = [];
+    for (let k = 0; k < GAMMA; k++) {
+      const jitter = (rng() - 0.5) * 0.08;
+      cs.push(Math.min(0.99, Math.max(0.05, base - decay * k + jitter)));
+    }
+    return cs;
+  }
+
+  function SPS(B, sat) {
+    // flat until saturation, then smooth degradation
+    return B <= sat ? 1.0 : 1.0 / (1 + 0.12 * (B - sat));
+  }
+
+  function setSchedDomain(d, btn) {
+    schedDomain = d;
+    document.querySelectorAll('#schedDomainToggle .toggle-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    runScheduler();
+  }
+
+  function runScheduler() {
+    const R = parseInt(document.getElementById('reqSlide').value, 10);
+    const sat = parseInt(document.getElementById('satSlide').value, 10);
+    document.getElementById('reqVal').textContent = R;
+    document.getElementById('satVal').textContent = sat;
+
+    // build survival products and global candidate pool
+    const requests = [];
+    const pool = [];
+    for (let r = 0; r < R; r++) {
+      const cs = confProfile(schedDomain, r);
+      const a = [];
+      let prod = 1;
+      for (let j = 0; j < GAMMA; j++) { prod *= cs[j]; a.push(prod); pool.push({ r, j, a: prod }); }
+      requests.push({ cs, a, len: 0 });
+    }
+    pool.sort((p, q) => q.a - p.a);
+
+    // greedy admission with early stopping (Algorithm 1)
+    let B = R, tau = R;                        // every request always gets its bonus-token slot
+    let bestTheta = tau * SPS(B, sat);
+    const thetaTrace = [bestTheta];
+    let bestLens = requests.map(() => 0);
+    const curLens = requests.map(() => 0);
+    let admitted = 0, stoppedAt = 0;
+    for (const cand of pool) {
+      // prefix constraint: can only extend r's length to j+1 if current length is j
+      if (curLens[cand.r] !== cand.j) continue; // sort order guarantees this rarely skips; safety
+      curLens[cand.r] = cand.j + 1;
+      B += 1; tau += cand.a; admitted += 1;
+      const theta = tau * SPS(B, sat);
+      thetaTrace.push(theta);
+      if (theta > bestTheta) {
+        bestTheta = theta; bestLens = curLens.slice(); stoppedAt = admitted;
+      } else {
+        break;                                  // early stop: non-anticipating property
+      }
+    }
+
+    drawSchedChart(thetaTrace, stoppedAt);
+    drawSchedStrips(requests, bestLens);
+
+    const totalDrafted = R * GAMMA;
+    const totalVerified = bestLens.reduce((s, l) => s + l, 0);
+    const avgBudget = (totalVerified / R).toFixed(2);
+    const finalB = R + totalVerified;
+    let expTau = R;
+    requests.forEach((req, r) => { for (let j = 0; j < bestLens[r]; j++) expTau += req.a[j]; });
+    document.getElementById('schedStats').innerHTML =
+      `R=${R} requests × γ=${GAMMA} drafted = ${totalDrafted} candidate tokens → scheduler admits <b>${totalVerified}</b> ` +
+      `(avg budget ${avgBudget} tokens/request), verification batch B=${finalB}.\n` +
+      `Expected accepted tokens τ ≈ ${expTau.toFixed(2)}, engine speed SPS(B) = ${SPS(finalB, sat).toFixed(3)}, ` +
+      `expected throughput Θ = τ·SPS(B) ≈ <b>${bestTheta.toFixed(2)}</b>.\n` +
+      `Raise R past the saturation point and watch avg budget fall — the same drafts get pruned harder as capacity tightens.`;
+  }
+
+  function drawSchedChart(trace, stoppedAt) {
+    const cv = document.getElementById('schedCanvas');
+    const ctx = cv.getContext('2d');
+    const W = cv.width, H = cv.height;
+    ctx.clearRect(0, 0, W, H);
+    const mL = 48, mR = 16, mT = 18, mB = 34;
+    const maxTheta = Math.max(...trace) * 1.08;
+    const n = trace.length;
+    const x = i => mL + (n === 1 ? 0 : i / (n - 1) * (W - mL - mR));
+    const y = v => mT + (1 - v / maxTheta) * (H - mT - mB);
+
+    ctx.strokeStyle = '#2a3346';
+    ctx.beginPath();
+    ctx.moveTo(mL, H - mB); ctx.lineTo(W - mR, H - mB);
+    ctx.moveTo(mL, mT); ctx.lineTo(mL, H - mB);
+    ctx.stroke();
+
+    ctx.strokeStyle = '#7cc4ff';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    trace.forEach((v, i) => { i === 0 ? ctx.moveTo(x(i), y(v)) : ctx.lineTo(x(i), y(v)); });
+    ctx.stroke();
+
+    // mark the early-stop peak
+    ctx.fillStyle = '#6ee7b7';
+    ctx.beginPath(); ctx.arc(x(stoppedAt), y(trace[stoppedAt]), 6, 0, 7); ctx.fill();
+    ctx.fillStyle = '#a3b1c6';
+    ctx.font = '12px system-ui';
+    ctx.fillText('admitted candidate tokens (in global confidence order) →', W / 2 - 150, H - 8);
+    ctx.save(); ctx.translate(12, H / 2 + 40); ctx.rotate(-Math.PI / 2);
+    ctx.fillText('expected Θ = τ·SPS(B)', 0, 0); ctx.restore();
+    ctx.fillStyle = '#6ee7b7';
+    ctx.fillText('← early stop (peak Θ)', Math.min(x(stoppedAt) + 10, W - 150), y(trace[stoppedAt]) - 8);
+    if (trace.length > stoppedAt + 1) {
+      ctx.fillStyle = '#ff8a8a';
+      ctx.fillText('Θ dropped → break', Math.min(x(trace.length - 1) - 60, W - 130), y(trace[trace.length - 1]) + 18);
+    }
+  }
+
+  function drawSchedStrips(requests, lens) {
+    const host = document.getElementById('schedStrips');
+    host.innerHTML = '';
+    requests.forEach((req, r) => {
+      const strip = document.createElement('div');
+      strip.className = 'token-strip';
+      const lab = document.createElement('div');
+      lab.className = 'tok-cell tok-label';
+      lab.textContent = 'req ' + (r + 1);
+      strip.appendChild(lab);
+      for (let j = 0; j < GAMMA; j++) {
+        const cell = document.createElement('div');
+        cell.className = 'tok-cell ' + (j < lens[r] ? 'tok-verify' : 'tok-prune');
+        cell.textContent = req.a[j].toFixed(2).slice(1);   // ".87" style survival prob
+        cell.title = 'survival a=' + req.a[j].toFixed(3);
+        strip.appendChild(cell);
+      }
+      host.appendChild(strip);
+    });
+  }
+
+  document.getElementById('reqSlide').addEventListener('input', runScheduler);
+  document.getElementById('satSlide').addEventListener('input', runScheduler);
+  runScheduler();
+
+  // ---------- quiz ----------
+  function answer(btn, correct) {
+    const siblings = btn.parentElement.querySelectorAll('button');
+    siblings.forEach(b => b.disabled = true);
+    btn.classList.add(correct ? 'right' : 'wrong');
+    if (!correct) {
+      siblings.forEach(b => {
+        if (b.getAttribute('onclick').includes('true')) b.classList.add('right');
+      });
+    }
+  }
+</script>
+
+</body>
+</html>
